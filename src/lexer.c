@@ -57,27 +57,6 @@ struct Tokens lex(struct Arena* arena, char* input) {
     return toks;
 }
 
-char* lexer_tokenkind_name(enum Tokenkind kind) {
-#define ENTRY(TK) [TK_ ## TK] = #TK
-    char* lookup[] = {
-        ENTRY(Func), ENTRY(Return),
-        ENTRY(Loop), ENTRY(Break),
-        ENTRY(If), ENTRY(Else),
-        ENTRY(Let), ENTRY(Mut),
-        ENTRY(Type), ENTRY(As),
-        ENTRY(Operator), ENTRY(Equals),
-        ENTRY(OpenParen), ENTRY(CloseParen),
-        ENTRY(OpenBrace), ENTRY(CloseBrace),
-        ENTRY(OpenBracket), ENTRY(CloseBracket),
-        ENTRY(Semicolon), ENTRY(Colon),
-        ENTRY(DoubleColon), ENTRY(Comma),
-        ENTRY(String), ENTRY(Number),
-        ENTRY(Bool), ENTRY(Name)
-    };
-#undef ENTRY
-    return lookup[kind];
-}
-
 struct Lexer_Result lexer_once(char* input) {
     struct Lexer_Result out;
     input = lexer_strip_comments(input);
@@ -113,40 +92,47 @@ struct Lexer_Result lexer_expect(
     return (struct Lexer_Result) {0};
 }
 
-const struct Lexer_SpellingEntry immediates_table[] = {
+const struct Lexer_SpellingEntry spelling_table[] = {
+    { .str = "", .kind = TK_EOF },
+    // keywords
+    { .str = "func", .kind = TK_Func }, { .str = "return", .kind = TK_Return },
+    { .str = "loop", .kind = TK_Loop }, { .str = "break", .kind = TK_Break },
+    { .str = "if", .kind = TK_If }, { .str = "else", .kind = TK_Else },
+    { .str = "let", .kind = TK_Let }, { .str = "mut", .kind = TK_Mut },
+    { .str = "type", .kind = TK_Type }, { .str = "as", .kind = TK_As },
+    { .str = "operator", .kind = TK_Operator }, { .str = "=", .kind = TK_Equals },
+    // immediates
+    { .str = NULL, .kind = TK_ImmediatesStart },
     { .str = "(",  .kind = TK_OpenParen },   { .str = ")", .kind = TK_CloseParen },
     { .str = "{",  .kind = TK_OpenBrace },   { .str = "}", .kind = TK_CloseBrace },
     { .str = "[",  .kind = TK_OpenBracket }, { .str = "]", .kind = TK_CloseBracket },
     // make sure '::' is before ':', so as to prioritize it
     { .str = "::", .kind = TK_DoubleColon }, { .str = ",", .kind = TK_Comma },
     { .str = ";",  .kind = TK_Semicolon },   { .str = ":", .kind = TK_Colon },
-    // kind doesn't matter, str NULL as terminator
-    { .str = NULL, .kind = TK_Colon },
+    // literals
+    { .str = NULL, .kind = TK_LiteralsStart },
+    { .str = "string", .kind = TK_String }, { .str = "number", .kind = TK_Number },
+    { .str = "name", .kind = TK_Name }, { .str = "bool", .kind = TK_Bool },
+    { .str = NULL, .kind = TK_EOF },
 };
 
+char* lexer_tokenkind_name(enum Tokenkind kind) {
+    return spelling_table[kind].str;
+}
+
+
 struct Lexer_Result lexer_immediates(char* input) {
-    return lexer_expect(immediates_table, lexer_const_true, input);
+    return lexer_expect(spelling_table + TK_ImmediatesStart + 1, lexer_const_true, input);
 }
 
 struct Lexer_Result lexer_keywords(char* input) {
-    const struct Lexer_SpellingEntry table[] = {
-        { .str = "func", .kind = TK_Func }, { .str = "return", .kind = TK_Return },
-        { .str = "loop", .kind = TK_Loop }, { .str = "break", .kind = TK_Break },
-        { .str = "if", .kind = TK_If }, { .str = "else", .kind = TK_Else },
-        { .str = "let", .kind = TK_Let }, { .str = "mut", .kind = TK_Mut },
-        { .str = "type", .kind = TK_Type }, { .str = "as", .kind = TK_As },
-        { .str = "operator", .kind = TK_Operator }, { .str = "=", .kind = TK_Equals },
-        // kind doesn't matter, str NULL as terminator
-        { .str = NULL, .kind = TK_Colon },
-    };
-    return lexer_expect(table, lexer_starts_word_break, input);
+    return lexer_expect(spelling_table + 1, lexer_starts_word_break, input);
 }
 
 struct Lexer_Result lexer_bools(char* input) {
     const struct Lexer_SpellingEntry table[] = {
         { .str = "true", .kind = TK_Bool }, { .str = "false", .kind = TK_Bool },
-        // kind doesn't matter, str NULL as terminator
-        { .str = NULL, .kind = TK_Colon },
+        { .str = NULL, .kind = TK_EOF },
     };
     return lexer_expect(table, lexer_starts_word_break, input);
 }
@@ -253,8 +239,8 @@ bool lexer_is_not_word_break(char input) {
         || input == '"'
         || lexer_is_whitespace(input)
     ) return false;
-    for (int i = 0; immediates_table[i].str; i++) {
-        if (lexer_prefix_of(&input, immediates_table[i].str)) return false;
+    for (int i = TK_ImmediatesStart + 1; spelling_table[i].str; i++) {
+        if (lexer_prefix_of(&input, spelling_table[i].str)) return false;
     }
     return true;
 }
