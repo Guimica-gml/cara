@@ -12,14 +12,16 @@ int main() {
         "    print(\"Hello World!\");\n"
         "    return;\n"
         "}";
-    struct Tokens tokens = lex(str);
+    struct Tokenstream tokens = lex(str);
     
     printf("[\n");
-    for (size_t i = 0; i < tokens.len; i++) {
-        printf("\t%s\n", lexer_tokenkind_name(*Tokens_at(&tokens, i)));
+    for (size_t i = 0; i < tokens.strings.len; i++) {
+        struct StringView *s = Tokenstrings_at(&tokens.strings, i);
+        printf("\t'%.*s'\n", (int) s->len, s->str);
     }
     printf("]\n");
     
-    Tokens_deinit(&tokens);
+    Tokenstrings_deinit(&tokens.strings);
+    Tokenkinds_deinit(&tokens.kinds);
     return 0;
 }

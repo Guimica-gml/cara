@@ -39,11 +39,26 @@ enum Tokenkind {
     TK_Bool = 28,
 };
 
-#define VEC_NAME Tokens
+#define VEC_NAME Tokenkinds
 #define VEC_TYPE enum Tokenkind
 #include "./vector.c"
 
-struct Tokens lex(char*);
+struct StringView {
+    char* str;
+    size_t len;
+};
+
+#define VEC_NAME Tokenstrings
+#define VEC_TYPE struct StringView
+#include "./vector.c"
+
+struct Tokenstream {
+    struct Tokenkinds kinds;
+    struct Tokenstrings strings;
+};
+
+struct Tokenstream lex(char*);
+struct StringView StringView_from(char*);
 char* lexer_tokenkind_name(enum Tokenkind);
 
 #endif

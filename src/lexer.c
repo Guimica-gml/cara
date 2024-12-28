@@ -39,18 +39,20 @@ struct Lexer_Result lexer_name(char*);
 struct Lexer_Result {
     enum { LexRes_Err = 0, LexRes_Ok } tag;
     enum Tokenkind kind;
+    struct StringView spelling;
     char* rest;
 };
 
-struct Tokens lex(char* input) {
-    struct Tokens toks = {0};
+struct Tokenstream lex(char* input) {
+    struct Tokenstream toks = {0};
     for (
         struct Lexer_Result res = lexer_once(input);
         res.tag;
         res = lexer_once(input)
     ) {
+        assert(Tokenstrings_push(&toks.strings, res.spelling));
+        assert(Tokenkinds_push(&toks.kinds, res.kind));
         input = res.rest;
-        assert(Tokens_push(&toks, res.kind));
     }
     while (lexer_is_whitespace(*input)) input++;
     assert(*input == '\0' && "input should be consumed entirely!");
@@ -81,12 +83,16 @@ struct Lexer_Result lexer_expect(
 ) {
     for (size_t i = 0; table[i].str; i++) {
         if (!lexer_prefix_of(input, table[i].str)) continue;
-        char* rest = input + lexer_strlen(table[i].str);
-        if (!postcondition(rest)) continue;
+        size_t len = lexer_strlen(table[i].str);
+        if (!postcondition(input + len)) continue;
         return (struct Lexer_Result) {
             .tag = LexRes_Ok,
             .kind = table[i].kind,
-            .rest = rest
+            .spelling = (struct StringView) {
+                .str = input,
+                .len = len,
+            },
+            .rest = input + len,
         };
     }
     return (struct Lexer_Result) {0};
@@ -144,23 +150,28 @@ struct Lexer_Result lexer_process(
     enum Tokenkind kind,
     char* input
 ) {
-    char* cursor = input;
-    if (!pre(cursor)) return (struct Lexer_Result) {0};
-    while (intra(*cursor)) cursor++;
-    if (!post((size_t) (cursor - input))) return (struct Lexer_Result) {0};
+    size_t len = 0;
+    if (!pre(input)) return (struct Lexer_Result) {0};
+    while (intra(input[len])) len++;
+    if (!post(len)) return (struct Lexer_Result) {0};
     return (struct Lexer_Result) {
         .tag = LexRes_Ok,
         .kind = kind,
-        .rest = cursor
+        .spelling = (struct StringView) {
+            .str = input,
+            .len = len,
+        },
+        .rest = input + len,
     };
 }
 
 struct Lexer_Result lexer_string(char* input) {
+    size_t len = 0;
     bool escaped = true;
     bool loop = true;
-    if (*input != '"') return (struct Lexer_Result) {0};
+    if (input[0] != '"') return (struct Lexer_Result) {0};
     while (loop) {
-        switch (*input) {
+        switch (input[len]) {
         case '\\':
             escaped = !escaped;
             break;
@@ -169,17 +180,22 @@ struct Lexer_Result lexer_string(char* input) {
             break;
         case '"':
             if (!escaped) loop = false;
-            __attribute__((fallthrough));
+            escaped = false;
+            break;
         default:
             escaped = false;
             break;
         }
-        input++;
+        len++;
     }
     return (struct Lexer_Result) {
         .tag = LexRes_Ok,
         .kind = TK_String,
-        .rest = input,
+        .spelling = (struct StringView) {
+            .str = input,
+            .len = len,
+        },
+        .rest = input + len,
     };
 }
 
@@ -221,6 +237,13 @@ size_t lexer_strlen(char* str) {
     size_t i = 0;
     while (str[i]) i++;
     return i;
+}
+
+struct StringView StringView_from(char* str) {
+    return (struct StringView) {
+        .str = str,
+        .len = lexer_strlen(str),
+    };
 }
 
 bool lexer_is_whitespace(char c) {
