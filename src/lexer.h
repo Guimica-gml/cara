@@ -2,8 +2,6 @@
 #define LEXER_H
 
 #include <stdbool.h>
-#include "./arena.h"
-#include "./arena.c"
 
 enum Tokenkind {
     // used as placeholder primarily
@@ -41,11 +39,11 @@ enum Tokenkind {
     TK_Bool = 28,
 };
 
-#define LIST_NAME Tokens
-#define LIST_TYPE enum Tokenkind
-#include "./segment_list.c"
+#define VEC_NAME Tokens
+#define VEC_TYPE enum Tokenkind
+#include "./vector.c"
 
-struct Tokens lex(struct Arena*, char*);
+struct Tokens lex(char*);
 char* lexer_tokenkind_name(enum Tokenkind);
 
 #endif

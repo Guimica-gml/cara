@@ -23,7 +23,7 @@
 #define list_grow_segments SPLICE(LIST_NAME, _grow_segments)
 #define list_active_segments SPLICE(LIST_NAME, _active_segments)
 
-/*
+struct LIST_NAME;
 size_t list_active_segments(struct LIST_NAME*);
 size_t list_capacity(struct LIST_NAME*);
 bool list_grow_segments(struct LIST_NAME*, struct Arena*);
@@ -33,20 +33,18 @@ LIST_TYPE* list_at(struct LIST_NAME*, size_t);
 LIST_TYPE* list_last(struct LIST_NAME*);
 LIST_TYPE* list_place(struct LIST_NAME*, struct Arena*);
 bool list_push(struct LIST_NAME*, struct Arena*, LIST_TYPE);
-*/
-
-
-struct LIST_NAME {
-    size_t len;
-    size_t segs_cap;
-    LIST_TYPE** segs;
-};
 
 //////// GENERAL INFO
 /// for fallible functions returning *bool*:
 ///     returns true on success and {0} on error
 /// for fallible functions returning *pointers*:
 ///     returns a valid pointer on success and {0} on error
+
+struct LIST_NAME {
+    size_t len;
+    size_t segs_cap;
+    LIST_TYPE** segs;
+};
 
 size_t list_active_segments(struct LIST_NAME* this) {
     if (this->len == 0) return 0;
@@ -60,6 +58,7 @@ size_t list_capacity(struct LIST_NAME* this) {
 }
 
 bool list_grow_segments(struct LIST_NAME* this, struct Arena* arena) {
+    if (!this->segs) return false;
     LIST_TYPE** segs = arena_alloc(arena, 2 * this->segs_cap * sizeof(LIST_TYPE*));
     if (!segs) return false;
     for (size_t i = 0; i < this->segs_cap; i++) segs[i] = this->segs[i];
@@ -69,7 +68,7 @@ bool list_grow_segments(struct LIST_NAME* this, struct Arena* arena) {
 }
 
 bool list_init(struct LIST_NAME* this, struct Arena* arena) {
-    if (this->segs_cap != 0) return false;
+    if (this->segs) return false;
     LIST_TYPE** segs = arena_alloc(arena, 4 * sizeof(LIST_TYPE*));
     if (!segs) return false;
     this->segs_cap = 4;

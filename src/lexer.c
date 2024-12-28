@@ -42,7 +42,7 @@ struct Lexer_Result {
     char* rest;
 };
 
-struct Tokens lex(struct Arena* arena, char* input) {
+struct Tokens lex(char* input) {
     struct Tokens toks = {0};
     for (
         struct Lexer_Result res = lexer_once(input);
@@ -50,7 +50,7 @@ struct Tokens lex(struct Arena* arena, char* input) {
         res = lexer_once(input)
     ) {
         input = res.rest;
-        assert(Tokens_push(&toks, arena, res.kind));
+        assert(Tokens_push(&toks, res.kind));
     }
     while (lexer_is_whitespace(*input)) input++;
     assert(*input == '\0' && "input should be consumed entirely!");
