@@ -1,8 +1,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-// NOTE: uses malloc
-
 #ifndef VEC_NAME
 #error "define macro VEC_NAME for templated vector"
 #endif
@@ -10,33 +8,43 @@
 #error "define macro VEC_TYPE for templated vector"
 #endif
 
-// indirection needed for expanding LIST_NAME
+// indirection needed for expanding VEC_NAME
 #define SPLICE_DO(X, Y) X ## Y
 #define SPLICE(X, Y) SPLICE_DO(X, Y)
 #define vec_at SPLICE(VEC_NAME, _at)
 #define vec_init SPLICE(VEC_NAME, _init)
 #define vec_grow SPLICE(VEC_NAME, _grow)
 #define vec_push SPLICE(VEC_NAME, _push)
+#define vec_first SPLICE(VEC_NAME, _first)
 #define vec_last SPLICE(VEC_NAME, _last)
 #define vec_place SPLICE(VEC_NAME, _place)
 #define vec_deinit SPLICE(VEC_NAME, _deinit)
 #define vec_capacity SPLICE(VEC_NAME, _capacity)
 
-struct VEC_NAME;
-VEC_TYPE* vec_at(struct VEC_NAME*, size_t);
-bool vec_init(struct VEC_NAME*);
-bool vec_grow(struct VEC_NAME*);
-bool vec_push(struct VEC_NAME*, VEC_TYPE);
-VEC_TYPE* vec_last(struct VEC_NAME*);
-VEC_TYPE* vec_place(struct VEC_NAME*);
-void vec_deinit(struct VEC_NAME*);
-size_t vec_capacity(struct VEC_NAME*);
+#ifndef VECTOR_IMPLS
 
 struct VEC_NAME {
     size_t len;
     size_t cap;
     VEC_TYPE* buf;
 };
+
+#endif
+
+VEC_TYPE* vec_at(struct VEC_NAME*, size_t);
+bool vec_init(struct VEC_NAME*);
+bool vec_grow(struct VEC_NAME*);
+bool vec_push(struct VEC_NAME*, VEC_TYPE);
+VEC_TYPE* vec_first(struct VEC_NAME*);
+VEC_TYPE* vec_last(struct VEC_NAME*);
+VEC_TYPE* vec_place(struct VEC_NAME*);
+void vec_deinit(struct VEC_NAME*);
+size_t vec_capacity(struct VEC_NAME*);
+
+// NOTE: uses malloc
+
+#ifdef VECTOR_IMPLS
+#undef VECTOR_IMPLS
 
 VEC_TYPE* vec_at(struct VEC_NAME* this, size_t idx) {
     if (!this->buf) return NULL;
@@ -71,6 +79,11 @@ bool vec_push(struct VEC_NAME* this, VEC_TYPE elem) {
     return true;
 }
 
+VEC_TYPE* vec_first(struct VEC_NAME* this) {
+    if (this->len == 0) return NULL;
+    return vec_at(this, 0);
+}
+
 VEC_TYPE* vec_last(struct VEC_NAME* this) {
     if (this->len == 0) return NULL;
     return vec_at(this, this->len-1);
@@ -93,10 +106,13 @@ size_t vec_capacity(struct VEC_NAME* this) {
     return this->cap - this->len;
 }
 
+#endif
+
 #undef vec_at
 #undef vec_init
 #undef vec_grow
 #undef vec_push
+#undef vec_first 
 #undef vec_last
 #undef vec_place
 #undef vec_capacity
