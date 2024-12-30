@@ -13,9 +13,9 @@
 
 struct Lexer_SpellingEntry;
 
-bool lexer_is_word_break(char);
-cstr lexer_strip_comments(cstr);
-bool lexer_expect(
+static bool lexer_is_word_break(char);
+static cstr lexer_strip_comments(cstr);
+static bool lexer_expect(
     const struct Lexer_SpellingEntry*,
     bool (*post)(cstr),
     enum Tokenkind*,
@@ -23,25 +23,15 @@ bool lexer_expect(
     cstr*,
     cstr
 );
-bool lexer_process(
-    bool (*pre)(cstr),
-    bool (*intra)(char),
-    bool (*post)(size_t),
-    enum Tokenkind,
-    enum Tokenkind*,
-    struct Stringview*,
-    cstr*,
-    cstr
-);
-bool lexer_immediates(enum Tokenkind*, struct Stringview*, cstr*, cstr);
-bool lexer_keywords(enum Tokenkind*, struct Stringview*, cstr*, cstr);
-bool lexer_bools(enum Tokenkind*, struct Stringview*, cstr*, cstr);
-bool lexer_string(enum Tokenkind*, struct Stringview*, cstr*, cstr);
-bool lexer_number(enum Tokenkind*, struct Stringview*, cstr*, cstr);
-bool lexer_name(enum Tokenkind*, struct Stringview*, cstr*, cstr);
+static bool lexer_immediates(enum Tokenkind*, struct Stringview*, cstr*, cstr);
+static bool lexer_keywords(enum Tokenkind*, struct Stringview*, cstr*, cstr);
+static bool lexer_bools(enum Tokenkind*, struct Stringview*, cstr*, cstr);
+static bool lexer_string(enum Tokenkind*, struct Stringview*, cstr*, cstr);
+static bool lexer_number(enum Tokenkind*, struct Stringview*, cstr*, cstr);
+static bool lexer_name(enum Tokenkind*, struct Stringview*, cstr*, cstr);
 
-struct Tokenstream lex(cstr input) {
-    struct Tokenstream toks = {0};
+struct Tokens lex(cstr input) {
+    struct Tokens toks = {0};
     enum Tokenkind kind;
     struct Stringview spelling;
     input = lexer_strip_comments(input);
@@ -66,7 +56,7 @@ struct Lexer_SpellingEntry {
     enum Tokenkind kind;
 };
 
-bool lexer_expect(
+static bool lexer_expect(
     const struct Lexer_SpellingEntry* table,
     bool (*postcondition)(cstr),
     enum Tokenkind* kind,
@@ -117,17 +107,17 @@ char* lexer_tokenkind_name(enum Tokenkind kind) {
     return spelling_table[kind].str;
 }
 
-bool lexer_const_true(cstr s) { return true; (void)s; }
-bool lexer_immediates(enum Tokenkind* k, struct Stringview* s, cstr* o, cstr i) {
+static bool lexer_const_true(cstr s) { return true; (void)s; }
+static bool lexer_immediates(enum Tokenkind* k, struct Stringview* s, cstr* o, cstr i) {
     return lexer_expect(spelling_table + TK_ImmediatesStart + 1, lexer_const_true, k, s, o, i);
 }
 
-bool lexer_starts_word_break(cstr input) { return lexer_is_word_break(*input); }
-bool lexer_keywords(enum Tokenkind* k, struct Stringview* s, cstr* o, cstr i) {
+static bool lexer_starts_word_break(cstr input) { return lexer_is_word_break(*input); }
+static bool lexer_keywords(enum Tokenkind* k, struct Stringview* s, cstr* o, cstr i) {
     return lexer_expect(spelling_table + 1, lexer_starts_word_break, k, s, o, i);
 }
 
-bool lexer_bools(enum Tokenkind* k, struct Stringview* s, cstr* o, cstr i) {
+static bool lexer_bools(enum Tokenkind* k, struct Stringview* s, cstr* o, cstr i) {
     const struct Lexer_SpellingEntry table[] = {
         { .str = "true", .kind = TK_Bool }, { .str = "false", .kind = TK_Bool },
         { .str = NULL, .kind = TK_EOF },
@@ -135,30 +125,7 @@ bool lexer_bools(enum Tokenkind* k, struct Stringview* s, cstr* o, cstr i) {
     return lexer_expect(table, lexer_starts_word_break, k, s, o, i);
 }
 
-bool lexer_process(
-    bool (*pre)(cstr),
-    bool (*intra)(char),
-    bool (*post)(size_t),
-    enum Tokenkind kind,
-    enum Tokenkind* outkind,
-    struct Stringview* spelling,
-    cstr* output,
-    cstr input
-) {
-    size_t len = 0;
-    if (!pre(input)) return false;
-    while (intra(input[len])) len++;
-    if (!post(len)) return false;
-    *output = input + len;
-    *outkind = kind;
-    *spelling = (struct Stringview) {
-        .str = input,
-        .len = len,
-    };
-    return true;
-}
-
-bool lexer_string(
+static bool lexer_string(
     enum Tokenkind* kind,
     struct Stringview* spelling,
     cstr* output,
@@ -195,7 +162,7 @@ bool lexer_string(
     return true;
 }
 
-bool lexer_number(
+static bool lexer_number(
     enum Tokenkind* kind,
     struct Stringview* spelling,
     cstr* out,
@@ -213,8 +180,7 @@ bool lexer_number(
     return true;
 }
 
-bool lexer_is_not_word_break(char c) { return !lexer_is_word_break(c); }
-bool lexer_name(
+static bool lexer_name(
     enum Tokenkind* kind,
     struct Stringview* spelling,
     cstr* out,
@@ -232,7 +198,7 @@ bool lexer_name(
     return true;
 }
 
-cstr lexer_strip_comments(cstr input) {
+static cstr lexer_strip_comments(cstr input) {
     while (strings_ascii_whitespace(*input)) input++;
     while (strings_prefix_of(input, "//")) {
         while (*input != '\n') input++;
@@ -241,7 +207,7 @@ cstr lexer_strip_comments(cstr input) {
     return input;
 }
 
-bool lexer_is_word_break(char input) {
+static bool lexer_is_word_break(char input) {
     if (
         input == '\0'
         || input == '"'
@@ -254,23 +220,60 @@ bool lexer_is_word_break(char input) {
     return false;
 }
 
-void Tokenstream_deinit(struct Tokenstream* this) {
+void Tokens_deinit(struct Tokens* this) {
     Tokenkinds_deinit(&this->kinds);
     Tokenstrings_deinit(&this->strings);
 }
 
-void Tokenstream_drop(struct Tokenstream* this) {
-    if (this->kinds.len < 1) return;
+struct Tokenstream Tokens_stream(struct Tokens* this) {
+    return (struct Tokenstream) {
+        .kinds.buf = this->kinds.buf,
+        .kinds.len = this->kinds.len,
+        .strings.buf = this->strings.buf,
+        .strings.len = this->strings.len,
+    };
+}
+
+bool Tokenstream_eof(struct Tokenstream* this) {
+    return this->kinds.len < 1;
+}
+
+bool Tokenstream_drop(struct Tokenstream* this) {
+    if (Tokenstream_eof(this)) return false;
     this->kinds.buf++;
     this->kinds.len--;
     this->strings.buf++;
     this->strings.len--;
+    return true;
 }
 
-bool Tokenstream_drop_text(struct Tokenstream* this, char* str) {
+bool Tokenstream_drop_text(struct Tokenstream* this, cstr str) {
+    if (Tokenstream_eof(this)) return false;
     struct Stringview expect = Stringview_from(str);
-    struct Stringview* have = Tokenstrings_at(&this->strings, 0);
-    if (!have || !Stringview_equal(*have, expect)) return false;
+    struct Stringview have = *this->strings.buf;
+    if (!Stringview_equal(have, expect)) return false;
     Tokenstream_drop(this);
     return true;
+}
+
+bool Tokenstream_drop_kind(struct Tokenstream* this, enum Tokenkind expect) {
+    if (Tokenstream_eof(this)) return false;
+    enum Tokenkind have = *this->kinds.buf;
+    if (have != expect) return false;
+    Tokenstream_drop(this);
+    return true;
+}
+
+struct Stringview* Tokenstream_first_text(struct Tokenstream* this) {
+    if (this->strings.len < 1) return NULL;
+    return this->strings.buf;
+}
+
+enum Tokenkind* Tokenstream_first_kind(struct Tokenstream* this) {
+    return Tokenstream_at_kind(this, 0);
+}
+
+enum Tokenkind* Tokenstream_at_kind(struct Tokenstream* this, size_t idx) {
+    if (this->kinds.len <= idx) return NULL;
+    return &this->kinds.buf[idx];
 }

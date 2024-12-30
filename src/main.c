@@ -2,7 +2,8 @@
 #include <assert.h>
 
 #include "./lexer.h"
-//#include "./arena.h"
+#include "./arena.h"
+#include "./parser.h"
 
 int main() {
     char str[] =
@@ -10,15 +11,25 @@ int main() {
         "    print(\"Hello World!\");\n"
         "    return;\n"
         "}";
-    struct Tokenstream tokens = lex(str);
+    struct Tokens tokens = lex(str);
     
     printf("[\n");
-    for (size_t i = 0; i < tokens.strings.len; i++) {
-        struct Stringview *s = Tokenstrings_at(&tokens.strings, i);
+    struct Tokenstream stream = Tokens_stream(&tokens);
+    for (
+        struct Stringview* s = Tokenstream_first_text(&stream);
+        Tokenstream_drop(&stream);
+        s = Tokenstream_first_text(&stream)
+    ) {
         printf("\t'%.*s'\n", (int) s->len, s->str);
     }
     printf("]\n");
 
-    Tokenstream_deinit(&tokens);
+    struct Arena ast_arena = {0};
+    assert(arena_init(&ast_arena, 4096) && "huh");
+
+    struct Ast ast = parse(&ast_arena, Tokens_stream(&tokens));
+
+    arena_deinit(&ast_arena);
+    Tokens_deinit(&tokens);
     return 0;
 }

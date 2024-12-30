@@ -10,9 +10,10 @@
       # expects a .c file of same name in $src/
       modules = [
         "main"
+        "arena"
         "lexer"
         "strings"
-        # "parser"
+        "parser"
       ];
       debugOpts = "-Wall -Wextra -g";
       releaseOpts = "-O2";

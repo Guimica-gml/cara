@@ -1,3 +1,6 @@
+#ifndef STRINGS_H
+#define STRINGS_H
+
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -19,3 +22,5 @@ bool strings_ascii_whitespace(char);
 bool strings_ascii_digit(char);
 size_t strings_strlen(cstr);
 bool strings_prefix_of(cstr, cstr);
+
+#endif

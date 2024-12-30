@@ -1,3 +1,6 @@
+#ifndef LEXER_H
+#define LEXER_H
+
 #include <stdbool.h>
 
 enum Tokenkind {
@@ -45,13 +48,33 @@ enum Tokenkind {
 #define VEC_TYPE struct Stringview
 #include "./vector.h"
 
-struct Tokenstream {
+struct Tokens {
     struct Tokenkinds kinds;
     struct Tokenstrings strings;
 };
 
-struct Tokenstream lex(const char*);
+struct Tokens lex(const char*);
 char* lexer_tokenkind_name(enum Tokenkind);
-void Tokenstream_deinit(struct Tokenstream*);
-void Tokenstream_drop(struct Tokenstream*);
-bool Tokenstream_drop_text(struct Tokenstream*, char*);
+void Tokens_deinit(struct Tokens*);
+
+struct Tokenstream {
+    struct {
+        enum Tokenkind* buf;
+        size_t len;
+    } kinds;
+    struct {
+        struct Stringview* buf;
+        size_t len;
+    } strings;
+};
+
+struct Tokenstream Tokens_stream(struct Tokens*);
+bool Tokenstream_eof(struct Tokenstream*);
+bool Tokenstream_drop(struct Tokenstream*);
+bool Tokenstream_drop_text(struct Tokenstream*, cstr);
+bool Tokenstream_drop_kind(struct Tokenstream*, enum Tokenkind);
+struct Stringview* Tokenstream_first_text(struct Tokenstream*);
+enum Tokenkind* Tokenstream_first_kind(struct Tokenstream*);
+enum Tokenkind* Tokenstream_at_kind(struct Tokenstream*, size_t);
+
+#endif

@@ -1,14 +1,5 @@
-#ifndef ARENA_C
-#define ARENA_C
-
 #include <sys/mman.h>
 #include "./arena.h"
-
-struct Arena {
-    char* buf;
-    size_t bump;
-    size_t cap;
-};
 
 void* arena_alloc(struct Arena* this, size_t size) {
     size_t bump = this->bump;
@@ -36,5 +27,3 @@ bool arena_init(struct Arena* arena, size_t size) {
 void arena_deinit(struct Arena* this) {
     munmap(this->buf, this->cap);
 }
-
-#endif

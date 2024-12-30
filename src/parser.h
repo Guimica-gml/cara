@@ -3,35 +3,142 @@
 
 #include <stdbool.h>
 #include <assert.h>
+
 #include "./lexer.h"
+#include "./strings.h"
 #include "./arena.h"
 
-enum ExprTag {};
-struct Expr {
-    enum ExprTag tag;
-    union {} data;
+struct Binding;
+struct Statement;
+struct Expr;
+struct Type;
+struct Function;
+struct Ast;
+
+enum BindingTag {
+    BT_Empty,
+    BT_Name,
+};
+struct Binding {
+    enum BindingTag tag;
+    union {
+        struct {
+            struct Stringview name;
+            struct Type* annot;
+        } name;
+    };
 };
 
-enum TypeTag {};
+enum StatementTag {
+    ST_Let,
+    ST_Mut,
+    ST_Break,
+    ST_Return,
+    ST_Assign,
+    ST_Const,
+};
+struct Statement {
+    enum StatementTag tag;
+    union {
+        struct {
+            struct Binding bind;
+            struct Expr* init;
+        } let;
+        struct {
+            struct Binding bind;
+            struct Expr* init;
+        } mut;
+        struct {
+            struct Expr* expr;
+        } break_stmt;
+        struct {
+            struct Expr* expr;
+        } return_stmt;
+        struct {
+            struct Stringview name;
+            struct Expr* expr;
+        } assign;
+        struct {
+            struct Expr* expr;
+        } const_stmt;
+    };
+};
+
+enum ExprTag {
+    ET_Unit = 0,
+    ET_If,
+    ET_Loop,
+    ET_Bareblock,
+    ET_Call,
+    ET_Recall,
+    ET_NumberLit,
+    ET_StringLit,
+    ET_BoolLit,
+};
+struct Expr {
+    enum ExprTag tag;
+    union {
+        struct {
+            struct Expr* cond;
+            struct Expr* smash;
+            struct Expr* pass;
+        } if_expr;
+        struct {
+            struct Expr* block;
+        } loop;
+        struct {
+            struct StatementsLL {
+                struct Statement current;
+                struct StatementsLL* next;
+            }* stmts;
+            struct Expr* tail;
+        } bareblock;
+        struct {
+            struct Expr* name;
+            struct Expr* args;
+        } call;
+        struct {
+            struct Stringview name;
+        } string;
+    };
+};
+
+enum TypeTag {
+    TT_Func,
+    TT_Call,
+    TT_Recall,
+};
 struct Type {
     enum TypeTag tag;
-    union {} data;
+    union {
+        struct {
+            struct Type* args;
+            struct Type* ret;
+        } func;
+        struct {
+            struct Type* name;
+            struct Type* args;
+        } call;
+        struct {
+            struct Stringview* name;
+        } recall;
+    };
 };
 
 struct Function {
-    struct StringView name;
-    struct Type type;
+    struct Stringview name;
+    struct Type ret;
+    struct Binding args;
     struct Expr body;
 };
 
-#define LIST_NAME Functions
-#define LIST_TYPE struct Function
-#include "./segment_list.c"
-
 struct Ast {
-    struct Functions funcs;
+    struct FunctionsLL {
+        struct Function current;
+        struct FunctionsLL* next;
+    }* funcs;
 };
 
-struct Ast parse(struct Arena*, struct Tokenstream *);
+struct Ast parse(struct Arena*, struct Tokenstream);
 
 #endif
