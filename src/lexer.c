@@ -11,6 +11,11 @@
 #define VEC_TYPE struct Stringview
 #include "./vector.h"
 
+#define VECTOR_IMPLS
+#define VEC_NAME Opdecls
+#define VEC_TYPE struct Opdecl
+#include "./vector.h"
+
 struct Lexer_SpellingEntry;
 
 static bool lexer_is_word_break(char);

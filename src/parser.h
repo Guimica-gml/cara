@@ -74,6 +74,7 @@ enum ExprTag {
     ET_NumberLit,
     ET_StringLit,
     ET_BoolLit,
+    ET_Comma,
 };
 struct Expr {
     enum ExprTag tag;
@@ -99,7 +100,11 @@ struct Expr {
         } call;
         struct {
             struct Stringview name;
-        } string;
+        } lit;
+        struct {
+            struct Expr *lhs;
+            struct Expr* rhs;
+        } comma;
     };
 };
 
@@ -107,6 +112,7 @@ enum TypeTag {
     TT_Func,
     TT_Call,
     TT_Recall,
+    TT_Comma,
 };
 struct Type {
     enum TypeTag tag;
@@ -120,8 +126,12 @@ struct Type {
             struct Type* args;
         } call;
         struct {
-            struct Stringview* name;
+            struct Stringview name;
         } recall;
+        struct {
+            struct Type *lhs;
+            struct Type* rhs;
+        } comma;
     };
 };
 
@@ -139,6 +149,6 @@ struct Ast {
     }* funcs;
 };
 
-struct Ast parse(struct Arena*, struct Tokenstream);
+struct Ast parse(struct Arena*, struct Opdecls, struct Tokenstream);
 
 #endif

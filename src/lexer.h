@@ -48,6 +48,17 @@ enum Tokenkind {
 #define VEC_TYPE struct Stringview
 #include "./vector.h"
 
+struct Opdecl {
+    // values < 0 used as absence
+    int lbp;
+    int rbp;
+    struct Stringview token;
+};
+
+#define VEC_NAME Opdecls
+#define VEC_TYPE struct Opdecl
+#include "./vector.h"
+
 struct Tokens {
     struct Tokenkinds kinds;
     struct Tokenstrings strings;

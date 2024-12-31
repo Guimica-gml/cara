@@ -27,11 +27,6 @@ int main(int argc, char** argv) {
         filedesc, 0
     );
 
-    /* char str[] = */
-    /*     "func main() {\n" */
-    /*     "    print(\"Hello World!\");\n" */
-    /*     "    return;\n" */
-    /*     "}"; */
     struct Tokens tokens = lex(file);
     
     printf("[\n");
@@ -48,7 +43,21 @@ int main(int argc, char** argv) {
     struct Arena ast_arena = {0};
     assert(arena_init(&ast_arena, 4096) && "huh");
 
-    struct Ast ast = parse(&ast_arena, Tokens_stream(&tokens));
+    struct Opdecls ops = {0};
+    Opdecls_push(
+        &ops,
+        (struct Opdecl){
+            .lbp = 0,
+            .rbp = 0,
+            .token =
+            (struct Stringview){
+                .str = ",",
+                .len = 1,
+            },
+        } 
+    );
+    
+    struct Ast ast = parse(&ast_arena, ops, Tokens_stream(&tokens));
 
     arena_deinit(&ast_arena);
     Tokens_deinit(&tokens);
