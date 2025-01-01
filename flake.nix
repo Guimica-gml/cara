@@ -11,7 +11,10 @@
       modules = [
         "main"
         "arena"
+        "tokens"
         "lexer"
+        "types"
+        "typer"
         "strings"
         "parser"
       ];

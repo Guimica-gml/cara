@@ -4,9 +4,12 @@
 #include <stdbool.h>
 #include <assert.h>
 
-#include "./lexer.h"
+#include "./tokens.h"
 #include "./strings.h"
 #include "./arena.h"
+#include "./types.h"
+#include "./lexer.h"
+// ↑ cuz of opdecls
 
 struct Binding;
 struct Statement;
@@ -23,7 +26,7 @@ struct Binding {
     enum BindingTag tag;
     union {
         struct {
-            struct Stringview name;
+            const char* name;
             struct Type* annot;
         } name;
     };
@@ -45,17 +48,13 @@ struct Statement {
             struct Expr* init;
         } let;
         struct {
-            struct Binding bind;
-            struct Expr* init;
-        } mut;
-        struct {
             struct Expr* expr;
         } break_stmt;
         struct {
             struct Expr* expr;
         } return_stmt;
         struct {
-            struct Stringview name;
+            const char* name;
             struct Expr* expr;
         } assign;
         struct {
@@ -99,7 +98,7 @@ struct Expr {
             struct Expr* args;
         } call;
         struct {
-            struct Stringview name;
+            const char* name;
         } lit;
         struct {
             struct Expr *lhs;
@@ -108,35 +107,8 @@ struct Expr {
     };
 };
 
-enum TypeTag {
-    TT_Func,
-    TT_Call,
-    TT_Recall,
-    TT_Comma,
-};
-struct Type {
-    enum TypeTag tag;
-    union {
-        struct {
-            struct Type* args;
-            struct Type* ret;
-        } func;
-        struct {
-            struct Type* name;
-            struct Type* args;
-        } call;
-        struct {
-            struct Stringview name;
-        } recall;
-        struct {
-            struct Type *lhs;
-            struct Type* rhs;
-        } comma;
-    };
-};
-
 struct Function {
-    struct Stringview name;
+    const char* name;
     struct Type ret;
     struct Binding args;
     struct Expr body;

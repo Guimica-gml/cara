@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#define arena_talloc(a, T) arena_alloc(a, sizeof(T))
+
 struct Arena {
     char* buf;
     size_t bump;

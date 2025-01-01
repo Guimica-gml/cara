@@ -7,7 +7,7 @@
 
 #include "./lexer.h"
 #include "./arena.h"
-#include "./parser.h"
+//#include "./parser.h"
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -27,39 +27,42 @@ int main(int argc, char** argv) {
         filedesc, 0
     );
 
-    struct Tokens tokens = lex(file);
+    struct Arena strings_arena = {0};
+    assert(arena_init(&strings_arena, 4096));
+    
+    struct Tokens tokens = lex(&strings_arena, file);
     
     printf("[\n");
     struct Tokenstream stream = Tokens_stream(&tokens);
     for (
-        struct Stringview* s = Tokenstream_first_text(&stream);
+        const char* s = Tokenstream_first_text(&stream);
         Tokenstream_drop(&stream);
         s = Tokenstream_first_text(&stream)
     ) {
-        printf("\t'%.*s'\n", (int) s->len, s->str);
+        printf("\t'%s'\n", s);
     }
     printf("]\n");
 
-    struct Arena ast_arena = {0};
-    assert(arena_init(&ast_arena, 4096) && "huh");
+    /* struct Arena ast_arena = {0}; */
+    /* assert(arena_init(&ast_arena, 4096) && "huh"); */
 
-    struct Opdecls ops = {0};
-    Opdecls_push(
-        &ops,
-        (struct Opdecl){
-            .lbp = 0,
-            .rbp = 0,
-            .token =
-            (struct Stringview){
-                .str = ",",
-                .len = 1,
-            },
-        } 
-    );
+    /* struct Opdecls ops = {0}; */
+    /* Opdecls_push( */
+    /*     &ops, */
+    /*     (struct Opdecl){ */
+    /*         .lbp = 0, */
+    /*         .rbp = 0, */
+    /*         .token = */
+    /*         (struct Stringview){ */
+    /*             .str = ",", */
+    /*             .len = 1, */
+    /*         }, */
+    /*     }  */
+    /* ); */
     
-    struct Ast ast = parse(&ast_arena, ops, Tokens_stream(&tokens));
+    /* struct Ast ast = parse(&ast_arena, ops, Tokens_stream(&tokens)); */
 
-    arena_deinit(&ast_arena);
+    /* arena_deinit(&ast_arena); */
     Tokens_deinit(&tokens);
     munmap(file, filestat.st_size);
     close(filedesc);
