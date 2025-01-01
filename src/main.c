@@ -38,8 +38,6 @@ int main(int argc, char** argv) {
     struct Symbols symbols = populate_interner(&strings_arena, &intern);
 
     struct Tokenvec tokens = lex(&strings_arena, &intern, file);
-    munmap(file, filestat.st_size);
-    close(filedesc);
     
     printf("[\n");
     struct Tokenstream stream = Tokenvec_stream(&tokens);
@@ -63,5 +61,7 @@ int main(int argc, char** argv) {
     arena_deinit(&ast_arena);
     Tokenvec_deinit(&tokens);
     arena_deinit(&strings_arena);
+    munmap(file, filestat.st_size);
+    close(filedesc);
     return 0;
 }

@@ -17,6 +17,7 @@
         "typer"
         "strings"
         "parser"
+        "symbols"
       ];
       debugOpts = "-Wall -Wextra -g";
       releaseOpts = "-O2";

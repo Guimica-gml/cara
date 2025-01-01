@@ -1,7 +1,7 @@
 #include "./strings.h"
 #include <assert.h>
 
-static long int hash_string(const char*);
+static long int hash_string(const char*, size_t);
 
 bool strings_ascii_whitespace(char c) {
     char ws[5] = { 0x09, 0x0A, 0x0C, 0x0D, 0x20 };
@@ -38,7 +38,7 @@ bool strings_equal(const char* this, const char* other) {
 }
 
 const char* Intern_insert(struct Intern* this, struct Arena* arena, const char* s, size_t len) {
-    long int hash = hash_string(s);
+    long int hash = hash_string(s, len);
     for (struct HashesLL* head = this->hashes; head; head = head->next) {
         if (head->current.hash == hash) {
             if (strings_equal(head->current.string, s)) return head->current.string;
@@ -54,16 +54,16 @@ const char* Intern_insert(struct Intern* this, struct Arena* arena, const char* 
     new->current.string = new_s;
     new->current.hash = hash;
     this->hashes = new;
-    return s;
+    return new_s;
 }
 
-static long int hash_string(const char* s) {
+static long int hash_string(const char* s, size_t len) {
     long int out = 0;
-    for (; *s; s++) {
+    for (size_t i = 0; i < len; i++) {
         // polynomial rolling hash function or smt
         // idk, it's supposed to be good
         out *= 53;
-        out += *s;
+        out += s[i];
     }
     return out;
 }

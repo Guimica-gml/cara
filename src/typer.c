@@ -16,8 +16,8 @@ struct DSet {
 };
 
 static struct TypeLL* DSet_insert(struct Arena*, struct DSet*, struct Type);
-static struct TypeLL* DSet_root(struct DSet*, struct TypeLL*);
-static struct TypeLL* DSet_join(struct Arena*, struct DSet*, struct TypeLL*, struct TypeLL*);
+static struct TypeLL* DSet_root(struct TypeLL*);
+static struct TypeLL* DSet_join(struct TypeLL*, struct TypeLL*);
 
 struct Globals {
     struct Symbols symbols;
@@ -182,6 +182,7 @@ static struct Type typecheck_expr(
         };
     }
     }
+    assert(false && "gcc complains about control reaching here??");
 }
 
 static void typecheck_stmt(
@@ -201,10 +202,12 @@ static void typecheck_stmt(
         struct Type brk = typecheck_expr(arena, ctx, *stmt.break_stmt.expr);
         assert(ctx->loops);
         unify(arena, &ctx->equivs, brk, ctx->loops->current);
+        break;
     }
     case ST_Return: {
         struct Type ret = typecheck_expr(arena, ctx, *stmt.return_stmt.expr);
         unify(arena, &ctx->equivs, ret, ctx->ret);
+        break;
     }
     case ST_Assign:
     case ST_Const:
@@ -262,6 +265,7 @@ static bool Type_equal(struct Type lhs, struct Type rhs) {
     case TT_Var:
         return lhs.var.idx == rhs.var.idx;
     }
+    assert(false && "gcc complains about control reaching here??");    
 }
 
 static struct Type Binding_type(struct Symbols symbols, struct Binding this) {
@@ -274,14 +278,15 @@ static struct Type Binding_type(struct Symbols symbols, struct Binding this) {
     case BT_Name:
         return *this.name.annot;
     }
+    assert(false && "gcc complains about control reaching here??");
 }
 
 static struct Type unify(
     struct Arena* arena, struct DSet* dset, struct Type lhs, struct Type rhs
 ) {
-    struct TypeLL* lroot = DSet_root(dset, DSet_insert(arena, dset, lhs));
+    struct TypeLL* lroot = DSet_root(DSet_insert(arena, dset, lhs));
     struct Type ltype = lroot->current.type;
-    struct TypeLL* rroot = DSet_root(dset, DSet_insert(arena, dset, rhs));
+    struct TypeLL* rroot = DSet_root(DSet_insert(arena, dset, rhs));
     struct Type rtype = rroot->current.type;
     if (ltype.tag == rtype.tag) {
         switch (ltype.tag) {
@@ -305,7 +310,7 @@ static struct Type unify(
     } else {
         assert((ltype.tag == TT_Var || rtype.tag == TT_Var) && "type mismatch");
     }
-    return DSet_join(arena, dset, lroot, rroot)->current.type;
+    return DSet_join(lroot, rroot)->current.type;
 }
 
 static struct TypeLL* DSet_insert(
@@ -322,9 +327,7 @@ static struct TypeLL* DSet_insert(
     return this->types;
 }
 
-static struct TypeLL* DSet_root(
-    struct DSet* this, struct TypeLL* type
-) {
+static struct TypeLL* DSet_root(struct TypeLL* type) {
     while (type->current.parent != type) {
         struct TypeLL* tmp = type;
         type = type->current.parent;
@@ -334,13 +337,11 @@ static struct TypeLL* DSet_root(
 }
 
 static struct TypeLL* DSet_join(
-    struct Arena* arena,
-    struct DSet* this,
     struct TypeLL* lhs,
     struct TypeLL* rhs
 ) {
-    struct TypeLL* lhr = DSet_root(this, lhs);
-    struct TypeLL* rhr = DSet_root(this, rhs);
+    struct TypeLL* lhr = DSet_root(lhs);
+    struct TypeLL* rhr = DSet_root(rhs);
     if (lhr->current.type.tag == TT_Var) {
         struct TypeLL* tmp = lhr;
         lhr = rhr;
