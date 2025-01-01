@@ -3,9 +3,9 @@
 
 #include "./strings.h"
 #include "./arena.h"
-#include "./parser.h"
-#include "./types.h"
+#include "./ast.h"
+#include "./symbols.h"
 
-void typecheck(struct Arena*, struct Ast);
+void typecheck(struct Arena*, struct Symbols, struct Ast);
 
 #endif

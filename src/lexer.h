@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include "./tokens.h"
 #include "./arena.h"
+#include "./strings.h"
 
 #define VEC_NAME Tokenvec
 #define VEC_TYPE struct Token
@@ -20,8 +21,8 @@ struct Opdecl {
 #define VEC_TYPE struct Opdecl
 #include "./vector.h"
 
-struct Tokenvec lex(struct Arena*, const char*);
+struct Tokenvec lex(struct Arena*, struct Intern*, const char*);
 
-struct Tokenstream Tokens_stream(struct Tokens*);
+struct Tokenstream Tokenvec_stream(struct Tokenvec*);
 
 #endif

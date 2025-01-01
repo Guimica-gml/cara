@@ -5,9 +5,14 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "./lexer.h"
 #include "./arena.h"
-//#include "./parser.h"
+#include "./strings.h"
+#include "./symbols.h"
+#include "./tokens.h"
+#include "./lexer.h"
+#include "./ast.h"
+#include "./parser.h"
+#include "./typer.h"
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -28,43 +33,35 @@ int main(int argc, char** argv) {
     );
 
     struct Arena strings_arena = {0};
+    struct Intern intern = {0};
     assert(arena_init(&strings_arena, 4096));
-    
-    struct Tokens tokens = lex(&strings_arena, file);
+    struct Symbols symbols = populate_interner(&strings_arena, &intern);
+
+    struct Tokenvec tokens = lex(&strings_arena, &intern, file);
+    munmap(file, filestat.st_size);
+    close(filedesc);
     
     printf("[\n");
-    struct Tokenstream stream = Tokens_stream(&tokens);
-    for (
-        const char* s = Tokenstream_first_text(&stream);
-        Tokenstream_drop(&stream);
-        s = Tokenstream_first_text(&stream)
-    ) {
-        printf("\t'%s'\n", s);
+    struct Tokenstream stream = Tokenvec_stream(&tokens);
+    for (size_t i = 0; i < stream.len; i++) {
+        printf("\t'%s'\n", stream.buf[i].spelling);
     }
     printf("]\n");
 
-    /* struct Arena ast_arena = {0}; */
-    /* assert(arena_init(&ast_arena, 4096) && "huh"); */
-
-    /* struct Opdecls ops = {0}; */
-    /* Opdecls_push( */
-    /*     &ops, */
-    /*     (struct Opdecl){ */
-    /*         .lbp = 0, */
-    /*         .rbp = 0, */
-    /*         .token = */
-    /*         (struct Stringview){ */
-    /*             .str = ",", */
-    /*             .len = 1, */
-    /*         }, */
-    /*     }  */
-    /* ); */
+    struct Arena ast_arena = {0};
+    assert(arena_init(&ast_arena, 4096) && "huh");
+    struct Opdecls ops = {0};
     
-    /* struct Ast ast = parse(&ast_arena, ops, Tokens_stream(&tokens)); */
+    struct Ast ast = parse(&ast_arena, ops, symbols, Tokenvec_stream(&tokens));
 
-    /* arena_deinit(&ast_arena); */
-    Tokens_deinit(&tokens);
-    munmap(file, filestat.st_size);
-    close(filedesc);
+    struct Arena type_arena = {0};
+    assert(arena_init(&type_arena, 4096));
+
+    typecheck(&type_arena, symbols, ast);
+
+    arena_deinit(&type_arena);
+    arena_deinit(&ast_arena);
+    Tokenvec_deinit(&tokens);
+    arena_deinit(&strings_arena);
     return 0;
 }

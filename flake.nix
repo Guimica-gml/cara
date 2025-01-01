@@ -13,7 +13,7 @@
         "arena"
         "tokens"
         "lexer"
-        "types"
+        "ast"
         "typer"
         "strings"
         "parser"

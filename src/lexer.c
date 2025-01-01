@@ -40,13 +40,12 @@ static bool lexer_string    (struct Context, struct Out*, const char*);
 static bool lexer_number    (struct Context, struct Out*, const char*);
 static bool lexer_name      (struct Context, struct Out*, const char*);
 
-struct Tokenvec lex(struct Arena* arena, const char* input) {
+struct Tokenvec lex(struct Arena* arena, struct Intern* intern, const char* input) {
     struct Tokenvec toks = {0};
     struct Out res = {0};
-    struct Intern intern = {0};
     struct Context ctx = {
         .arena = arena,
-        .intern = &intern,
+        .intern = intern,
     };
     input = lexer_strip_comments(input);
     while (

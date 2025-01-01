@@ -3,6 +3,7 @@
 struct Context {
     struct Arena* arena;
     struct Opdecls* ops;
+    struct Symbols* symbols;
     struct Tokenstream* toks;
 };
 
@@ -42,10 +43,16 @@ static struct Statement statement_break(struct Context);
 static struct Statement statement_return(struct Context);
 static struct Statement statement_assign(struct Context);
 
-struct Ast parse(struct Arena* arena, struct Opdecls ops, struct Tokenstream toks) {
+struct Ast parse(
+    struct Arena* arena,
+    struct Opdecls ops,
+    struct Symbols symbols,
+    struct Tokenstream toks
+) {
     struct Context ctx = {
         .arena = arena,
         .ops = &ops,
+        .symbols = &symbols,
         .toks = &toks,
     };
     struct FunctionsLL *funcs = NULL;
@@ -86,10 +93,10 @@ static struct Function decls_function(struct Context ctx) {
     if (Tokenstream_drop_text(ctx.toks, ":")) {
         ret = type(ctx);
     } else {
-        // if we 'generate' types, we need to provide a name
-        // however, giving types names that weren't found in the
-        // tokenstream, breaks the interned strings property
-        assert(false && "we can't generate unit types yet");
+        ret = (struct Type) {
+            .tag = TT_Recall,
+            .recall.name = ctx.symbols->s_unit,
+        };
     }
 
     if (Tokenstream_drop_text(ctx.toks, "=")) {
@@ -158,9 +165,7 @@ static struct Type type_op_left(struct Context ctx) {
     assert(ctx.toks->len);
     for (size_t i = 0; i < ctx.ops->len; i++) {
         if (ctx.ops->buf[i].lbp >= 0 || ctx.ops->buf[i].rbp < 0) continue;
-        // TODO: ops will at some point originate in lex(), then we can expect
-        //       the strings to be interned and we can just cmp by pointer
-        if (!strings_equal(ctx.toks->buf[0].spelling, ctx.ops->buf[i].token)) continue;
+        if (ctx.toks->buf[0].spelling != ctx.ops->buf[i].token) continue;
 
         *name = (struct Type) {
             .tag = TT_Recall,
@@ -191,7 +196,7 @@ static bool type_op_right_first(struct Context ctx, unsigned prec) {
     for (size_t i = 0; i < ctx.ops->len; i++) {
         if (ctx.ops->buf[i].lbp < (int) prec) continue;
         // same as for type_op_left()
-        if (!strings_equal(ctx.toks->buf[0].spelling, ctx.ops->buf[i].token)) continue;
+        if (ctx.toks->buf[0].spelling != ctx.ops->buf[i].token) continue;
         return true;
     }
     
@@ -231,8 +236,7 @@ static struct Type type_op_right(
     default:
         for (size_t i = 0; i < ctx.ops->len; i++) {
             if (ctx.ops->buf[i].lbp < (int) prec) continue;
-            // TODO: string interning property
-            if (!strings_equal(ctx.toks->buf[0].spelling, ctx.ops->buf[i].token)) continue;
+            if (ctx.toks->buf[0].spelling != ctx.ops->buf[i].token) continue;
 
             *name = (struct Type) {
                 .tag = TT_Recall,
@@ -267,18 +271,18 @@ static struct Type type_op_right(
 }
 
 static struct Type type_atom(struct Context ctx) {
-    const char* name;
     assert(ctx.toks->len);
     switch (ctx.toks->buf[0].kind) {
-    case TK_OpenParen:
-        return type_parenthesised(ctx);
-    case TK_Name:
-        name = ctx.toks->buf[0].spelling;
+    case TK_OpenParen: return type_parenthesised(ctx);
+    case TK_Name: {
+        const char* name = ctx.toks->buf[0].spelling;
         Tokenstream_drop(ctx.toks);
+        
         return (struct Type) {
             .tag = TT_Recall,
             .recall.name = name,
         };
+    }
     default: assert(false && "unexpected token encountered");
     }
 }
@@ -336,25 +340,23 @@ static struct Binding binding_name(struct Context ctx) {
 }
 
 static struct Expr expr_delimited(struct Context ctx) {
-    struct Expr tmp;
     assert(ctx.toks->len);
     switch (ctx.toks->buf[0].kind) {
-    case TK_If: case TK_Loop: case TK_OpenBrace:
-        tmp = expr_block(ctx);
+    case TK_If: case TK_Loop: case TK_OpenBrace: {
+        struct Expr tmp = expr_block(ctx);
         Tokenstream_drop_text(ctx.toks, ";");
+        
         return tmp;
-    default:
-        return expr_inline(ctx);
+    }
+    default: return expr_inline(ctx);
     }
 }
 
 static struct Expr expr_any(struct Context ctx) {
     assert(ctx.toks->len);
     switch (ctx.toks->buf[0].kind) {
-    case TK_If: case TK_Loop: case TK_OpenBrace:
-        return expr_block(ctx);
-    default:
-        return expr_inline(ctx);
+    case TK_If: case TK_Loop: case TK_OpenBrace: return expr_block(ctx);
+    default: return expr_inline(ctx);
     }
 }
 
@@ -454,6 +456,7 @@ static struct Expr expr_op(
         break;
     default:
         left = expr_op_left(ctx);
+        break;
     }
     while (expr_op_right_first(ctx, prec)) {
         left = expr_op_right(ctx, left, prec);
@@ -470,7 +473,7 @@ static struct Expr expr_op_left(struct Context ctx) {
     assert(ctx.toks->len);
     for (size_t i = 0; i < ctx.ops->len; i++) {
         if (ctx.ops->buf[i].lbp >= 0 || ctx.ops->buf[i].rbp < 0) continue;
-        if (!strings_equal(ctx.toks->buf[0].spelling, ctx.ops->buf[i].token)) continue;
+        if (ctx.toks->buf[0].spelling != ctx.ops->buf[i].token) continue;
 
         assert(Tokenstream_drop(ctx.toks));
         *name = (struct Expr) {
@@ -499,7 +502,7 @@ static bool expr_op_right_first(struct Context ctx, unsigned prec) {
 
     for (size_t i = 0; i < ctx.ops->len; i++) {
         if (ctx.ops->buf[i].lbp < (int) prec) continue;
-        if (!strings_equal(ctx.toks->buf[0].spelling, ctx.ops->buf[i].token)) continue;
+        if (ctx.toks->buf[0].spelling != ctx.ops->buf[i].token) continue;
         return true;
     }
     return false;
@@ -538,7 +541,7 @@ static struct Expr expr_op_right(
     default:
         for (size_t i = 0; i < ctx.ops->len; i++) {
             if (ctx.ops->buf[i].lbp < (int) prec) continue;
-            if (!strings_equal(ctx.toks->buf[0].spelling, ctx.ops->buf[i].token)) continue;
+            if (ctx.toks->buf[0].spelling != ctx.ops->buf[i].token) continue;
 
             assert(Tokenstream_drop(ctx.toks));
             *name = (struct Expr) {
@@ -672,14 +675,15 @@ static struct Statement statement_break(struct Context ctx) {
 }
 
 static struct Statement statement_return(struct Context ctx) {
-    struct Expr* expr = NULL;
+    struct Expr* expr = arena_talloc(ctx.arena, struct Expr);
+    assert(expr);
 
     assert(Tokenstream_drop_text(ctx.toks, "return"));
     if (ctx.toks->len && ctx.toks->buf[0].kind != TK_Semicolon) {
-        expr = arena_alloc(ctx.arena, sizeof(struct Expr));
-        assert(expr && "OOM");
         *expr = expr_any(ctx);
-    }
+    } else {
+        *expr = (struct Expr) {0};
+    };
 
     return (struct Statement) {
         .tag = ST_Return,
