@@ -407,7 +407,7 @@ static struct Expr expr_loop(struct Context ctx) {
 }
 
 static struct Expr expr_bareblock(struct Context ctx) {
-    struct Expr* tail = arena_alloc(ctx.arena, sizeof(struct Expr));
+    struct Expr* tail = arena_talloc(ctx.arena, struct Expr);
     struct StatementsLL* stmts = NULL;
     assert(tail && "OOM");
     
@@ -519,6 +519,7 @@ static struct Expr expr_op_right(
 
     assert(ctx.toks->len);
     if (prec == 0 && ctx.toks->buf[0].kind == TK_Comma) {
+        assert(Tokenstream_drop(ctx.toks));
         // reusing allocations, don't mind the names
         *name = left;
         *args = expr_op(ctx, 1);

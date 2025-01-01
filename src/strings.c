@@ -37,11 +37,17 @@ bool strings_equal(const char* this, const char* other) {
     return *this == *other;
 }
 
+static bool strings_n_equal(const char* this, const char* other, size_t len) {
+    size_t i = 0;
+    while (i < len && this[i] && other[i] && this[i] == other[i]) i++;
+    return i == len;
+}
+
 const char* Intern_insert(struct Intern* this, struct Arena* arena, const char* s, size_t len) {
     long int hash = hash_string(s, len);
     for (struct HashesLL* head = this->hashes; head; head = head->next) {
         if (head->current.hash == hash) {
-            if (strings_equal(head->current.string, s)) return head->current.string;
+            if (strings_n_equal(head->current.string, s, len)) return head->current.string;
         }
     }
 
