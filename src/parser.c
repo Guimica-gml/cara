@@ -432,6 +432,17 @@ static struct Expr expr_bareblock(struct Context ctx) {
     }
     assert(Tokenstream_drop_text(ctx.toks, "}"));
 
+    {
+        struct StatementsLL *prev = NULL, *next = NULL;
+        while (stmts) {
+            next = stmts->next;
+            stmts->next = prev;
+            prev = stmts;
+            stmts = next;
+        }
+        stmts = prev;
+    }
+
     return (struct Expr) {
         .tag = ET_Bareblock,
         .bareblock.stmts = stmts,
@@ -531,8 +542,8 @@ static struct Expr expr_op_right(
     
     switch (ctx.toks->buf[0].kind) {
     case TK_OpenParen: case TK_Name: case TK_Number: case TK_String: case TK_Bool:
-        *name = expr_atom(ctx);
-        *args = left;
+        *args = expr_atom(ctx);
+        *name = left;
 
         return (struct Expr) {
             .tag = ET_Call,

@@ -19,7 +19,7 @@
         "parser"
         "symbols"
       ];
-      debugOpts = "-Wall -Wextra -g";
+      debugOpts = "-Wall -Wextra -g -O0";
       releaseOpts = "-O2";
       commonBuildInputs = [ pkgs.gcc ];
       

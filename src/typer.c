@@ -1,4 +1,5 @@
 #include "./typer.h"
+#include "./common_ll.h"
 #include <stdbool.h>
 #include <assert.h>
 
@@ -60,8 +61,9 @@ static struct Type Context_new_typevar(struct Context*);
 void typecheck(struct Arena* arena, struct Symbols symbols, struct Ast ast) {
     struct Globals globals = {0};
     globals.symbols = symbols;
-        
-    for (struct FunctionsLL* f = ast.funcs; f; f = f->next) {
+
+    // for (struct FunctionsLL* f = ast.funcs; f; f = f->next) {
+    for (ll_iter(f, ast.funcs)) {
         struct GlobalsLL* tmp = arena_talloc(arena, struct Type);
         struct Type* ret = arena_talloc(arena, struct Type);
         struct Type* args = arena_talloc(arena, struct Type);
@@ -78,8 +80,9 @@ void typecheck(struct Arena* arena, struct Symbols symbols, struct Ast ast) {
         tmp->next = globals.globals;
         globals.globals = tmp;
     }
-    
-    for (struct FunctionsLL* f = ast.funcs; f; f = f->next) {
+
+    // for (struct FunctionsLL* f = ast.funcs; f; f = f->next) {
+    for (ll_iter(f, ast.funcs)) {
         typecheck_func(arena, globals, f->current);
     }
     
@@ -126,7 +129,8 @@ static struct Type typecheck_expr(
         // that is however complicated, as the arena is used
         // for many things beyond ctx->lets
         struct LetsLL* head = ctx->lets;
-        for (struct StatementsLL* s = expr.bareblock.stmts; s; s = s->next) {
+        // for (struct StatementsLL* s = expr.bareblock.stmts; s; s = s->next) {
+        for (ll_iter(s, expr.bareblock.stmts)) {
             typecheck_stmt(arena, ctx, s->current);
         }
         struct Type out =
@@ -150,7 +154,14 @@ static struct Type typecheck_expr(
         return *p.func.ret;
     }
     case ET_Recall: {
-        for (struct LetsLL* head = ctx->lets; head; head = head->next) {
+        // for (struct LetsLL* head = ctx->lets; head; head = head->next) {
+        for (ll_iter(head, ctx->lets)) {
+            if (head->current.name == expr.lit.name) {
+                return head->current.type;
+            }
+        }
+        // for (struct GlobalsLL* head = ctx->globals.globals; head; head = head->next) {
+        for (ll_iter(head, ctx->globals.globals)) {
             if (head->current.name == expr.lit.name) {
                 return head->current.type;
             }
@@ -316,7 +327,8 @@ static struct Type unify(
 static struct TypeLL* DSet_insert(
     struct Arena* arena, struct DSet* this, struct Type type
 ) {
-    for (struct TypeLL* head = this->types; head; head = head->next) {
+    // for (struct TypeLL* head = this->types; head; head = head->next) {
+    for (ll_iter(head, this->types)) {
         if (Type_equal(head->current.type, type)) return head;
     }
     struct TypeLL* tmp = arena_alloc(arena, sizeof(struct TypeLL));
