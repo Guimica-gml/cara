@@ -216,6 +216,7 @@ static struct Type type_op_right(
     if (prec == 0 && ctx.toks->buf[0].kind == TK_Comma) {
         // reuse allocations, ignore the names
         *name = left;
+        assert(Tokenstream_drop(ctx.toks));
         *args = type_op(ctx, 1);
         
         return (struct Type) {

@@ -13,6 +13,7 @@
 #include "./ast.h"
 #include "./parser.h"
 #include "./typer.h"
+#include "./runner.h"
 
 int main(int argc, char** argv) {
     if (argc != 2) {
@@ -38,6 +39,9 @@ int main(int argc, char** argv) {
     struct Symbols symbols = populate_interner(&strings_arena, &intern);
 
     struct Tokenvec tokens = lex(&strings_arena, &intern, file);
+
+    munmap(file, filestat.st_size);
+    close(filedesc);
     
     printf("[\n");
     struct Tokenstream stream = Tokenvec_stream(&tokens);
@@ -54,14 +58,16 @@ int main(int argc, char** argv) {
 
     struct Arena type_arena = {0};
     assert(arena_init(&type_arena, 4096));
-
     typecheck(&type_arena, symbols, ast);
-
     arena_deinit(&type_arena);
+
+    struct Arena exec_arena = {0};
+    assert(arena_init(&exec_arena, 4096));
+    run(&exec_arena, symbols, ast);
+    arena_deinit(&exec_arena);
+    
     arena_deinit(&ast_arena);
     Tokenvec_deinit(&tokens);
     arena_deinit(&strings_arena);
-    munmap(file, filestat.st_size);
-    close(filedesc);
     return 0;
 }

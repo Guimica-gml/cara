@@ -129,7 +129,6 @@ static struct Type typecheck_expr(
         // that is however complicated, as the arena is used
         // for many things beyond ctx->lets
         struct LetsLL* head = ctx->lets;
-        // for (struct StatementsLL* s = expr.bareblock.stmts; s; s = s->next) {
         for (ll_iter(s, expr.bareblock.stmts)) {
             typecheck_stmt(arena, ctx, s->current);
         }
@@ -221,6 +220,12 @@ static void typecheck_stmt(
         break;
     }
     case ST_Assign:
+        for (ll_iter(head, ctx->lets)) {
+            if (head->current.name == stmt.assign.name) {
+                assert(head->current.mutable && "tried modifying an immutable var!");
+            }
+        }
+        assert(false && "no such variable declared!");
     case ST_Const:
         typecheck_expr(arena, ctx, *stmt.const_stmt.expr);
         break;
@@ -230,12 +235,10 @@ static void typecheck_stmt(
 static void destructure_binding(
     struct Arena* arena, struct Context* ctx, struct Binding binding, bool mut
 ) {
-    struct LetsLL* tmp;
-    
     switch (binding.tag) {
     case BT_Empty: return;
-    case BT_Name:
-        tmp = arena_talloc(arena, struct LetsLL);
+    case BT_Name: {
+        struct LetsLL* tmp = arena_talloc(arena, struct LetsLL);
         assert(tmp);
         tmp->current.name = binding.name.name;
         tmp->current.mutable = mut;
@@ -247,6 +250,7 @@ static void destructure_binding(
         tmp->next = ctx->lets;
         ctx->lets = tmp;
         return;
+    }
     }
 }
 

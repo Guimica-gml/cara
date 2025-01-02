@@ -1,0 +1,4 @@
+func main(): *(string, bool) {
+    let str: *(string, bool) = ("Hello World!", true);
+    return str;
+}

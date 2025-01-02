@@ -18,6 +18,7 @@
         "strings"
         "parser"
         "symbols"
+        "runner"
       ];
       debugOpts = "-Wall -Wextra -g -O0";
       releaseOpts = "-O2";
