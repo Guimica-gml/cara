@@ -5,6 +5,6 @@
 #include "./ast.h"
 #include "./symbols.h"
 
-void typecheck(struct Arena*, struct Symbols, struct Ast);
+void typecheck(struct Arena *, struct Symbols, struct Ast);
 
 #endif

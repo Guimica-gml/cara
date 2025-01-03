@@ -18,8 +18,8 @@ struct Binding {
     enum BindingTag tag;
     union {
         struct {
-            const char* name;
-            struct Type* annot;
+            const char *name;
+            struct Type *annot;
         } name;
     };
 };
@@ -37,20 +37,20 @@ struct Statement {
     union {
         struct {
             struct Binding bind;
-            struct Expr* init;
+            struct Expr *init;
         } let;
         struct {
-            struct Expr* expr;
+            struct Expr *expr;
         } break_stmt;
         struct {
-            struct Expr* expr;
+            struct Expr *expr;
         } return_stmt;
         struct {
-            const char* name;
-            struct Expr* expr;
+            const char *name;
+            struct Expr *expr;
         } assign;
         struct {
-            struct Expr* expr;
+            struct Expr *expr;
         } const_stmt;
     };
 };
@@ -71,30 +71,30 @@ struct Expr {
     enum ExprTag tag;
     union {
         struct {
-            struct Expr* cond;
-            struct Expr* smash;
-            struct Expr* pass;
+            struct Expr *cond;
+            struct Expr *smash;
+            struct Expr *pass;
         } if_expr;
         struct {
-            struct Expr* block;
+            struct Expr *block;
         } loop;
         struct {
             struct StatementsLL {
                 struct Statement current;
-                struct StatementsLL* next;
-            }* stmts;
-            struct Expr* tail;
+                struct StatementsLL *next;
+            } *stmts;
+            struct Expr *tail;
         } bareblock;
         struct {
-            struct Expr* name;
-            struct Expr* args;
+            struct Expr *name;
+            struct Expr *args;
         } call;
         struct {
-            const char* name;
+            const char *name;
         } lit;
         struct {
             struct Expr *lhs;
-            struct Expr* rhs;
+            struct Expr *rhs;
         } comma;
     };
 };
@@ -110,19 +110,19 @@ struct Type {
     enum TypeTag tag;
     union {
         struct {
-            struct Type* args;
-            struct Type* ret;
+            struct Type *args;
+            struct Type *ret;
         } func;
         struct {
-            struct Type* name;
-            struct Type* args;
+            struct Type *name;
+            struct Type *args;
         } call;
         struct {
-            const char* name;
+            const char *name;
         } recall;
         struct {
-            struct Type* lhs;
-            struct Type* rhs;
+            struct Type *lhs;
+            struct Type *rhs;
         } comma;
         struct {
             int idx;
@@ -137,7 +137,7 @@ struct Type Type_string(struct Symbols);
 struct Type Type_product(struct Symbols, struct Type, struct Type);
 
 struct Function {
-    const char* name;
+    const char *name;
     struct Type ret;
     struct Binding args;
     struct Expr body;
@@ -146,8 +146,8 @@ struct Function {
 struct Ast {
     struct FunctionsLL {
         struct Function current;
-        struct FunctionsLL* next;
-    }* funcs;
+        struct FunctionsLL *next;
+    } *funcs;
 };
 
 #endif

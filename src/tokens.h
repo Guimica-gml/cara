@@ -1,8 +1,8 @@
 #ifndef TOKENS_H
 #define TOKENS_H
 
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 enum Tokenkind {
     // used as placeholder primarily
@@ -42,16 +42,16 @@ enum Tokenkind {
 
 struct Token {
     enum Tokenkind kind;
-    const char* spelling;
+    const char *spelling;
 };
 
 struct Tokenstream {
-    struct Token* buf;
+    struct Token *buf;
     size_t len;
 };
 
-bool Tokenstream_drop(struct Tokenstream*);
-bool Tokenstream_drop_text(struct Tokenstream*, const char*);
-bool Tokenstream_drop_kind(struct Tokenstream*, enum Tokenkind);
+bool Tokenstream_drop(struct Tokenstream *);
+bool Tokenstream_drop_text(struct Tokenstream *, const char *);
+bool Tokenstream_drop_kind(struct Tokenstream *, enum Tokenkind);
 
 #endif

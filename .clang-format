@@ -1,39 +1,42 @@
-AllowAllArgumentsOnNextLine: false
-AlignAfterOpenBracket: BlockIndent
-AlignConsecutiveShortCaseStatements:
-    Enabled: true
-    AcrossEmptyLines: true
-    AcrossComments: false
-    AlignCaseColons: false
-AllowShortCaseExpressionOnASingleLine: true
-AllowShortCaseLabelsOnASingleLine: true
-AllowShortEnumsOnASingleLine: true
-AllowShortFunctionsOnASingleLine: All
-AllowShortIfStatementsOnASingleLine: WithoutElse
-AllowShortLoopsOnASingleLine: true
-AllowShortBlocksOnASingleLine: Always
-AlignOperands: DontAlign
-AlwaysBreakBeforeMultilineStrings: true
-BinPackArguments: false
-BinPackParameters: false
-DerivePointerAlignment: false
-PointerAlignment: Left
-IndentCaseLabels: false
-IndentGotoLabels: true
+BasedOnStyle: LLVM
 IndentWidth: 4
-InsertBraces: false
-KeepEmptyLines:
-  AtEndOfFile: false
-  AtStartOfFile: false
-  AtStartOfBlock: true
-LineEnding: LF
-PenaltyReturnTypeOnItsOwnLine: 10000
-QualifierAlignment: Left
-SpaceAfterCStyleCast: true
-SpaceAfterLogicalNot: false
-SpaceBeforeAssignmentOperators: true
-SpaceBeforeCaseColon: false
-SpaceBeforeParens: ControlStatements
-SpaceBeforeSquareBrackets: false
-SpaceInEmptyBlock: false
-ColumnLimit: 80
+AlignAfterOpenBracket: BlockIndent
+# AllowAllArgumentsOnNextLine: false
+# AlignAfterOpenBracket: BlockIndent
+# AlignConsecutiveShortCaseStatements:
+#     Enabled: true
+#     AcrossEmptyLines: true
+#     AcrossComments: false
+#     AlignCaseColons: false
+# AllowShortCaseExpressionOnASingleLine: true
+# AllowShortCaseLabelsOnASingleLine: true
+# AllowShortEnumsOnASingleLine: true
+# AllowShortFunctionsOnASingleLine: All
+# AllowShortIfStatementsOnASingleLine: WithoutElse
+# AllowShortLoopsOnASingleLine: true
+# AllowShortBlocksOnASingleLine: Always
+# AlignOperands: DontAlign
+# AlwaysBreakBeforeMultilineStrings: true
+# BinPackArguments: false
+# BinPackParameters: false
+# DerivePointerAlignment: false
+# PointerAlignment: Left
+# IndentCaseLabels: false
+# IndentGotoLabels: true
+# IndentWidth: 4
+# InsertBraces: false
+# KeepEmptyLines:
+#   AtEndOfFile: false
+#   AtStartOfFile: false
+#   AtStartOfBlock: true
+# LineEnding: LF
+# PenaltyReturnTypeOnItsOwnLine: 10000
+# QualifierAlignment: Left
+# SpaceAfterCStyleCast: true
+# SpaceAfterLogicalNot: false
+# SpaceBeforeAssignmentOperators: true
+# SpaceBeforeCaseColon: false
+# SpaceBeforeParens: ControlStatements
+# SpaceBeforeSquareBrackets: false
+# SpaceInEmptyBlock: false
+# ColumnLimit: 80

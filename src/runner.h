@@ -5,7 +5,6 @@
 #include "./ast.h"
 #include "./symbols.h"
 
-void run(struct Arena*, struct Symbols, struct Ast);
+void run(struct Arena *, struct Symbols, struct Ast);
 
 #endif
-
