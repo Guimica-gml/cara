@@ -68,8 +68,6 @@ struct Context {
 static void declare_binding(struct serene_Allocator, struct Context *, struct Binding);
 static void assign_binding(struct Context *, struct Binding, struct Value);
 static struct Control run_expr(struct serene_Allocator, struct Context *, struct Expr);
-static struct Control
-run_stmt(struct serene_Allocator, struct Context *, struct Statement);
 
 void run(struct serene_Allocator alloc, struct Symbols symbols, struct Ast ast) {
     struct Globals globals = {0};
@@ -122,20 +120,20 @@ run_expr(struct serene_Allocator alloc, struct Context *ctx, struct Expr expr) {
     }
     case ET_Loop:
         while (true) {
-            struct Control v = run_expr(alloc, ctx, *expr.loop.block);
+            struct Control v = run_expr(alloc, ctx, *expr.loop);
             if (v.tag == CT_Return)
                 return v;
             if (v.tag == CT_Break)
                 return Control_plain(v.val);
         }
     case ET_Bareblock: {
+        struct Control out;
         struct LetsLL *head = ctx->lets;
-        for (ll_iter(s, expr.bareblock.stmts)) {
-            struct Control c = run_stmt(alloc, ctx, s->current);
-            if (c.tag == CT_Return || c.tag == CT_Break)
-                return c;
+        for (ll_iter(body, expr.bareblock)) {
+            out = run_expr(alloc, ctx, body->current);
+            if (out.tag == CT_Return || out.tag == CT_Break) 
+                break;
         }
-        struct Control out = run_expr(alloc, ctx, *expr.bareblock.tail);
         ctx->lets = head;
         return out;
     };
@@ -152,12 +150,12 @@ run_expr(struct serene_Allocator alloc, struct Context *ctx, struct Expr expr) {
     }
     case ET_Recall: {
         for (ll_iter(head, ctx->lets)) {
-            if (head->current.name != expr.lit.name)
+            if (head->current.name != expr.lit)
                 continue;
             return Control_plain(Value_clone(alloc, head->current.val));
         }
         for (ll_iter(head, ctx->globals.globals)) {
-            if (head->current.name != expr.lit.name)
+            if (head->current.name != expr.lit)
                 continue;
             return Control_plain(Value_clone(alloc, head->current.val));
         }
@@ -166,17 +164,17 @@ run_expr(struct serene_Allocator alloc, struct Context *ctx, struct Expr expr) {
     case ET_NumberLit:
         return Control_plain((struct Value){
             .tag = VT_Int,
-            .v_int = runner_atoi(expr.lit.name),
+            .v_int = runner_atoi(expr.lit),
         });
     case ET_StringLit:
         return Control_plain((struct Value){
             .tag = VT_String,
-            .v_str = expr.lit.name,
+            .v_str = expr.lit,
         });
     case ET_BoolLit:
         return Control_plain((struct Value){
             .tag = VT_Bool,
-            .v_bool = expr.lit.name == ctx->globals.symbols.s_true,
+            .v_bool = expr.lit == ctx->globals.symbols.s_true,
         });
     case ET_Comma: {
         struct Value *lhs = serene_alloc(alloc, struct Value);
@@ -196,40 +194,32 @@ run_expr(struct serene_Allocator alloc, struct Context *ctx, struct Expr expr) {
             .v_comma.rhs = rhs,
         });
     }
-    }
-
-    assert(false && "shouldn't happen wtf");
-}
-
-static struct Control
-run_stmt(struct serene_Allocator alloc, struct Context *ctx, struct Statement stmt) {
-    switch (stmt.tag) {
     case ST_Mut:
     case ST_Let: {
-        struct Control v = run_expr(alloc, ctx, *stmt.let.init);
+        struct Control v = run_expr(alloc, ctx, *expr.let.init);
         if (v.tag == CT_Return || v.tag == CT_Break)
             return v;
-        declare_binding(alloc, ctx, stmt.let.bind);
-        assign_binding(ctx, stmt.let.bind, v.val);
+        declare_binding(alloc, ctx, expr.let.bind);
+        assign_binding(ctx, expr.let.bind, v.val);
         return Control_plain((struct Value){0});
     }
     case ST_Break: {
-        struct Control v = run_expr(alloc, ctx, *stmt.break_stmt.expr);
+        struct Control v = run_expr(alloc, ctx, *expr.break_stmt);
         if (v.tag == CT_Return)
             return v;
         return Control_break(v.val);
     }
     case ST_Return: {
-        struct Control v = run_expr(alloc, ctx, *stmt.return_stmt.expr);
+        struct Control v = run_expr(alloc, ctx, *expr.return_stmt);
         if (v.tag == CT_Break)
             return v;
         return Control_return(v.val);
     }
     case ST_Assign: {
         for (ll_iter(head, ctx->lets)) {
-            if (head->current.name != stmt.assign.name)
+            if (head->current.name != expr.assign.name)
                 continue;
-            struct Control v = run_expr(alloc, ctx, *stmt.assign.expr);
+            struct Control v = run_expr(alloc, ctx, *expr.assign.expr);
             if (v.tag == CT_Return || v.tag == CT_Break)
                 return v;
             head->current.val = v.val;
@@ -238,14 +228,14 @@ run_stmt(struct serene_Allocator alloc, struct Context *ctx, struct Statement st
         break;
     };
     case ST_Const: {
-        struct Control v = run_expr(alloc, ctx, *stmt.const_stmt.expr);
+        struct Control v = run_expr(alloc, ctx, *expr.const_stmt);
         if (v.tag == CT_Break || v.tag == CT_Return)
             return v;
         return Control_plain((struct Value){0});
     }
     }
 
-    assert(false && "shouldn't happen");
+    assert(false && "shouldn't happen wtf");
 }
 
 static void declare_binding(

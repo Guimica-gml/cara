@@ -78,7 +78,7 @@
       default = pkgs.stdenv.mkDerivation {
         inherit name;
         src = ./.;
-        buildInputs = [ pkgs.clang-tools ] ++ commonBuildInputs;
+        buildInputs = [ pkgs.clang-tools pkgs.gdb ] ++ commonBuildInputs;
       };
     };
   };

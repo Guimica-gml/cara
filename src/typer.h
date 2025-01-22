@@ -4,7 +4,8 @@
 #include "serene.h"
 #include "./ast.h"
 #include "./symbols.h"
+#include "./tst.h"
 
-void typecheck(struct serene_Allocator, struct Symbols, struct Ast);
+struct Tst typecheck(struct serene_Allocator, struct Symbols, struct Ast);
 
 #endif
