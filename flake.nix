@@ -1,10 +1,13 @@
 {
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
-  outputs = { self, nixpkgs, ... }: let
+  inputs.serene.url = "github:artemisYo/serene";
+  inputs.serene.inputs.nixpkgs.follows = "nixpkgs";
+  outputs = { self, nixpkgs, serene, ... }: let
     system = "x86_64-linux";
     name = "cara";
     src = ./src;
     pkgs = (import nixpkgs) { inherit system; };
+    serene-drv = serene.packages."${system}".default;
   in {
     packages."${system}" = let
       # expects a .c file of same name in $src/
@@ -22,7 +25,7 @@
       ];
       debugOpts = "-Wall -Wextra -g -O0";
       releaseOpts = "-O2";
-      commonBuildInputs = [ pkgs.gcc ];
+      commonBuildInputs = [ serene-drv pkgs.gcc pkgs.libllvm ];
       
       comp = (isDebug:
         "gcc -c"
@@ -30,6 +33,7 @@
         + " " + pkgs.lib.concatStrings
           (pkgs.lib.intersperse " "
             (map (m: "$src/" + m + ".c") modules))
+        + " ${serene-drv}/lib/*"
       );
       link = (isDebug:
         "gcc -o ./main"
