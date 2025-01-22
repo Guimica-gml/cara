@@ -1,7 +1,7 @@
 #include "./parser.h"
 
 struct Context {
-    struct Arena *arena;
+    struct serene_Allocator alloc;
     struct Opdecls *ops;
     struct Symbols *symbols;
     struct Tokenstream *toks;
@@ -44,11 +44,11 @@ static struct Statement statement_return(struct Context);
 static struct Statement statement_assign(struct Context);
 
 struct Ast parse(
-    struct Arena *arena, struct Opdecls ops, struct Symbols symbols,
+    struct serene_Allocator alloc, struct Opdecls ops, struct Symbols symbols,
     struct Tokenstream toks
 ) {
     struct Context ctx = {
-        .arena = arena,
+        .alloc = alloc,
         .ops = &ops,
         .symbols = &symbols,
         .toks = &toks,
@@ -59,7 +59,7 @@ struct Ast parse(
     while (ctx.toks->len) {
         switch (ctx.toks->buf[0].kind) {
         case TK_Func:
-            tmp = arena_alloc(arena, sizeof(struct FunctionsLL));
+            tmp = serene_alloc(alloc, struct FunctionsLL);
             assert(tmp && "OOM");
             tmp->current = decls_function(ctx);
             tmp->next = funcs;
@@ -118,8 +118,8 @@ static struct Type type(struct Context ctx) {
 }
 
 static struct Type type_func(struct Context ctx) {
-    struct Type *args = arena_alloc(ctx.arena, sizeof(struct Type));
-    struct Type *ret = arena_alloc(ctx.arena, sizeof(struct Type));
+    struct Type *args = serene_alloc(ctx.alloc, struct Type);
+    struct Type *ret = serene_alloc(ctx.alloc, struct Type);
     assert(args && ret);
 
     assert(Tokenstream_drop_text(ctx.toks, "func"));
@@ -154,8 +154,8 @@ static struct Type type_op(struct Context ctx, unsigned prec) {
 }
 
 static struct Type type_op_left(struct Context ctx) {
-    struct Type *args = arena_alloc(ctx.arena, sizeof(struct Type));
-    struct Type *name = arena_alloc(ctx.arena, sizeof(struct Type));
+    struct Type *args = serene_alloc(ctx.alloc, struct Type);
+    struct Type *name = serene_alloc(ctx.alloc, struct Type);
     assert(args && name);
 
     assert(ctx.toks->len);
@@ -210,8 +210,8 @@ static bool type_op_right_first(struct Context ctx, unsigned prec) {
 
 static struct Type
 type_op_right(struct Context ctx, struct Type left, unsigned prec) {
-    struct Type *name = arena_alloc(ctx.arena, sizeof(struct Type));
-    struct Type *args = arena_alloc(ctx.arena, sizeof(struct Type));
+    struct Type *name = serene_alloc(ctx.alloc, struct Type);
+    struct Type *args = serene_alloc(ctx.alloc, struct Type);
     assert(name && args);
 
     assert(ctx.toks->len);
@@ -253,9 +253,9 @@ type_op_right(struct Context ctx, struct Type left, unsigned prec) {
             assert(Tokenstream_drop(ctx.toks));
             if (ctx.ops->buf[i].rbp >= 0) {
                 struct Type *left_ptr =
-                    arena_alloc(ctx.arena, sizeof(struct Type));
+                    serene_alloc(ctx.alloc, struct Type);
                 struct Type *right_ptr =
-                    arena_alloc(ctx.arena, sizeof(struct Type));
+                    serene_alloc(ctx.alloc, struct Type);
                 assert(left_ptr && right_ptr);
 
                 *left_ptr = left;
@@ -337,7 +337,7 @@ static struct Binding binding_name(struct Context ctx) {
     assert(Tokenstream_drop_kind(ctx.toks, TK_Name));
     if (ctx.toks->len && ctx.toks->buf[0].kind == TK_Colon) {
         assert(Tokenstream_drop(ctx.toks));
-        annot = arena_alloc(ctx.arena, sizeof(struct Type));
+        annot = serene_alloc(ctx.alloc, struct Type);
         assert(annot);
         *annot = type(ctx);
     }
@@ -392,9 +392,9 @@ static struct Expr expr_block(struct Context ctx) {
 }
 
 static struct Expr expr_if(struct Context ctx) {
-    struct Expr *cond = arena_alloc(ctx.arena, sizeof(struct Expr));
-    struct Expr *smash = arena_alloc(ctx.arena, sizeof(struct Expr));
-    struct Expr *pass = arena_alloc(ctx.arena, sizeof(struct Expr));
+    struct Expr *cond = serene_alloc(ctx.alloc, struct Expr);
+    struct Expr *smash = serene_alloc(ctx.alloc, struct Expr);
+    struct Expr *pass = serene_alloc(ctx.alloc, struct Expr);
     assert(cond && smash && pass && "OOM");
 
     assert(Tokenstream_drop_text(ctx.toks, "if"));
@@ -415,7 +415,7 @@ static struct Expr expr_if(struct Context ctx) {
 }
 
 static struct Expr expr_loop(struct Context ctx) {
-    struct Expr *block = arena_alloc(ctx.arena, sizeof(struct Expr));
+    struct Expr *block = serene_alloc(ctx.alloc, struct Expr);
     assert(block && "OOM");
 
     assert(Tokenstream_drop_text(ctx.toks, "loop"));
@@ -428,7 +428,7 @@ static struct Expr expr_loop(struct Context ctx) {
 }
 
 static struct Expr expr_bareblock(struct Context ctx) {
-    struct Expr *tail = arena_talloc(ctx.arena, struct Expr);
+    struct Expr *tail = serene_alloc(ctx.alloc, struct Expr);
     struct StatementsLL *stmts = NULL;
     assert(tail && "OOM");
 
@@ -444,7 +444,7 @@ static struct Expr expr_bareblock(struct Context ctx) {
 
         assert(Tokenstream_drop_text(ctx.toks, ";"));
         struct StatementsLL *tmp =
-            arena_alloc(ctx.arena, sizeof(struct StatementsLL));
+            serene_alloc(ctx.alloc, struct StatementsLL);
         assert(tmp && "OOM");
         tmp->current = s;
         tmp->next = stmts;
@@ -493,8 +493,8 @@ static struct Expr expr_op(struct Context ctx, unsigned prec) {
 }
 
 static struct Expr expr_op_left(struct Context ctx) {
-    struct Expr *args = arena_alloc(ctx.arena, sizeof(struct Expr));
-    struct Expr *name = arena_alloc(ctx.arena, sizeof(struct Expr));
+    struct Expr *args = serene_alloc(ctx.alloc, struct Expr);
+    struct Expr *name = serene_alloc(ctx.alloc, struct Expr);
     assert(args && name);
 
     assert(ctx.toks->len);
@@ -548,8 +548,8 @@ static bool expr_op_right_first(struct Context ctx, unsigned prec) {
 
 static struct Expr
 expr_op_right(struct Context ctx, struct Expr left, unsigned prec) {
-    struct Expr *name = arena_alloc(ctx.arena, sizeof(struct Expr));
-    struct Expr *args = arena_alloc(ctx.arena, sizeof(struct Expr));
+    struct Expr *name = serene_alloc(ctx.alloc, struct Expr);
+    struct Expr *args = serene_alloc(ctx.alloc, struct Expr);
     assert(name && args);
 
     assert(ctx.toks->len);
@@ -594,9 +594,9 @@ expr_op_right(struct Context ctx, struct Expr left, unsigned prec) {
             };
             if (ctx.ops->buf[i].rbp >= 0) {
                 struct Expr *left_ptr =
-                    arena_alloc(ctx.arena, sizeof(struct Expr));
+                    serene_alloc(ctx.alloc, struct Expr);
                 struct Expr *right_ptr =
-                    arena_alloc(ctx.arena, sizeof(struct Expr));
+                    serene_alloc(ctx.alloc, struct Expr);
                 assert(left_ptr && right_ptr);
 
                 *left_ptr = left;
@@ -673,7 +673,7 @@ static struct Statement statement(struct Context ctx) {
         }
         __attribute__((fallthrough));
     default:
-        eptr = arena_alloc(ctx.arena, sizeof(struct Expr));
+        eptr = serene_alloc(ctx.alloc, struct Expr);
         assert(eptr && "OOM");
         *eptr = expr_any(ctx);
         return (struct Statement){
@@ -684,7 +684,7 @@ static struct Statement statement(struct Context ctx) {
 }
 
 static struct Statement statement_let(struct Context ctx) {
-    struct Expr *init = arena_alloc(ctx.arena, sizeof(struct Expr));
+    struct Expr *init = serene_alloc(ctx.alloc, struct Expr);
     struct Binding bind;
     assert(init && "OOM");
 
@@ -701,7 +701,7 @@ static struct Statement statement_let(struct Context ctx) {
 }
 
 static struct Statement statement_mut(struct Context ctx) {
-    struct Expr *init = arena_alloc(ctx.arena, sizeof(struct Expr));
+    struct Expr *init = serene_alloc(ctx.alloc, struct Expr);
     struct Binding bind;
     assert(init && "OOM");
 
@@ -722,7 +722,7 @@ static struct Statement statement_break(struct Context ctx) {
 
     assert(Tokenstream_drop_text(ctx.toks, "break"));
     if (ctx.toks->len && ctx.toks->buf[0].kind != TK_Semicolon) {
-        expr = arena_alloc(ctx.arena, sizeof(struct Expr));
+        expr = serene_alloc(ctx.alloc, struct Expr);
         assert(expr && "OOM");
         *expr = expr_any(ctx);
     }
@@ -734,7 +734,7 @@ static struct Statement statement_break(struct Context ctx) {
 }
 
 static struct Statement statement_return(struct Context ctx) {
-    struct Expr *expr = arena_talloc(ctx.arena, struct Expr);
+    struct Expr *expr = serene_alloc(ctx.alloc, struct Expr);
     assert(expr);
 
     assert(Tokenstream_drop_text(ctx.toks, "return"));
@@ -751,7 +751,7 @@ static struct Statement statement_return(struct Context ctx) {
 }
 
 static struct Statement statement_assign(struct Context ctx) {
-    struct Expr *expr = arena_alloc(ctx.arena, sizeof(struct Expr));
+    struct Expr *expr = serene_alloc(ctx.alloc, struct Expr);
     const char *name;
     assert(expr);
 

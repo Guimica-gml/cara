@@ -1,7 +1,7 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-#include "./arena.h"
+#include "serene.h"
 #include "./strings.h"
 #include "./tokens.h"
 #include <stdbool.h>
@@ -21,7 +21,7 @@ struct Opdecl {
 #define VEC_TYPE struct Opdecl
 #include "./vector.h"
 
-struct Tokenvec lex(struct Arena *, struct Intern *, const char *);
+struct Tokenvec lex(struct serene_Allocator, struct Intern *, const char *);
 
 struct Tokenstream Tokenvec_stream(struct Tokenvec *);
 

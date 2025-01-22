@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <stdbool.h>
 
-#include "./arena.h"
+#include "serene.h"
 #include "./lexer.h"
 #include "./strings.h"
 #include "./tokens.h"
@@ -13,6 +13,6 @@
 #include "./symbols.h"
 
 struct Ast
-parse(struct Arena *, struct Opdecls, struct Symbols, struct Tokenstream);
+parse(struct serene_Allocator, struct Opdecls, struct Symbols, struct Tokenstream);
 
 #endif

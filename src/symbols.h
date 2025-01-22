@@ -1,7 +1,7 @@
 #ifndef SYMBOLS_H
 #define SYMBOLS_H
 
-#include "./arena.h"
+#include "serene.h"
 #include "./strings.h"
 
 struct Symbols {
@@ -15,6 +15,6 @@ struct Symbols {
     const char *s_main;
 };
 
-struct Symbols populate_interner(struct Arena *, struct Intern *);
+struct Symbols populate_interner(struct serene_Allocator, struct Intern *);
 
 #endif

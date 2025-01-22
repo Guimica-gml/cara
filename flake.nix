@@ -8,12 +8,12 @@
     src = ./src;
     pkgs = (import nixpkgs) { inherit system; };
     serene-drv = serene.packages."${system}".default;
+    commonBuildInputs = [ serene-drv pkgs.gcc pkgs.libllvm ];
   in {
     packages."${system}" = let
       # expects a .c file of same name in $src/
       modules = [
         "main"
-        "arena"
         "tokens"
         "lexer"
         "ast"
@@ -25,7 +25,6 @@
       ];
       debugOpts = "-Wall -Wextra -g -O0";
       releaseOpts = "-O2";
-      commonBuildInputs = [ serene-drv pkgs.gcc pkgs.libllvm ];
       
       comp = (isDebug:
         "gcc -c"
@@ -33,7 +32,6 @@
         + " " + pkgs.lib.concatStrings
           (pkgs.lib.intersperse " "
             (map (m: "$src/" + m + ".c") modules))
-        + " ${serene-drv}/lib/*"
       );
       link = (isDebug:
         "gcc -o ./main"
@@ -41,6 +39,7 @@
         + " " + pkgs.lib.concatStrings
           (pkgs.lib.intersperse " "
             (map (m: "./" + m + ".o") modules))
+        + " ${serene-drv}/lib/*"
       );
       installPhase = ''
         mkdir -p "$out/bin"
@@ -73,6 +72,13 @@
       default = {
         type = "app";
         program = "${self.packages."${system}".default}/bin/${name}";
+      };
+    };
+    devShells."${system}" = {
+      default = pkgs.stdenv.mkDerivation {
+        inherit name;
+        src = ./.;
+        buildInputs = [ pkgs.clang-tools ] ++ commonBuildInputs;
       };
     };
   };

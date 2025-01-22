@@ -45,7 +45,7 @@ static bool strings_n_equal(const char *this, const char *other, size_t len) {
 }
 
 const char *Intern_insert(
-    struct Intern *this, struct Arena *arena, const char *s, size_t len
+    struct Intern *this, struct serene_Allocator alloc, const char *s, size_t len
 ) {
     long int hash = hash_string(s, len);
     for (struct HashesLL *head = this->hashes; head; head = head->next) {
@@ -55,8 +55,8 @@ const char *Intern_insert(
         }
     }
 
-    struct HashesLL *new = arena_alloc(arena, sizeof(struct HashesLL));
-    char *new_s = arena_alloc(arena, (1 + len) * sizeof(char));
+    struct HashesLL *new = serene_alloc(alloc, struct HashesLL);
+    char *new_s = serene_nalloc(alloc, 1 + len, char);
     assert(new && new_s && "OOM");
     for (size_t i = 0; i < len; i++)
         new_s[i] = s[i];

@@ -21,7 +21,7 @@ struct Out {
 
 struct Context {
     struct Intern *intern;
-    struct Arena *arena;
+    struct serene_Allocator alloc;
 };
 
 static bool lexer_is_word_break(char);
@@ -36,11 +36,11 @@ static bool lexer_number(struct Context, struct Out *, const char *);
 static bool lexer_name(struct Context, struct Out *, const char *);
 
 struct Tokenvec
-lex(struct Arena *arena, struct Intern *intern, const char *input) {
+lex(struct serene_Allocator alloc, struct Intern *intern, const char *input) {
     struct Tokenvec toks = {0};
     struct Out res = {0};
     struct Context ctx = {
-        .arena = arena,
+        .alloc = alloc,
         .intern = intern,
     };
     input = lexer_strip_comments(input);
@@ -70,7 +70,7 @@ static bool lexer_expect(
         size_t len = strings_strlen(table[i].str);
         if (!postcondition(input + len))
             continue;
-        out->token.spelling = Intern_insert(ctx.intern, ctx.arena, input, len);
+        out->token.spelling = Intern_insert(ctx.intern, ctx.alloc, input, len);
         out->token.kind = table[i].kind;
         out->rest = input + len;
         return true;
@@ -166,7 +166,7 @@ static bool lexer_string(struct Context ctx, struct Out *out, const char *in) {
         }
         len++;
     }
-    out->token.spelling = Intern_insert(ctx.intern, ctx.arena, in, len);
+    out->token.spelling = Intern_insert(ctx.intern, ctx.alloc, in, len);
     out->token.kind = TK_String;
     out->rest = in + len;
     return true;
@@ -178,7 +178,7 @@ static bool lexer_number(struct Context ctx, struct Out *out, const char *in) {
         len++;
     if (len == 0)
         return false;
-    out->token.spelling = Intern_insert(ctx.intern, ctx.arena, in, len);
+    out->token.spelling = Intern_insert(ctx.intern, ctx.alloc, in, len);
     out->token.kind = TK_Number;
     out->rest = in + len;
     return true;
@@ -190,7 +190,7 @@ static bool lexer_name(struct Context ctx, struct Out *out, const char *in) {
         len++;
     if (len == 0)
         return false;
-    out->token.spelling = Intern_insert(ctx.intern, ctx.arena, in, len);
+    out->token.spelling = Intern_insert(ctx.intern, ctx.alloc, in, len);
     out->token.kind = TK_Name;
     out->rest = in + len;
     return true;

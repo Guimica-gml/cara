@@ -16,7 +16,7 @@ struct DSet {
     } *types;
 };
 
-static struct TypeLL *DSet_insert(struct Arena *, struct DSet *, struct Type);
+static struct TypeLL *DSet_insert(struct serene_Allocator, struct DSet *, struct Type);
 static struct TypeLL *DSet_root(struct TypeLL *);
 static struct TypeLL *DSet_join(struct TypeLL *, struct TypeLL *);
 
@@ -32,8 +32,8 @@ struct Globals {
 };
 
 static struct Type
-unify(struct Arena *, struct DSet *, struct Type, struct Type);
-static void typecheck_func(struct Arena *, struct Globals, struct Function);
+unify(struct serene_Allocator, struct DSet *, struct Type, struct Type);
+static void typecheck_func(struct serene_Allocator, struct Globals, struct Function);
 
 struct Context {
     struct LetsLL {
@@ -55,21 +55,21 @@ struct Context {
 };
 
 static struct Type
-typecheck_expr(struct Arena *, struct Context *, struct Expr);
-static void typecheck_stmt(struct Arena *, struct Context *, struct Statement);
+typecheck_expr(struct serene_Allocator, struct Context *, struct Expr);
+static void typecheck_stmt(struct serene_Allocator, struct Context *, struct Statement);
 static void
-destructure_binding(struct Arena *, struct Context *, struct Binding, bool);
+destructure_binding(struct serene_Allocator, struct Context *, struct Binding, bool);
 static struct Type Context_new_typevar(struct Context *);
 
-void typecheck(struct Arena *arena, struct Symbols symbols, struct Ast ast) {
+void typecheck(struct serene_Allocator alloc, struct Symbols symbols, struct Ast ast) {
     struct Globals globals = {0};
     globals.symbols = symbols;
 
     // for (struct FunctionsLL* f = ast.funcs; f; f = f->next) {
     for (ll_iter(f, ast.funcs)) {
-        struct GlobalsLL *tmp = arena_talloc(arena, struct Type);
-        struct Type *ret = arena_talloc(arena, struct Type);
-        struct Type *args = arena_talloc(arena, struct Type);
+        struct GlobalsLL *tmp = serene_alloc(alloc, struct GlobalsLL);
+        struct Type *ret = serene_alloc(alloc, struct Type);
+        struct Type *args = serene_alloc(alloc, struct Type);
         assert(tmp && ret && args);
 
         *ret = f->current.ret;
@@ -86,41 +86,41 @@ void typecheck(struct Arena *arena, struct Symbols symbols, struct Ast ast) {
 
     // for (struct FunctionsLL* f = ast.funcs; f; f = f->next) {
     for (ll_iter(f, ast.funcs)) {
-        typecheck_func(arena, globals, f->current);
+        typecheck_func(alloc, globals, f->current);
     }
 
     return;
 }
 
 static void typecheck_func(
-    struct Arena *arena, struct Globals globals, struct Function func
+    struct serene_Allocator alloc, struct Globals globals, struct Function func
 ) {
     struct Context ctx = {0};
     ctx.globals = globals;
-    destructure_binding(arena, &ctx, func.args, false);
+    destructure_binding(alloc, &ctx, func.args, false);
     ctx.ret = func.ret;
-    typecheck_expr(arena, &ctx, func.body);
+    typecheck_expr(alloc, &ctx, func.body);
 }
 
 static struct Type
-typecheck_expr(struct Arena *arena, struct Context *ctx, struct Expr expr) {
+typecheck_expr(struct serene_Allocator alloc, struct Context *ctx, struct Expr expr) {
     switch (expr.tag) {
     case ET_Unit:
         return Type_unit(ctx->globals.symbols);
     case ET_If: {
-        struct Type cond = typecheck_expr(arena, ctx, *expr.if_expr.cond);
-        unify(arena, &ctx->equivs, cond, Type_bool(ctx->globals.symbols));
-        struct Type smash = typecheck_expr(arena, ctx, *expr.if_expr.smash);
-        struct Type pass = typecheck_expr(arena, ctx, *expr.if_expr.pass);
-        return unify(arena, &ctx->equivs, smash, pass);
+        struct Type cond = typecheck_expr(alloc, ctx, *expr.if_expr.cond);
+        unify(alloc, &ctx->equivs, cond, Type_bool(ctx->globals.symbols));
+        struct Type smash = typecheck_expr(alloc, ctx, *expr.if_expr.smash);
+        struct Type pass = typecheck_expr(alloc, ctx, *expr.if_expr.pass);
+        return unify(alloc, &ctx->equivs, smash, pass);
     }
     case ET_Loop: {
         struct Type out = Context_new_typevar(ctx);
-        struct LoopsLL *head = arena_talloc(arena, struct LoopsLL);
+        struct LoopsLL *head = serene_alloc(alloc, struct LoopsLL);
         head->current = out;
         head->next = ctx->loops;
         ctx->loops = head;
-        typecheck_expr(arena, ctx, *expr.loop.block);
+        typecheck_expr(alloc, ctx, *expr.loop.block);
         ctx->loops = head->next;
         return out;
     }
@@ -131,24 +131,24 @@ typecheck_expr(struct Arena *arena, struct Context *ctx, struct Expr expr) {
         // for many things beyond ctx->lets
         struct LetsLL *head = ctx->lets;
         for (ll_iter(s, expr.bareblock.stmts)) {
-            typecheck_stmt(arena, ctx, s->current);
+            typecheck_stmt(alloc, ctx, s->current);
         }
-        struct Type out = typecheck_expr(arena, ctx, *expr.bareblock.tail);
+        struct Type out = typecheck_expr(alloc, ctx, *expr.bareblock.tail);
         // end scope
         ctx->lets = head;
         return out;
     }
     case ET_Call: {
         struct Type f;
-        struct Type *a = arena_talloc(arena, struct Type);
-        struct Type *r = arena_talloc(arena, struct Type);
+        struct Type *a = serene_alloc(alloc, struct Type);
+        struct Type *r = serene_alloc(alloc, struct Type);
         assert(a && r);
-        f = typecheck_expr(arena, ctx, *expr.call.name);
-        *a = typecheck_expr(arena, ctx, *expr.call.args);
+        f = typecheck_expr(alloc, ctx, *expr.call.name);
+        *a = typecheck_expr(alloc, ctx, *expr.call.args);
         *r = Context_new_typevar(ctx);
         struct Type fa =
             (struct Type){.tag = TT_Func, .func.args = a, .func.ret = r};
-        struct Type p = unify(arena, &ctx->equivs, f, fa);
+        struct Type p = unify(alloc, &ctx->equivs, f, fa);
         assert(p.tag == TT_Func);
         return *p.func.ret;
     }
@@ -175,14 +175,14 @@ typecheck_expr(struct Arena *arena, struct Context *ctx, struct Expr expr) {
     case ET_BoolLit:
         return Type_bool(ctx->globals.symbols);
     case ET_Comma: {
-        struct Type *lhs = arena_talloc(arena, struct Type);
-        struct Type *rhs = arena_talloc(arena, struct Type);
-        struct Type *args = arena_talloc(arena, struct Type);
-        struct Type *prod = arena_talloc(arena, struct Type);
+        struct Type *lhs = serene_alloc(alloc, struct Type);
+        struct Type *rhs = serene_alloc(alloc, struct Type);
+        struct Type *args = serene_alloc(alloc, struct Type);
+        struct Type *prod = serene_alloc(alloc, struct Type);
         assert(lhs && rhs && args && prod);
 
-        *lhs = typecheck_expr(arena, ctx, *expr.comma.lhs);
-        *rhs = typecheck_expr(arena, ctx, *expr.comma.rhs);
+        *lhs = typecheck_expr(alloc, ctx, *expr.comma.lhs);
+        *rhs = typecheck_expr(alloc, ctx, *expr.comma.rhs);
         *args = (struct Type){
             .tag = TT_Comma,
             .comma.lhs = lhs,
@@ -204,27 +204,27 @@ typecheck_expr(struct Arena *arena, struct Context *ctx, struct Expr expr) {
 }
 
 static void typecheck_stmt(
-    struct Arena *arena, struct Context *ctx, struct Statement stmt
+    struct serene_Allocator alloc, struct Context *ctx, struct Statement stmt
 ) {
     switch (stmt.tag) {
     case ST_Let:
         // TODO: make bindings respect initialiezr type
-        destructure_binding(arena, ctx, stmt.let.bind, false);
-        typecheck_expr(arena, ctx, *stmt.let.init);
+        destructure_binding(alloc, ctx, stmt.let.bind, false);
+        typecheck_expr(alloc, ctx, *stmt.let.init);
         break;
     case ST_Mut:
-        destructure_binding(arena, ctx, stmt.let.bind, true);
-        typecheck_expr(arena, ctx, *stmt.let.init);
+        destructure_binding(alloc, ctx, stmt.let.bind, true);
+        typecheck_expr(alloc, ctx, *stmt.let.init);
         break;
     case ST_Break: {
-        struct Type brk = typecheck_expr(arena, ctx, *stmt.break_stmt.expr);
+        struct Type brk = typecheck_expr(alloc, ctx, *stmt.break_stmt.expr);
         assert(ctx->loops);
-        unify(arena, &ctx->equivs, brk, ctx->loops->current);
+        unify(alloc, &ctx->equivs, brk, ctx->loops->current);
         break;
     }
     case ST_Return: {
-        struct Type ret = typecheck_expr(arena, ctx, *stmt.return_stmt.expr);
-        unify(arena, &ctx->equivs, ret, ctx->ret);
+        struct Type ret = typecheck_expr(alloc, ctx, *stmt.return_stmt.expr);
+        unify(alloc, &ctx->equivs, ret, ctx->ret);
         break;
     }
     case ST_Assign:
@@ -237,19 +237,19 @@ static void typecheck_stmt(
         }
         assert(false && "no such variable declared!");
     case ST_Const:
-        typecheck_expr(arena, ctx, *stmt.const_stmt.expr);
+        typecheck_expr(alloc, ctx, *stmt.const_stmt.expr);
         break;
     }
 }
 
 static void destructure_binding(
-    struct Arena *arena, struct Context *ctx, struct Binding binding, bool mut
+    struct serene_Allocator alloc, struct Context *ctx, struct Binding binding, bool mut
 ) {
     switch (binding.tag) {
     case BT_Empty:
         return;
     case BT_Name: {
-        struct LetsLL *tmp = arena_talloc(arena, struct LetsLL);
+        struct LetsLL *tmp = serene_alloc(alloc, struct LetsLL);
         assert(tmp);
         tmp->current.name = binding.name.name;
         tmp->current.mutable = mut;
@@ -309,25 +309,25 @@ static struct Type Binding_type(struct Symbols symbols, struct Binding this) {
 }
 
 static struct Type unify(
-    struct Arena *arena, struct DSet *dset, struct Type lhs, struct Type rhs
+    struct serene_Allocator alloc, struct DSet *dset, struct Type lhs, struct Type rhs
 ) {
-    struct TypeLL *lroot = DSet_root(DSet_insert(arena, dset, lhs));
+    struct TypeLL *lroot = DSet_root(DSet_insert(alloc, dset, lhs));
     struct Type ltype = lroot->current.type;
-    struct TypeLL *rroot = DSet_root(DSet_insert(arena, dset, rhs));
+    struct TypeLL *rroot = DSet_root(DSet_insert(alloc, dset, rhs));
     struct Type rtype = rroot->current.type;
     if (ltype.tag == rtype.tag) {
         switch (ltype.tag) {
         case TT_Call:
-            unify(arena, dset, *ltype.call.name, *rtype.call.name);
-            unify(arena, dset, *ltype.call.args, *rtype.call.args);
+            unify(alloc, dset, *ltype.call.name, *rtype.call.name);
+            unify(alloc, dset, *ltype.call.args, *rtype.call.args);
             return lroot->current.type;
         case TT_Func:
-            unify(arena, dset, *ltype.func.args, *rtype.func.args);
-            unify(arena, dset, *ltype.func.ret, *rtype.func.ret);
+            unify(alloc, dset, *ltype.func.args, *rtype.func.args);
+            unify(alloc, dset, *ltype.func.ret, *rtype.func.ret);
             return ltype;
         case TT_Comma:
-            unify(arena, dset, *ltype.comma.lhs, *rtype.comma.lhs);
-            unify(arena, dset, *ltype.comma.rhs, *rtype.comma.rhs);
+            unify(alloc, dset, *ltype.comma.lhs, *rtype.comma.lhs);
+            unify(alloc, dset, *ltype.comma.rhs, *rtype.comma.rhs);
             return ltype;
         case TT_Recall:
             assert(ltype.recall.name == rtype.recall.name && "type mismatch");
@@ -342,13 +342,13 @@ static struct Type unify(
 }
 
 static struct TypeLL *
-DSet_insert(struct Arena *arena, struct DSet *this, struct Type type) {
+DSet_insert(struct serene_Allocator alloc, struct DSet *this, struct Type type) {
     // for (struct TypeLL* head = this->types; head; head = head->next) {
     for (ll_iter(head, this->types)) {
         if (Type_equal(head->current.type, type))
             return head;
     }
-    struct TypeLL *tmp = arena_alloc(arena, sizeof(struct TypeLL));
+    struct TypeLL *tmp = serene_alloc(alloc, struct TypeLL);
     tmp->next = this->types;
     tmp->current.parent = tmp;
     tmp->current.type = type;

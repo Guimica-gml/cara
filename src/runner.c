@@ -29,7 +29,7 @@ struct Value {
 };
 
 static void print_val(struct Value);
-static struct Value Value_clone(struct Arena *, struct Value);
+static struct Value Value_clone(struct serene_Allocator, struct Value);
 
 struct Control {
     enum { CT_Return, CT_Break, CT_Plain } tag;
@@ -52,7 +52,7 @@ struct Globals {
 };
 
 static struct Value
-run_func(struct Arena *, struct Globals, struct Function, struct Value);
+run_func(struct serene_Allocator, struct Globals, struct Function, struct Value);
 
 struct Context {
     struct LetsLL {
@@ -65,18 +65,18 @@ struct Context {
     struct Globals globals;
 };
 
-static void declare_binding(struct Arena *, struct Context *, struct Binding);
+static void declare_binding(struct serene_Allocator, struct Context *, struct Binding);
 static void assign_binding(struct Context *, struct Binding, struct Value);
-static struct Control run_expr(struct Arena *, struct Context *, struct Expr);
+static struct Control run_expr(struct serene_Allocator, struct Context *, struct Expr);
 static struct Control
-run_stmt(struct Arena *, struct Context *, struct Statement);
+run_stmt(struct serene_Allocator, struct Context *, struct Statement);
 
-void run(struct Arena *arena, struct Symbols symbols, struct Ast ast) {
+void run(struct serene_Allocator alloc, struct Symbols symbols, struct Ast ast) {
     struct Globals globals = {0};
     globals.symbols = symbols;
     const struct Function *main_func = NULL;
     for (ll_iter(f, ast.funcs)) {
-        struct GlobalsLL *tmp = arena_talloc(arena, struct GlobalsLL);
+        struct GlobalsLL *tmp = serene_alloc(alloc, struct GlobalsLL);
         assert(tmp);
         tmp->current.name = f->current.name;
         tmp->current.val = (struct Value){
@@ -90,39 +90,39 @@ void run(struct Arena *arena, struct Symbols symbols, struct Ast ast) {
         }
     }
     assert(main_func);
-    print_val(run_func(arena, globals, *main_func, (struct Value){0}));
+    print_val(run_func(alloc, globals, *main_func, (struct Value){0}));
 }
 
 static struct Value run_func(
-    struct Arena *arena, struct Globals globals, struct Function func,
+    struct serene_Allocator alloc, struct Globals globals, struct Function func,
     struct Value args
 ) {
     struct Context ctx = {0};
     ctx.globals = globals;
-    declare_binding(arena, &ctx, func.args);
+    declare_binding(alloc, &ctx, func.args);
     assign_binding(&ctx, func.args, args);
-    return run_expr(arena, &ctx, func.body).val;
+    return run_expr(alloc, &ctx, func.body).val;
 }
 
 static struct Control
-run_expr(struct Arena *arena, struct Context *ctx, struct Expr expr) {
+run_expr(struct serene_Allocator alloc, struct Context *ctx, struct Expr expr) {
     switch (expr.tag) {
     case ET_Unit:
         return Control_plain((struct Value){0});
     case ET_If: {
-        struct Control v = run_expr(arena, ctx, *expr.if_expr.cond);
+        struct Control v = run_expr(alloc, ctx, *expr.if_expr.cond);
         if (v.tag == CT_Return || v.tag == CT_Break)
             return v;
         assert(v.val.tag == VT_Bool);
         if (v.val.v_bool) {
-            return run_expr(arena, ctx, *expr.if_expr.smash);
+            return run_expr(alloc, ctx, *expr.if_expr.smash);
         } else {
-            return run_expr(arena, ctx, *expr.if_expr.pass);
+            return run_expr(alloc, ctx, *expr.if_expr.pass);
         }
     }
     case ET_Loop:
         while (true) {
-            struct Control v = run_expr(arena, ctx, *expr.loop.block);
+            struct Control v = run_expr(alloc, ctx, *expr.loop.block);
             if (v.tag == CT_Return)
                 return v;
             if (v.tag == CT_Break)
@@ -131,35 +131,35 @@ run_expr(struct Arena *arena, struct Context *ctx, struct Expr expr) {
     case ET_Bareblock: {
         struct LetsLL *head = ctx->lets;
         for (ll_iter(s, expr.bareblock.stmts)) {
-            struct Control c = run_stmt(arena, ctx, s->current);
+            struct Control c = run_stmt(alloc, ctx, s->current);
             if (c.tag == CT_Return || c.tag == CT_Break)
                 return c;
         }
-        struct Control out = run_expr(arena, ctx, *expr.bareblock.tail);
+        struct Control out = run_expr(alloc, ctx, *expr.bareblock.tail);
         ctx->lets = head;
         return out;
     };
     case ET_Call: {
-        struct Control v = run_expr(arena, ctx, *expr.call.name);
+        struct Control v = run_expr(alloc, ctx, *expr.call.name);
         if (v.tag == CT_Return || v.tag == CT_Break)
             return v;
         assert(v.val.tag == VT_Func);
-        struct Control a = run_expr(arena, ctx, *expr.call.args);
+        struct Control a = run_expr(alloc, ctx, *expr.call.args);
         if (a.tag == CT_Return || a.tag == CT_Break)
             return a;
-        struct Value r = run_func(arena, ctx->globals, *v.val.v_func, a.val);
+        struct Value r = run_func(alloc, ctx->globals, *v.val.v_func, a.val);
         return Control_plain(r);
     }
     case ET_Recall: {
         for (ll_iter(head, ctx->lets)) {
             if (head->current.name != expr.lit.name)
                 continue;
-            return Control_plain(Value_clone(arena, head->current.val));
+            return Control_plain(Value_clone(alloc, head->current.val));
         }
         for (ll_iter(head, ctx->globals.globals)) {
             if (head->current.name != expr.lit.name)
                 continue;
-            return Control_plain(Value_clone(arena, head->current.val));
+            return Control_plain(Value_clone(alloc, head->current.val));
         }
         break;
     }
@@ -179,13 +179,13 @@ run_expr(struct Arena *arena, struct Context *ctx, struct Expr expr) {
             .v_bool = expr.lit.name == ctx->globals.symbols.s_true,
         });
     case ET_Comma: {
-        struct Value *lhs = arena_talloc(arena, struct Value);
-        struct Value *rhs = arena_talloc(arena, struct Value);
+        struct Value *lhs = serene_alloc(alloc, struct Value);
+        struct Value *rhs = serene_alloc(alloc, struct Value);
         assert(lhs && rhs);
-        struct Control clhs = run_expr(arena, ctx, *expr.comma.lhs);
+        struct Control clhs = run_expr(alloc, ctx, *expr.comma.lhs);
         if (clhs.tag == CT_Return || clhs.tag == CT_Break)
             return clhs;
-        struct Control crhs = run_expr(arena, ctx, *expr.comma.rhs);
+        struct Control crhs = run_expr(alloc, ctx, *expr.comma.rhs);
         if (crhs.tag == CT_Return || crhs.tag == CT_Break)
             return crhs;
         *lhs = clhs.val;
@@ -202,25 +202,25 @@ run_expr(struct Arena *arena, struct Context *ctx, struct Expr expr) {
 }
 
 static struct Control
-run_stmt(struct Arena *arena, struct Context *ctx, struct Statement stmt) {
+run_stmt(struct serene_Allocator alloc, struct Context *ctx, struct Statement stmt) {
     switch (stmt.tag) {
     case ST_Mut:
     case ST_Let: {
-        struct Control v = run_expr(arena, ctx, *stmt.let.init);
+        struct Control v = run_expr(alloc, ctx, *stmt.let.init);
         if (v.tag == CT_Return || v.tag == CT_Break)
             return v;
-        declare_binding(arena, ctx, stmt.let.bind);
+        declare_binding(alloc, ctx, stmt.let.bind);
         assign_binding(ctx, stmt.let.bind, v.val);
         return Control_plain((struct Value){0});
     }
     case ST_Break: {
-        struct Control v = run_expr(arena, ctx, *stmt.break_stmt.expr);
+        struct Control v = run_expr(alloc, ctx, *stmt.break_stmt.expr);
         if (v.tag == CT_Return)
             return v;
         return Control_break(v.val);
     }
     case ST_Return: {
-        struct Control v = run_expr(arena, ctx, *stmt.return_stmt.expr);
+        struct Control v = run_expr(alloc, ctx, *stmt.return_stmt.expr);
         if (v.tag == CT_Break)
             return v;
         return Control_return(v.val);
@@ -229,7 +229,7 @@ run_stmt(struct Arena *arena, struct Context *ctx, struct Statement stmt) {
         for (ll_iter(head, ctx->lets)) {
             if (head->current.name != stmt.assign.name)
                 continue;
-            struct Control v = run_expr(arena, ctx, *stmt.assign.expr);
+            struct Control v = run_expr(alloc, ctx, *stmt.assign.expr);
             if (v.tag == CT_Return || v.tag == CT_Break)
                 return v;
             head->current.val = v.val;
@@ -238,7 +238,7 @@ run_stmt(struct Arena *arena, struct Context *ctx, struct Statement stmt) {
         break;
     };
     case ST_Const: {
-        struct Control v = run_expr(arena, ctx, *stmt.const_stmt.expr);
+        struct Control v = run_expr(alloc, ctx, *stmt.const_stmt.expr);
         if (v.tag == CT_Break || v.tag == CT_Return)
             return v;
         return Control_plain((struct Value){0});
@@ -249,13 +249,13 @@ run_stmt(struct Arena *arena, struct Context *ctx, struct Statement stmt) {
 }
 
 static void declare_binding(
-    struct Arena *arena, struct Context *ctx, struct Binding binding
+    struct serene_Allocator alloc, struct Context *ctx, struct Binding binding
 ) {
     switch (binding.tag) {
     case BT_Empty:
         return;
     case BT_Name: {
-        struct LetsLL *tmp = arena_talloc(arena, struct LetsLL);
+        struct LetsLL *tmp = serene_alloc(alloc, struct LetsLL);
         assert(tmp);
         tmp->current.name = binding.name.name;
         tmp->current.val = (struct Value){0};
@@ -304,7 +304,7 @@ static struct Control Control_plain(struct Value val) {
     };
 }
 
-static struct Value Value_clone(struct Arena *arena, struct Value val) {
+static struct Value Value_clone(struct serene_Allocator alloc, struct Value val) {
     switch (val.tag) {
     case VT_Unit:
     case VT_Int:
@@ -313,11 +313,11 @@ static struct Value Value_clone(struct Arena *arena, struct Value val) {
     case VT_Func:
         return val;
     case VT_Comma: {
-        struct Value *lhs = arena_talloc(arena, struct Value);
-        struct Value *rhs = arena_talloc(arena, struct Value);
+        struct Value *lhs = serene_alloc(alloc, struct Value);
+        struct Value *rhs = serene_alloc(alloc, struct Value);
         assert(lhs && rhs);
-        *lhs = Value_clone(arena, *val.v_comma.lhs);
-        *rhs = Value_clone(arena, *val.v_comma.rhs);
+        *lhs = Value_clone(alloc, *val.v_comma.lhs);
+        *rhs = Value_clone(alloc, *val.v_comma.rhs);
         return (struct Value){
             .tag = VT_Comma,
             .v_comma.lhs = lhs,

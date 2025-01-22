@@ -18,7 +18,28 @@
     },
     "root": {
       "inputs": {
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "serene": "serene"
+      }
+    },
+    "serene": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1736039129,
+        "narHash": "sha256-mGhKzGh8xeohJRbYW3FEZtd0WOi9YCyPjDsIqk7oWDo=",
+        "owner": "artemisYo",
+        "repo": "serene",
+        "rev": "2ed4fa6e7a46227f43418db95402c614866b6ef2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "artemisYo",
+        "repo": "serene",
+        "type": "github"
       }
     }
   },

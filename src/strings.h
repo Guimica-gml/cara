@@ -1,7 +1,7 @@
 #ifndef STRINGS_H
 #define STRINGS_H
 
-#include "./arena.h"
+#include "serene.h"
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -25,6 +25,6 @@ struct Intern {
 // copies the contents of the passed in string
 // the returned string is owned by Intern
 const char *
-Intern_insert(struct Intern *, struct Arena *, const char *, size_t);
+Intern_insert(struct Intern *, struct serene_Allocator, const char *, size_t);
 
 #endif
