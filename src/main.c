@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
         serene_Arena_dyn(&ast_arena), ops, symbols, Tokenvec_stream(&tokens)
     );
 
-    struct Tst tst = typecheck(serene_Arena_dyn(&type_arena), symbols, ast);
+    struct Tst tst = typecheck(serene_Arena_dyn(&type_arena), symbols, &ast);
 
     run(serene_Arena_dyn(&exec_arena), symbols, ast);
 
