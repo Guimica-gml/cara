@@ -18,10 +18,10 @@
 
 int main(int argc, char **argv) {
     struct serene_Arena strings_arena, ast_arena, type_arena, exec_arena;
-    strings_arena = ast_arena = type_arena = exec_arena = (struct serene_Arena) {
+    strings_arena = ast_arena = type_arena = exec_arena = (struct serene_Arena){
         .backing = serene_Libc_dyn(),
     };
-        
+
     if (argc != 2) {
         printf("Please provide a filename!\n");
         return 1;
@@ -37,9 +37,11 @@ int main(int argc, char **argv) {
         mmap(NULL, filestat.st_size, PROT_READ, MAP_PRIVATE, filedesc, 0);
 
     struct Intern intern = {0};
-    struct Symbols symbols = populate_interner(serene_Arena_dyn(&strings_arena), &intern);
+    struct Symbols symbols =
+        populate_interner(serene_Arena_dyn(&strings_arena), &intern);
 
-    struct Tokenvec tokens = lex(serene_Arena_dyn(&strings_arena), &intern, file);
+    struct Tokenvec tokens =
+        lex(serene_Arena_dyn(&strings_arena), &intern, file);
 
     munmap(file, filestat.st_size);
     close(filedesc);
@@ -53,7 +55,9 @@ int main(int argc, char **argv) {
 
     struct Opdecls ops = {0};
 
-    struct Ast ast = parse(serene_Arena_dyn(&ast_arena), ops, symbols, Tokenvec_stream(&tokens));
+    struct Ast ast = parse(
+        serene_Arena_dyn(&ast_arena), ops, symbols, Tokenvec_stream(&tokens)
+    );
 
     struct Tst tst = typecheck(serene_Arena_dyn(&type_arena), symbols, ast);
 

@@ -3,7 +3,8 @@
 
 struct Type Binding_to_type(struct Symbols syms, struct Binding this) {
     switch (this.tag) {
-    case BT_Empty: return (struct Type){
+    case BT_Empty:
+        return (struct Type){
             .tag = TT_Recall,
             .recall = syms.s_unit,
         };
@@ -45,7 +46,7 @@ struct Type Type_product(
         .comma.lhs = plhs,
         .comma.rhs = prhs,
     };
-    *name = (struct Type) {
+    *name = (struct Type){
         .tag = TT_Recall,
         .recall = syms.s_star,
     };

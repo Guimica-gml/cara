@@ -1,8 +1,8 @@
 #ifndef SYMBOLS_H
 #define SYMBOLS_H
 
-#include "serene.h"
 #include "./strings.h"
+#include "serene.h"
 
 struct Symbols {
     const char *s_unit;

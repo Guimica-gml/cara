@@ -15,7 +15,8 @@ struct DSet {
     } *types;
 };
 
-static struct TypeLL *DSet_insert(struct serene_Allocator, struct DSet *, struct Type);
+static struct TypeLL *
+DSet_insert(struct serene_Allocator, struct DSet *, struct Type);
 static struct TypeLL *DSet_root(struct TypeLL *);
 static struct TypeLL *DSet_join(struct TypeLL *, struct TypeLL *);
 
@@ -30,8 +31,10 @@ struct Globals {
     } *globals;
 };
 
-static struct Type unify(struct serene_Allocator, struct DSet *, struct Type, struct Type);
-static struct tst_Function typecheck_func(struct serene_Allocator, struct Globals, struct Function);
+static struct Type
+unify(struct serene_Allocator, struct DSet *, struct Type, struct Type);
+static struct tst_Function
+    typecheck_func(struct serene_Allocator, struct Globals, struct Function);
 
 struct Context {
     struct LetsLL {
@@ -51,17 +54,23 @@ struct Context {
     struct Globals globals;
 };
 
-static struct Type typecheck_expr(struct serene_Allocator, struct Context *, struct Expr);
-static struct tst_Expr convert_expr(struct serene_Allocator, struct Context *, struct Expr);
-static void destructure_binding(struct serene_Allocator, struct Context *, struct Binding, bool, struct Type *);
-static struct tst_Binding convert_binding(struct serene_Allocator, struct Context *, struct Binding);
-static struct tst_Type convert_type(struct serene_Allocator, struct Context *, struct Type);
+static struct Type
+typecheck_expr(struct serene_Allocator, struct Context *, struct Expr);
+static struct tst_Expr
+convert_expr(struct serene_Allocator, struct Context *, struct Expr);
+static void
+destructure_binding(struct serene_Allocator, struct Context *, struct Binding, bool, struct Type *);
+static struct tst_Binding
+convert_binding(struct serene_Allocator, struct Context *, struct Binding);
+static struct tst_Type
+convert_type(struct serene_Allocator, struct Context *, struct Type);
 
-struct Tst typecheck(struct serene_Allocator alloc, struct Symbols symbols, struct Ast ast) {
+struct Tst typecheck(
+    struct serene_Allocator alloc, struct Symbols symbols, struct Ast ast
+) {
     struct Globals globals = {0};
     globals.symbols = symbols;
 
-    // for (struct FunctionsLL* f = ast.funcs; f; f = f->next) {
     for (ll_iter(f, ast.funcs)) {
         struct GlobalsLL *tmp = serene_alloc(alloc, struct GlobalsLL);
         struct Type *ret = serene_alloc(alloc, struct Type);
@@ -80,16 +89,18 @@ struct Tst typecheck(struct serene_Allocator alloc, struct Symbols symbols, stru
         globals.globals = tmp;
     }
 
-    // for (struct FunctionsLL* f = ast.funcs; f; f = f->next) {
     struct Tst out = {0};
     struct tst_FunctionsLL *last = NULL;
     for (ll_iter(f, ast.funcs)) {
-        struct tst_FunctionsLL *tmp = serene_alloc(alloc, struct tst_FunctionsLL);
+        struct tst_FunctionsLL *tmp =
+            serene_alloc(alloc, struct tst_FunctionsLL);
         assert(tmp && "OOM");
-        if (!last) out.funcs = tmp;
-        else last->next = tmp;
+        if (!last)
+            out.funcs = tmp;
+        else
+            last->next = tmp;
         last = tmp;
-            
+
         last->current = typecheck_func(alloc, globals, f->current);
     }
 
@@ -104,7 +115,7 @@ static struct tst_Function typecheck_func(
     destructure_binding(alloc, &ctx, func.args, false, NULL);
     ctx.ret = func.ret;
     typecheck_expr(alloc, &ctx, func.body);
-    
+
     struct tst_Expr body = convert_expr(alloc, &ctx, func.body);
     struct tst_Binding args = convert_binding(alloc, &ctx, func.args);
     struct tst_Type type;
@@ -122,20 +133,22 @@ static struct tst_Function typecheck_func(
     };
 }
 
-static struct Type typecheck_expr(struct serene_Allocator alloc, struct Context *ctx, struct Expr expr) {
+static struct Type typecheck_expr(
+    struct serene_Allocator alloc, struct Context *ctx, struct Expr expr
+) {
     switch (expr.tag) {
-    case ET_NumberLit: 
+    case ET_NumberLit:
     case ET_StringLit:
     case ET_BoolLit:
-    case ET_Unit: return expr.type;
-        
+    case ET_Unit:
+        return expr.type;
+
     case ET_If: {
         struct Type cond = typecheck_expr(alloc, ctx, *expr.if_expr.cond);
         unify(alloc, &ctx->equivs, cond, Type_bool(ctx->globals.symbols));
         struct Type smash = typecheck_expr(alloc, ctx, *expr.if_expr.smash);
         struct Type pass = typecheck_expr(alloc, ctx, *expr.if_expr.pass);
         return unify(alloc, &ctx->equivs, smash, pass);
-        /* return unify(alloc, &ctx->equivs, smash, expr.type); */
     }
     case ET_Loop: {
         struct Type out = expr.type;
@@ -175,17 +188,18 @@ static struct Type typecheck_expr(struct serene_Allocator alloc, struct Context 
         return *p.func.ret;
     }
     case ET_Recall: {
-        // for (struct LetsLL* head = ctx->lets; head; head = head->next) {
         for (ll_iter(head, ctx->lets)) {
             if (head->current.name == expr.lit) {
-                return unify(alloc, &ctx->equivs, expr.type, head->current.type);
+                return unify(
+                    alloc, &ctx->equivs, expr.type, head->current.type
+                );
             }
         }
-        // for (struct GlobalsLL* head = ctx->globals.globals; head; head =
-        // head->next) {
         for (ll_iter(head, ctx->globals.globals)) {
             if (head->current.name == expr.lit) {
-                return unify(alloc, &ctx->equivs, expr.type, head->current.type);
+                return unify(
+                    alloc, &ctx->equivs, expr.type, head->current.type
+                );
             }
         }
         assert(false && "no such name!");
@@ -194,31 +208,8 @@ static struct Type typecheck_expr(struct serene_Allocator alloc, struct Context 
         typecheck_expr(alloc, ctx, *expr.comma.lhs);
         typecheck_expr(alloc, ctx, *expr.comma.rhs);
         return expr.type;
-        /* struct Type *lhs = serene_alloc(alloc, struct Type); */
-        /* struct Type *rhs = serene_alloc(alloc, struct Type); */
-        /* struct Type *args = serene_alloc(alloc, struct Type); */
-        /* struct Type *prod = serene_alloc(alloc, struct Type); */
-        /* assert(lhs && rhs && args && prod); */
-
-        /* *lhs = typecheck_expr(alloc, ctx, *expr.comma.lhs); */
-        /* *rhs = typecheck_expr(alloc, ctx, *expr.comma.rhs); */
-        /* *args = (struct Type){ */
-        /*     .tag = TT_Comma, */
-        /*     .comma.lhs = lhs, */
-        /*     .comma.rhs = rhs, */
-        /* }; */
-        /* *prod = (struct Type){ */
-        /*     .tag = TT_Recall, */
-        /*     .recall = ctx->globals.symbols.s_star, */
-        /* }; */
-
-        /* return (struct Type){ */
-        /*     .tag = TT_Call, */
-        /*     .call.name = prod, */
-        /*     .call.args = args, */
-        /* }; */
     }
-        
+
     case ST_Let: {
         struct Type it = typecheck_expr(alloc, ctx, *expr.let.init);
         destructure_binding(alloc, ctx, expr.let.bind, false, &it);
@@ -263,7 +254,8 @@ static void destructure_binding(
     bool mut, struct Type *type
 ) {
     switch (binding.tag) {
-    case BT_Empty: return;
+    case BT_Empty:
+        return;
     case BT_Name: {
         struct LetsLL *tmp = serene_alloc(alloc, struct LetsLL);
         assert(tmp);
@@ -286,20 +278,26 @@ static bool Type_equal(struct Type lhs, struct Type rhs) {
     if (lhs.tag != rhs.tag)
         return false;
     switch (lhs.tag) {
-    case TT_Func: return Type_equal(*lhs.func.args, *rhs.func.args)
-            && Type_equal(*lhs.func.ret, *rhs.func.ret);
-    case TT_Call: return Type_equal(*lhs.call.name, *rhs.call.name)
-            && Type_equal(*lhs.call.args, *rhs.call.args);
-    case TT_Comma: return Type_equal(*lhs.comma.lhs, *rhs.comma.lhs)
-            && Type_equal(*lhs.comma.rhs, *rhs.comma.rhs);
-    case TT_Recall: return lhs.recall == rhs.recall;
-    case TT_Var: return lhs.var == rhs.var;
+    case TT_Func:
+        return Type_equal(*lhs.func.args, *rhs.func.args) &&
+               Type_equal(*lhs.func.ret, *rhs.func.ret);
+    case TT_Call:
+        return Type_equal(*lhs.call.name, *rhs.call.name) &&
+               Type_equal(*lhs.call.args, *rhs.call.args);
+    case TT_Comma:
+        return Type_equal(*lhs.comma.lhs, *rhs.comma.lhs) &&
+               Type_equal(*lhs.comma.rhs, *rhs.comma.rhs);
+    case TT_Recall:
+        return lhs.recall == rhs.recall;
+    case TT_Var:
+        return lhs.var == rhs.var;
     }
     assert(false && "gcc complains about control reaching here??");
 }
 
 static struct Type unify(
-    struct serene_Allocator alloc, struct DSet *dset, struct Type lhs, struct Type rhs
+    struct serene_Allocator alloc, struct DSet *dset, struct Type lhs,
+    struct Type rhs
 ) {
     struct TypeLL *lroot = DSet_root(DSet_insert(alloc, dset, lhs));
     struct Type ltype = lroot->current.type;
@@ -331,9 +329,9 @@ static struct Type unify(
     return DSet_join(lroot, rroot)->current.type;
 }
 
-static struct TypeLL *
-DSet_insert(struct serene_Allocator alloc, struct DSet *this, struct Type type) {
-    // for (struct TypeLL* head = this->types; head; head = head->next) {
+static struct TypeLL *DSet_insert(
+    struct serene_Allocator alloc, struct DSet *this, struct Type type
+) {
     for (ll_iter(head, this->types)) {
         if (Type_equal(head->current.type, type))
             return head;
@@ -370,25 +368,28 @@ static struct TypeLL *DSet_join(struct TypeLL *lhs, struct TypeLL *rhs) {
 static struct tst_Expr convert_expr(
     struct serene_Allocator alloc, struct Context *ctx, struct Expr expr
 ) {
-    ;
     struct tst_Type type = convert_type(alloc, ctx, expr.type);
     switch (expr.tag) {
-    case ET_NumberLit: return (struct tst_Expr){
+    case ET_NumberLit:
+        return (struct tst_Expr){
             .tag = TET_NumberLit,
             .type = type,
             .lit = expr.lit,
         };
-    case ET_StringLit: return (struct tst_Expr){
+    case ET_StringLit:
+        return (struct tst_Expr){
             .tag = TET_StringLit,
             .type = type,
             .lit = expr.lit,
         };
-    case ET_BoolLit: return (struct tst_Expr){
+    case ET_BoolLit:
+        return (struct tst_Expr){
             .tag = TET_BoolLit,
             .type = type,
             .lit = expr.lit,
         };
-    case ET_Unit: return (struct tst_Expr){
+    case ET_Unit:
+        return (struct tst_Expr){
             .tag = TET_Unit,
             .type = type,
         };
@@ -425,10 +426,12 @@ static struct tst_Expr convert_expr(
         for (ll_iter(head, expr.bareblock)) {
             struct tst_ExprsLL *tmp = serene_alloc(alloc, struct tst_ExprsLL);
             assert(tmp && "OOM");
-            if (!last) body = tmp;
-            else last->next = tmp;
+            if (!last)
+                body = tmp;
+            else
+                last->next = tmp;
             last = tmp;
-            
+
             last->current = convert_expr(alloc, ctx, head->current);
         }
         return (struct tst_Expr){
@@ -451,11 +454,8 @@ static struct tst_Expr convert_expr(
         };
     }
     case ET_Recall:
-        return (struct tst_Expr) {
-            .tag = TET_Recall,
-            .type = type,
-            .lit = expr.lit
-        };
+        return (struct tst_Expr
+        ){.tag = TET_Recall, .type = type, .lit = expr.lit};
     case ET_Comma: {
         struct tst_Expr *lhs = serene_alloc(alloc, struct tst_Expr);
         struct tst_Expr *rhs = serene_alloc(alloc, struct tst_Expr);
@@ -526,24 +526,29 @@ static struct tst_Expr convert_expr(
         };
     }
     }
-    assert(false && "gcc complains about control reaching here??");    
+    assert(false && "gcc complains about control reaching here??");
 }
 
 static struct tst_Binding convert_binding(
     struct serene_Allocator alloc, struct Context *ctx, struct Binding binding
 ) {
     switch (binding.tag) {
-    case BT_Empty: return (struct tst_Binding) {
+    case BT_Empty:
+        return (struct tst_Binding){
             .tag = TBT_Empty,
         };
-    case BT_Name: return (struct tst_Binding){
-            .tag = TBT_Name, .name.name = binding.name.name,
+    case BT_Name:
+        return (struct tst_Binding){
+            .tag = TBT_Name,
+            .name.name = binding.name.name,
             .name.type = convert_type(alloc, ctx, binding.name.annot),
         };
     }
 }
 
-static struct tst_Type convert_type(struct serene_Allocator alloc, struct Context *ctx, struct Type type) {
+static struct tst_Type convert_type(
+    struct serene_Allocator alloc, struct Context *ctx, struct Type type
+) {
     struct tst_Type *a = serene_alloc(alloc, struct tst_Type);
     struct tst_Type *b = serene_alloc(alloc, struct tst_Type);
     struct tst_Type out = {0};
@@ -595,7 +600,10 @@ static struct tst_Type convert_type(struct serene_Allocator alloc, struct Contex
     case TT_Var: {
         struct TypeLL *ll = DSet_insert(alloc, &ctx->equivs, type);
         ll = DSet_root(ll);
-        assert(ll->current.type.tag != TT_Var && "not all types were resolved it seems");
+        assert(
+            ll->current.type.tag != TT_Var &&
+            "not all types were resolved it seems"
+        );
         return convert_type(alloc, ctx, ll->current.type);
     }
     }

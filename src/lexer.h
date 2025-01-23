@@ -1,9 +1,9 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-#include "serene.h"
 #include "./strings.h"
 #include "./tokens.h"
+#include "serene.h"
 #include <stdbool.h>
 
 #define VEC_NAME Tokenvec

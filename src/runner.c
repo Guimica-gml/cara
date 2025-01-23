@@ -51,8 +51,9 @@ struct Globals {
     } *globals;
 };
 
-static struct Value
-run_func(struct serene_Allocator, struct Globals, struct Function, struct Value);
+static struct Value run_func(
+    struct serene_Allocator, struct Globals, struct Function, struct Value
+);
 
 struct Context {
     struct LetsLL {
@@ -65,11 +66,15 @@ struct Context {
     struct Globals globals;
 };
 
-static void declare_binding(struct serene_Allocator, struct Context *, struct Binding);
+static void
+declare_binding(struct serene_Allocator, struct Context *, struct Binding);
 static void assign_binding(struct Context *, struct Binding, struct Value);
-static struct Control run_expr(struct serene_Allocator, struct Context *, struct Expr);
+static struct Control
+run_expr(struct serene_Allocator, struct Context *, struct Expr);
 
-void run(struct serene_Allocator alloc, struct Symbols symbols, struct Ast ast) {
+void run(
+    struct serene_Allocator alloc, struct Symbols symbols, struct Ast ast
+) {
     struct Globals globals = {0};
     globals.symbols = symbols;
     const struct Function *main_func = NULL;
@@ -131,7 +136,7 @@ run_expr(struct serene_Allocator alloc, struct Context *ctx, struct Expr expr) {
         struct LetsLL *head = ctx->lets;
         for (ll_iter(body, expr.bareblock)) {
             out = run_expr(alloc, ctx, body->current);
-            if (out.tag == CT_Return || out.tag == CT_Break) 
+            if (out.tag == CT_Return || out.tag == CT_Break)
                 break;
         }
         ctx->lets = head;
@@ -294,7 +299,8 @@ static struct Control Control_plain(struct Value val) {
     };
 }
 
-static struct Value Value_clone(struct serene_Allocator alloc, struct Value val) {
+static struct Value
+Value_clone(struct serene_Allocator alloc, struct Value val) {
     switch (val.tag) {
     case VT_Unit:
     case VT_Int:

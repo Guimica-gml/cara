@@ -70,7 +70,8 @@ struct Ast parse(
             funcs = tmp;
             break;
         }
-        default: goto after;
+        default:
+            goto after;
         }
     }
 after:
@@ -109,7 +110,8 @@ static struct Function decls_function(struct Context ctx) {
         Tokenstream_drop_text(ctx.toks, ";");
     };
 
-    return (struct Function){.name = name, .args = args, .ret = ret, .body = body};
+    return (struct Function
+    ){.name = name, .args = args, .ret = ret, .body = body};
 }
 
 static struct Type type(struct Context ctx) {
@@ -211,7 +213,8 @@ static bool type_op_right_first(struct Context ctx, unsigned prec) {
     return false;
 }
 
-static struct Type type_op_right(struct Context ctx, struct Type left, unsigned prec) {
+static struct Type
+type_op_right(struct Context ctx, struct Type left, unsigned prec) {
     struct Type *name = serene_alloc(ctx.alloc, struct Type);
     struct Type *args = serene_alloc(ctx.alloc, struct Type);
     assert(name && args);
@@ -256,10 +259,8 @@ static struct Type type_op_right(struct Context ctx, struct Type left, unsigned 
             };
             assert(Tokenstream_drop(ctx.toks));
             if (ctx.ops->buf[i].rbp >= 0) {
-                struct Type *left_ptr =
-                    serene_alloc(ctx.alloc, struct Type);
-                struct Type *right_ptr =
-                    serene_alloc(ctx.alloc, struct Type);
+                struct Type *left_ptr = serene_alloc(ctx.alloc, struct Type);
+                struct Type *right_ptr = serene_alloc(ctx.alloc, struct Type);
                 assert(left_ptr && right_ptr);
 
                 *left_ptr = left;
@@ -364,7 +365,8 @@ static struct Expr expr_delimited(struct Context ctx) {
 
         return tmp;
     }
-    default: return expr_inline(ctx);
+    default:
+        return expr_inline(ctx);
     }
 }
 
@@ -373,18 +375,24 @@ static struct Expr expr_any(struct Context ctx) {
     switch (ctx.toks->buf[0].kind) {
     case TK_If:
     case TK_Loop:
-    case TK_OpenBrace: return expr_block(ctx);
-    default: return expr_inline(ctx);
+    case TK_OpenBrace:
+        return expr_block(ctx);
+    default:
+        return expr_inline(ctx);
     }
 }
 
 static struct Expr expr_block(struct Context ctx) {
     assert(ctx.toks->len);
     switch (ctx.toks->buf[0].kind) {
-    case TK_If: return expr_if(ctx);
-    case TK_Loop: return expr_loop(ctx);
-    case TK_OpenBrace: return expr_bareblock(ctx);
-    default: assert(false);
+    case TK_If:
+        return expr_if(ctx);
+    case TK_Loop:
+        return expr_loop(ctx);
+    case TK_OpenBrace:
+        return expr_bareblock(ctx);
+    default:
+        assert(false);
     }
 }
 
@@ -400,7 +408,7 @@ static struct Expr expr_if(struct Context ctx) {
     if (Tokenstream_drop_text(ctx.toks, "else")) {
         *pass = expr_block(ctx);
     } else {
-        *pass = (struct Expr) {
+        *pass = (struct Expr){
             .tag = ET_Unit,
             .type = Type_unit(*ctx.symbols),
         };
@@ -439,8 +447,10 @@ static struct Expr expr_bareblock(struct Context ctx) {
         {
             struct ExprsLL *tmp = serene_alloc(ctx.alloc, struct ExprsLL);
             assert(tmp && "OOM");
-            if (!last) block = tmp;
-            else last->next = tmp;
+            if (!last)
+                block = tmp;
+            else
+                last->next = tmp;
             last = tmp;
         }
         last->current = statement(ctx);
@@ -520,15 +530,19 @@ static struct Expr expr_op_left(struct Context ctx) {
 }
 
 static bool expr_op_right_first(struct Context ctx, unsigned prec) {
-    if (!ctx.toks->len) return false;
-    if (prec == 0 && ctx.toks->buf[0].kind == TK_Comma) return true;
+    if (!ctx.toks->len)
+        return false;
+    if (prec == 0 && ctx.toks->buf[0].kind == TK_Comma)
+        return true;
     switch (ctx.toks->buf[0].kind) {
     case TK_OpenParen:
     case TK_Name:
     case TK_Number:
     case TK_String:
-    case TK_Bool: return true;
-    default: break;
+    case TK_Bool:
+        return true;
+    default:
+        break;
     }
 
     for (size_t i = 0; i < ctx.ops->len; i++) {
@@ -556,7 +570,8 @@ expr_op_right(struct Context ctx, struct Expr left, unsigned prec) {
 
         return (struct Expr){
             .tag = ET_Comma,
-            .type = Type_product(ctx.alloc, *ctx.symbols, name->type, args->type),
+            .type =
+                Type_product(ctx.alloc, *ctx.symbols, name->type, args->type),
             .comma.lhs = name,
             .comma.rhs = args,
         };
@@ -665,10 +680,14 @@ static struct Expr expr_atom(struct Context ctx) {
 static struct Expr statement(struct Context ctx) {
     assert(ctx.toks->len);
     switch (ctx.toks->buf[0].kind) {
-    case TK_Let: return statement_let(ctx);
-    case TK_Mut: return statement_mut(ctx);
-    case TK_Break: return statement_break(ctx);
-    case TK_Return: return statement_return(ctx);
+    case TK_Let:
+        return statement_let(ctx);
+    case TK_Mut:
+        return statement_mut(ctx);
+    case TK_Break:
+        return statement_break(ctx);
+    case TK_Return:
+        return statement_return(ctx);
     case TK_Name:
         if (ctx.toks->len > 1 && ctx.toks->buf[1].kind == TK_Equals) {
             return statement_assign(ctx);
@@ -772,7 +791,7 @@ static struct Expr statement_assign(struct Context ctx) {
 static struct Type Context_new_typevar(struct Context ctx) {
     int v = *ctx.var_counter;
     *ctx.var_counter += 1;
-    return (struct Type) {
+    return (struct Type){
         .tag = TT_Var,
         .var = v,
     };

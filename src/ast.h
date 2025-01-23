@@ -43,7 +43,9 @@ struct Type Type_unit(struct Symbols);
 struct Type Type_bool(struct Symbols);
 struct Type Type_int(struct Symbols);
 struct Type Type_string(struct Symbols);
-struct Type Type_product(struct serene_Allocator, struct Symbols, struct Type, struct Type);
+struct Type Type_product(
+    struct serene_Allocator, struct Symbols, struct Type, struct Type
+);
 
 enum BindingTag {
     BT_Empty,
@@ -70,7 +72,7 @@ enum ExprTag {
     ET_StringLit,
     ET_BoolLit,
     ET_Comma,
-    
+
     ST_Let,
     ST_Mut,
     ST_Break,
