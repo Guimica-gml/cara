@@ -58,6 +58,7 @@ struct Context {
 static struct Type
 typecheck_expr(struct serene_Allocator, struct Context *, struct Expr *);
 static void fill_expr(struct Context *, struct Expr *);
+static void fill_type(struct Context *, struct Type *);
 static struct tst_Expr
 convert_expr(struct serene_Allocator, struct Context *, struct Expr);
 static void
@@ -255,10 +256,7 @@ static struct Type typecheck_expr(
 }
 
 static void fill_expr(struct Context *ctx, struct Expr *expr) {
-	struct TypeLL *t = DSet_find_root(&ctx->equivs, expr->type);
-	assert(t && "Idek");
-	expr->type = t->current.type;
-	assert(expr->type.tag != TT_Var && "it seems not all types are resolved!");
+	fill_type(ctx, &expr->type);
 	
 	switch (expr->tag) {
 	case ET_Recall:
@@ -305,6 +303,34 @@ static void fill_expr(struct Context *ctx, struct Expr *expr) {
 	case ST_Assign:
 		fill_expr(ctx, expr->assign.expr);
 		break;
+	}
+}
+
+static void fill_type(struct Context *ctx, struct Type *type) {
+	switch (type->tag) {
+	case TT_Func: {
+		fill_type(ctx, type->func.args);
+		fill_type(ctx, type->func.ret);
+		return;
+	}
+	case TT_Call: {
+	    fill_type(ctx, type->call.name);
+		fill_type(ctx, type->call.args);
+		return;
+	}
+	case TT_Recall: return;
+	case TT_Comma: {
+	    fill_type(ctx, type->comma.lhs);
+		fill_type(ctx, type->comma.rhs);
+		return;		
+	}
+	case TT_Var: {
+		struct TypeLL *t = DSet_find_root(&ctx->equivs, *type);
+		assert(t && "Idek");
+		*type = t->current.type;
+		assert(type->tag != TT_Var && "it seems not all types are resolved!");
+		return fill_type(ctx, type);
+	}
 	}
 }
 
