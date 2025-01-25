@@ -12,13 +12,14 @@
 #include "./strings.h"
 #include "./symbols.h"
 #include "./tokens.h"
+#include "./converter.h"
 #include "./tst.h"
 #include "./typer.h"
 #include "serene.h"
 
 int main(int argc, char **argv) {
-    struct serene_Arena strings_arena, ast_arena, type_arena, exec_arena;
-    strings_arena = ast_arena = type_arena = exec_arena = (struct serene_Arena){
+    struct serene_Arena strings_arena, ast_arena, type_arena, tst_arena, exec_arena;
+    strings_arena = ast_arena = type_arena = tst_arena = exec_arena = (struct serene_Arena){
         .backing = serene_Libc_dyn(),
     };
 
@@ -59,7 +60,9 @@ int main(int argc, char **argv) {
         serene_Arena_dyn(&ast_arena), ops, symbols, Tokenvec_stream(&tokens)
     );
 
-    struct Tst tst = typecheck(serene_Arena_dyn(&type_arena), symbols, &ast);
+    typecheck(serene_Arena_dyn(&type_arena), symbols, &ast);
+
+    convert_ast(serene_Arena_dyn(&tst_arena), symbols, ast);
 
     run(serene_Arena_dyn(&exec_arena), symbols, ast);
 
@@ -67,6 +70,7 @@ int main(int argc, char **argv) {
     serene_Arena_deinit(&strings_arena);
     serene_Arena_deinit(&ast_arena);
     serene_Arena_deinit(&type_arena);
+    serene_Arena_deinit(&tst_arena);
     serene_Arena_deinit(&exec_arena);
     printf("\n");
     return 0;

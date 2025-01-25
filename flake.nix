@@ -18,6 +18,7 @@
         "lexer"
         "ast"
         "typer"
+        "converter"
         "strings"
         "parser"
         "symbols"

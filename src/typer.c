@@ -34,8 +34,7 @@ struct Globals {
 
 static struct Type
 unify(struct serene_Allocator, struct DSet *, struct Type, struct Type);
-static struct tst_Function
-    typecheck_func(struct serene_Allocator, struct Globals, struct Function *);
+static void typecheck_func(struct serene_Allocator, struct Globals, struct Function *);
 
 struct Context {
     struct LetsLL {
@@ -59,16 +58,10 @@ static struct Type
 typecheck_expr(struct serene_Allocator, struct Context *, struct Expr *);
 static void fill_expr(struct Context *, struct Expr *);
 static void fill_type(struct Context *, struct Type *);
-static struct tst_Expr
-convert_expr(struct serene_Allocator, struct Context *, struct Expr);
 static void
 destructure_binding(struct serene_Allocator, struct Context *, struct Binding *, bool, struct Type *);
-static struct tst_Binding
-convert_binding(struct serene_Allocator, struct Context *, struct Binding);
-static struct tst_Type
-convert_type(struct serene_Allocator, struct Context *, struct Type);
 
-struct Tst typecheck(
+void typecheck(
     struct serene_Allocator alloc, struct Symbols symbols, struct Ast *ast
 ) {
     struct Globals globals = {0};
@@ -92,25 +85,12 @@ struct Tst typecheck(
         globals.globals = tmp;
     }
 
-    struct Tst out = {0};
-    struct tst_FunctionsLL *last = NULL;
     for (ll_iter(f, ast->funcs)) {
-        struct tst_FunctionsLL *tmp =
-            serene_alloc(alloc, struct tst_FunctionsLL);
-        assert(tmp && "OOM");
-        if (!last)
-            out.funcs = tmp;
-        else
-            last->next = tmp;
-        last = tmp;
-
-        last->current = typecheck_func(alloc, globals, &f->current);
+        typecheck_func(alloc, globals, &f->current);
     }
-
-    return out;
 }
 
-static struct tst_Function typecheck_func(
+static void typecheck_func(
     struct serene_Allocator alloc, struct Globals globals, struct Function *func
 ) {
     struct Context ctx = {0};
@@ -120,23 +100,7 @@ static struct tst_Function typecheck_func(
 #warning TODO: should also check this type
     typecheck_expr(alloc, &ctx, &func->body);
 
-	fill_expr(&ctx, &func->body);
-	
-    struct tst_Expr body = convert_expr(alloc, &ctx, func->body);
-    struct tst_Binding args = convert_binding(alloc, &ctx, func->args);
-    struct tst_Type type;
-    for (ll_iter(f, globals.globals)) {
-        if (f->current.name == func->name) {
-            type = convert_type(alloc, &ctx, f->current.type);
-            break;
-        }
-    }
-    return (struct tst_Function){
-        .name = func->name,
-        .type = type,
-        .args = args,
-        .body = body,
-    };
+    fill_expr(&ctx, &func->body);
 }
 
 static struct Type typecheck_expr(
@@ -256,82 +220,84 @@ static struct Type typecheck_expr(
 }
 
 static void fill_expr(struct Context *ctx, struct Expr *expr) {
-	fill_type(ctx, &expr->type);
-	
-	switch (expr->tag) {
-	case ET_Recall:
-	case ET_NumberLit:
-	case ET_StringLit:
-	case ET_BoolLit:
-	case ET_Unit: break;
-		
-	case ET_If:
-		fill_expr(ctx, expr->if_expr.cond);
-		fill_expr(ctx, expr->if_expr.smash);
-		fill_expr(ctx, expr->if_expr.pass);
-		break;
-	case ET_Loop:
-		fill_expr(ctx, expr->loop);
-		break;
-	case ET_Bareblock:
-		for (ll_iter(head, expr->bareblock)) {
-			fill_expr(ctx, &head->current);
-		}
-		break;
-	case ET_Call:
-		fill_expr(ctx, expr->call.name);
-		fill_expr(ctx, expr->call.args);
-		break;
-	case ET_Comma:
-		fill_expr(ctx, expr->comma.lhs);
-		fill_expr(ctx, expr->comma.rhs);
-		break;		
+    fill_type(ctx, &expr->type);
 
-	case ST_Mut:
-	case ST_Let:
-		fill_expr(ctx, expr->let.init);
-		break;
-	case ST_Break:
-		fill_expr(ctx, expr->break_stmt);
-		break;
-	case ST_Return:
-		fill_expr(ctx, expr->return_stmt);
-		break;
-	case ST_Const:
-		fill_expr(ctx, expr->const_stmt);
-		break;
-	case ST_Assign:
-		fill_expr(ctx, expr->assign.expr);
-		break;
-	}
+    switch (expr->tag) {
+    case ET_Recall:
+    case ET_NumberLit:
+    case ET_StringLit:
+    case ET_BoolLit:
+    case ET_Unit:
+        break;
+
+    case ET_If:
+        fill_expr(ctx, expr->if_expr.cond);
+        fill_expr(ctx, expr->if_expr.smash);
+        fill_expr(ctx, expr->if_expr.pass);
+        break;
+    case ET_Loop:
+        fill_expr(ctx, expr->loop);
+        break;
+    case ET_Bareblock:
+        for (ll_iter(head, expr->bareblock)) {
+            fill_expr(ctx, &head->current);
+        }
+        break;
+    case ET_Call:
+        fill_expr(ctx, expr->call.name);
+        fill_expr(ctx, expr->call.args);
+        break;
+    case ET_Comma:
+        fill_expr(ctx, expr->comma.lhs);
+        fill_expr(ctx, expr->comma.rhs);
+        break;
+
+    case ST_Mut:
+    case ST_Let:
+        fill_expr(ctx, expr->let.init);
+        break;
+    case ST_Break:
+        fill_expr(ctx, expr->break_stmt);
+        break;
+    case ST_Return:
+        fill_expr(ctx, expr->return_stmt);
+        break;
+    case ST_Const:
+        fill_expr(ctx, expr->const_stmt);
+        break;
+    case ST_Assign:
+        fill_expr(ctx, expr->assign.expr);
+        break;
+    }
 }
 
 static void fill_type(struct Context *ctx, struct Type *type) {
-	switch (type->tag) {
-	case TT_Func: {
-		fill_type(ctx, type->func.args);
-		fill_type(ctx, type->func.ret);
-		return;
-	}
-	case TT_Call: {
-	    fill_type(ctx, type->call.name);
-		fill_type(ctx, type->call.args);
-		return;
-	}
-	case TT_Recall: return;
-	case TT_Comma: {
-	    fill_type(ctx, type->comma.lhs);
-		fill_type(ctx, type->comma.rhs);
-		return;		
-	}
-	case TT_Var: {
-		struct TypeLL *t = DSet_find_root(&ctx->equivs, *type);
-		assert(t && "Idek");
-		*type = t->current.type;
-		assert(type->tag != TT_Var && "it seems not all types are resolved!");
-		return fill_type(ctx, type);
-	}
-	}
+    switch (type->tag) {
+    case TT_Func: {
+        fill_type(ctx, type->func.args);
+        fill_type(ctx, type->func.ret);
+        return;
+    }
+    case TT_Call: {
+        fill_type(ctx, type->call.name);
+        fill_type(ctx, type->call.args);
+        return;
+    }
+    case TT_Recall:
+        return;
+    case TT_Comma: {
+        fill_type(ctx, type->comma.lhs);
+        fill_type(ctx, type->comma.rhs);
+        return;
+    }
+    case TT_Var: {
+        struct TypeLL *t = DSet_find_root(&ctx->equivs, *type);
+        assert(t && "Idek");
+        *type = t->current.type;
+        assert(type->tag != TT_Var && "it seems not all types are resolved!");
+        return fill_type(ctx, type);
+    }
+    }
 }
 
 static void destructure_binding(
@@ -439,11 +405,11 @@ static struct TypeLL *DSet_root(struct TypeLL *type) {
 }
 
 static struct TypeLL *DSet_find_root(struct DSet *this, struct Type type) {
-	for (ll_iter(head, this->types)) {
-		if (Type_equal(head->current.type, type))
-			return DSet_root(head);
-	}
-	return NULL;
+    for (ll_iter(head, this->types)) {
+        if (Type_equal(head->current.type, type))
+            return DSet_root(head);
+    }
+    return NULL;
 }
 
 static struct TypeLL *DSet_join(struct TypeLL *lhs, struct TypeLL *rhs) {
@@ -456,249 +422,4 @@ static struct TypeLL *DSet_join(struct TypeLL *lhs, struct TypeLL *rhs) {
     }
     rhr->current.parent = lhr;
     return lhr;
-}
-
-static struct tst_Expr convert_expr(
-    struct serene_Allocator alloc, struct Context *ctx, struct Expr expr
-) {
-    struct tst_Type type = convert_type(alloc, ctx, expr.type);
-    switch (expr.tag) {
-    case ET_NumberLit:
-        return (struct tst_Expr){
-            .tag = TET_NumberLit,
-            .type = type,
-            .lit = expr.lit,
-        };
-    case ET_StringLit:
-        return (struct tst_Expr){
-            .tag = TET_StringLit,
-            .type = type,
-            .lit = expr.lit,
-        };
-    case ET_BoolLit:
-        return (struct tst_Expr){
-            .tag = TET_BoolLit,
-            .type = type,
-            .lit = expr.lit,
-        };
-    case ET_Unit:
-        return (struct tst_Expr){
-            .tag = TET_Unit,
-            .type = type,
-        };
-
-    case ET_If: {
-        struct tst_Expr *cond = serene_alloc(alloc, struct tst_Expr);
-        struct tst_Expr *smash = serene_alloc(alloc, struct tst_Expr);
-        struct tst_Expr *pass = serene_alloc(alloc, struct tst_Expr);
-        assert(cond && smash && pass && "OOM");
-        *cond = convert_expr(alloc, ctx, *expr.if_expr.cond);
-        *smash = convert_expr(alloc, ctx, *expr.if_expr.smash);
-        *pass = convert_expr(alloc, ctx, *expr.if_expr.pass);
-        return (struct tst_Expr){
-            .tag = TET_If,
-            .type = type,
-            .if_expr.cond = cond,
-            .if_expr.smash = smash,
-            .if_expr.pass = pass,
-        };
-    }
-    case ET_Loop: {
-        struct tst_Expr *body = serene_alloc(alloc, struct tst_Expr);
-        assert(body && "OOM");
-        *body = convert_expr(alloc, ctx, *expr.loop);
-        return (struct tst_Expr){
-            .tag = TET_Loop,
-            .type = type,
-            .loop = body,
-        };
-    }
-    case ET_Bareblock: {
-        struct tst_ExprsLL *body = NULL;
-        struct tst_ExprsLL *last = NULL;
-        for (ll_iter(head, expr.bareblock)) {
-            struct tst_ExprsLL *tmp = serene_alloc(alloc, struct tst_ExprsLL);
-            assert(tmp && "OOM");
-            if (!last)
-                body = tmp;
-            else
-                last->next = tmp;
-            last = tmp;
-
-            last->current = convert_expr(alloc, ctx, head->current);
-        }
-        return (struct tst_Expr){
-            .tag = TET_Bareblock,
-            .type = type,
-            .bareblock = body,
-        };
-    }
-    case ET_Call: {
-        struct tst_Expr *name = serene_alloc(alloc, struct tst_Expr);
-        struct tst_Expr *args = serene_alloc(alloc, struct tst_Expr);
-        assert(name && args && "OOM");
-        *name = convert_expr(alloc, ctx, *expr.call.name);
-        *args = convert_expr(alloc, ctx, *expr.call.args);
-        return (struct tst_Expr){
-            .tag = TET_Call,
-            .type = type,
-            .call.name = name,
-            .call.args = args,
-        };
-    }
-    case ET_Recall:
-        return (struct tst_Expr
-        ){.tag = TET_Recall, .type = type, .lit = expr.lit};
-    case ET_Comma: {
-        struct tst_Expr *lhs = serene_alloc(alloc, struct tst_Expr);
-        struct tst_Expr *rhs = serene_alloc(alloc, struct tst_Expr);
-        assert(lhs && rhs && "OOM");
-        *lhs = convert_expr(alloc, ctx, *expr.comma.lhs);
-        *rhs = convert_expr(alloc, ctx, *expr.comma.rhs);
-        return (struct tst_Expr){
-            .tag = TET_Comma,
-            .type = type,
-            .comma.lhs = lhs,
-            .comma.rhs = rhs,
-        };
-    }
-
-        // reify them, as we already checked no let's are mutated
-    case ST_Mut:
-    case ST_Let: {
-        struct tst_Binding bind = convert_binding(alloc, ctx, expr.let.bind);
-        struct tst_Expr *init = serene_alloc(alloc, struct tst_Expr);
-        assert(init && "OOM");
-        *init = convert_expr(alloc, ctx, *expr.let.init);
-        return (struct tst_Expr){
-            .tag = TST_Let,
-            .type = type,
-            .let.bind = bind,
-            .let.init = init,
-        };
-    }
-    case ST_Break: {
-        struct tst_Expr *e = serene_alloc(alloc, struct tst_Expr);
-        assert(e && "OOM");
-        *e = convert_expr(alloc, ctx, *expr.break_stmt);
-        return (struct tst_Expr){
-            .tag = TST_Break,
-            .type = type,
-            .break_stmt = e,
-        };
-    }
-    case ST_Return: {
-        struct tst_Expr *e = serene_alloc(alloc, struct tst_Expr);
-        assert(e && "OOM");
-        *e = convert_expr(alloc, ctx, *expr.return_stmt);
-        return (struct tst_Expr){
-            .tag = TST_Return,
-            .type = type,
-            .return_stmt = e,
-        };
-    }
-    case ST_Assign: {
-        struct tst_Expr *e = serene_alloc(alloc, struct tst_Expr);
-        assert(e && "OOM");
-        *e = convert_expr(alloc, ctx, *expr.assign.expr);
-        return (struct tst_Expr){
-            .tag = TST_Assign,
-            .type = type,
-            .assign.name = expr.assign.name,
-            .assign.expr = e,
-        };
-    }
-    case ST_Const: {
-        struct tst_Expr *e = serene_alloc(alloc, struct tst_Expr);
-        assert(e && "OOM");
-        *e = convert_expr(alloc, ctx, *expr.const_stmt);
-        return (struct tst_Expr){
-            .tag = TST_Const,
-            .type = type,
-            .const_stmt = e,
-        };
-    }
-    }
-    assert(false && "gcc complains about control reaching here??");
-}
-
-static struct tst_Binding convert_binding(
-    struct serene_Allocator alloc, struct Context *ctx, struct Binding binding
-) {
-    switch (binding.tag) {
-    case BT_Empty:
-        return (struct tst_Binding){
-            .tag = TBT_Empty,
-        };
-    case BT_Name:
-        return (struct tst_Binding){
-            .tag = TBT_Name,
-            .name.name = binding.name.name,
-            .name.type = convert_type(alloc, ctx, binding.name.annot),
-        };
-    }
-}
-
-static struct tst_Type convert_type(
-    struct serene_Allocator alloc, struct Context *ctx, struct Type type
-) {
-    struct tst_Type *a = serene_alloc(alloc, struct tst_Type);
-    struct tst_Type *b = serene_alloc(alloc, struct tst_Type);
-    struct tst_Type out = {0};
-    switch (type.tag) {
-    case TT_Func:
-        *a = convert_type(alloc, ctx, *type.func.args);
-        *b = convert_type(alloc, ctx, *type.func.ret);
-        out = (struct tst_Type){
-            .tag = TTT_Func,
-            .func.args = a,
-            .func.ret = b,
-        };
-        break;
-    case TT_Call:
-        *a = convert_type(alloc, ctx, *type.call.name);
-        *b = convert_type(alloc, ctx, *type.call.args);
-        out = (struct tst_Type){
-            .tag = TTT_Call,
-            .call.name = a,
-            .call.args = b,
-        };
-        break;
-    case TT_Comma:
-        *a = convert_type(alloc, ctx, *type.comma.lhs);
-        *b = convert_type(alloc, ctx, *type.comma.rhs);
-        out = (struct tst_Type){
-            .tag = TTT_Comma,
-            .comma.lhs = a,
-            .comma.rhs = b,
-        };
-        break;
-    case TT_Recall: {
-        struct Symbols syms = ctx->globals.symbols;
-        if (syms.s_unit == type.recall) {
-            out.tag = TTT_Unit;
-        } else if (syms.s_int == type.recall) {
-            out.tag = TTT_Int;
-        } else if (syms.s_bool == type.recall) {
-            out.tag = TTT_Bool;
-        } else if (syms.s_string == type.recall) {
-            out.tag = TTT_String;
-        } else if (syms.s_star == type.recall) {
-            out.tag = TTT_Star;
-        } else {
-            assert(false && "TODO");
-        }
-        break;
-    }
-    case TT_Var: {
-        struct TypeLL *ll = DSet_insert(alloc, &ctx->equivs, type);
-        ll = DSet_root(ll);
-        assert(
-            ll->current.type.tag != TT_Var &&
-            "not all types were resolved it seems"
-        );
-        return convert_type(alloc, ctx, ll->current.type);
-    }
-    }
-    return out;
 }

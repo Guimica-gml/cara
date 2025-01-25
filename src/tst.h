@@ -15,8 +15,8 @@ enum tst_TypeTag {
     TTT_String,
     TTT_Star,
     TTT_Func,
-    TTT_Call,
-    TTT_Comma,
+    /* TTT_Call, */
+    /* TTT_Comma, */
 };
 struct tst_Type {
     enum tst_TypeTag tag;
@@ -26,13 +26,18 @@ struct tst_Type {
             struct tst_Type *ret;
         } func;
         struct {
-            struct tst_Type *name;
-            struct tst_Type *args;
-        } call;
-        struct {
             struct tst_Type *lhs;
             struct tst_Type *rhs;
-        } comma;
+        } star;
+
+        /* struct { */
+        /*     struct tst_Type *name; */
+        /*     struct tst_Type *args; */
+        /* } call; */
+        /* struct { */
+        /*     struct tst_Type *lhs; */
+        /*     struct tst_Type *rhs; */
+        /* } comma; */
     };
 };
 
