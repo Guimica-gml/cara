@@ -9,6 +9,10 @@
     pkgs = (import nixpkgs) { inherit system; };
     serene-drv = serene.packages."${system}".default;
     commonBuildInputs = [ serene-drv pkgs.gcc pkgs.libllvm ];
+    instances = [
+      (import ./src/tokenvec.nix { inherit pkgs; })
+      (import ./src/opdeclvec.nix { inherit pkgs; })
+    ];
   in {
     packages."${system}" = let
       # expects a .c file of same name in $src/
@@ -27,21 +31,6 @@
       debugOpts = "-Wall -Wextra -g -O0";
       releaseOpts = "-O2";
       
-      comp = (isDebug:
-        "gcc -c"
-        + " " + (if isDebug then debugOpts else releaseOpts)
-        + " " + pkgs.lib.concatStrings
-          (pkgs.lib.intersperse " "
-            (map (m: "$src/" + m + ".c") modules))
-      );
-      link = (isDebug:
-        "gcc -o ./main"
-        + " " + (if isDebug then debugOpts else releaseOpts)
-        + " " + pkgs.lib.concatStrings
-          (pkgs.lib.intersperse " "
-            (map (m: "./" + m + ".o") modules))
-        + " ${serene-drv}/lib/*"
-      );
       installPhase = ''
         mkdir -p "$out/bin"
         cp ./main "$out/bin/${name}"
@@ -50,19 +39,21 @@
       debug = pkgs.stdenv.mkDerivation {
         inherit name src installPhase;
         dontStrip = true;
-        buildInputs = commonBuildInputs;
-        buildPhase = ''
-          ${comp true}
-          ${link true}
-        '';
+        buildInputs = commonBuildInputs ++ instances;
+        buildPhase =
+          "gcc -o ./main " + debugOpts
+          + pkgs.lib.concatStrings (map (m: " $src/${m}.c") modules)
+          + pkgs.lib.concatStrings (map (d: " ${d}/lib/*") instances)
+          + " ${serene-drv}/lib/*";
       };
       default = pkgs.stdenv.mkDerivation {
         inherit name src installPhase;
-        nativeBuildInputs = commonBuildInputs;
-        buildPhase = ''
-          ${comp false}
-          ${link false}
-        '';
+        nativeBuildInputs = commonBuildInputs ++ instances;
+        buildPhase = 
+          "gcc -o ./main " + releaseOpts
+          + pkgs.lib.concatStrings (map (m: " $src/${m}.c") modules)
+          + pkgs.lib.concatStrings (map (d: " ${d}/lib/*") instances)
+          + " ${serene-drv}/lib/*";
       };
     };
     apps."${system}" = {
@@ -79,7 +70,7 @@
       default = pkgs.stdenv.mkDerivation {
         inherit name;
         src = ./.;
-        buildInputs = [ pkgs.clang-tools pkgs.gdb ] ++ commonBuildInputs;
+        buildInputs = [ pkgs.clang-tools pkgs.gdb ] ++ commonBuildInputs ++ instances;
       };
     };
   };

@@ -2,16 +2,6 @@
 #include "./strings.h"
 #include <assert.h>
 
-#define VECTOR_IMPLS
-#define VEC_NAME Tokenvec
-#define VEC_TYPE struct Token
-#include "./vector.h"
-
-#define VECTOR_IMPLS
-#define VEC_NAME Opdecls
-#define VEC_TYPE struct Opdecl
-#include "./vector.h"
-
 struct SpellingEntry;
 
 struct Out {
