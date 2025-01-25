@@ -23,6 +23,7 @@ static struct TypeLL *DSet_join(struct TypeLL *, struct TypeLL *);
 
 struct Globals {
     struct Symbols symbols;
+    struct serene_Allocator alloc;
     struct GlobalsLL {
         struct {
             const char *name;
@@ -34,7 +35,7 @@ struct Globals {
 
 static struct Type
 unify(struct serene_Allocator, struct DSet *, struct Type, struct Type);
-static void typecheck_func(struct serene_Allocator, struct Globals, struct Function *);
+static void typecheck_func(struct Globals, struct Function *);
 
 struct Context {
     struct LetsLL {
@@ -55,17 +56,18 @@ struct Context {
 };
 
 static struct Type
-typecheck_expr(struct serene_Allocator, struct Context *, struct Expr *);
+typecheck_expr(struct Context *, struct Expr *);
 static void fill_expr(struct Context *, struct Expr *);
 static void fill_type(struct Context *, struct Type *);
 static void
-destructure_binding(struct serene_Allocator, struct Context *, struct Binding *, bool, struct Type *);
+destructure_binding(struct Context *, struct Binding *, bool, struct Type *);
 
 void typecheck(
     struct serene_Allocator alloc, struct Symbols symbols, struct Ast *ast
 ) {
     struct Globals globals = {0};
     globals.symbols = symbols;
+    globals.alloc = alloc;
 
     for (ll_iter(f, ast->funcs)) {
         struct GlobalsLL *tmp = serene_alloc(alloc, struct GlobalsLL);
@@ -86,26 +88,23 @@ void typecheck(
     }
 
     for (ll_iter(f, ast->funcs)) {
-        typecheck_func(alloc, globals, &f->current);
+        typecheck_func(globals, &f->current);
     }
 }
 
-static void typecheck_func(
-    struct serene_Allocator alloc, struct Globals globals, struct Function *func
-) {
+static void typecheck_func(struct Globals globals, struct Function *func) {
     struct Context ctx = {0};
     ctx.globals = globals;
-    destructure_binding(alloc, &ctx, &func->args, false, NULL);
+    destructure_binding(&ctx, &func->args, false, NULL);
     ctx.ret = func->ret;
 #warning TODO: should also check this type
-    typecheck_expr(alloc, &ctx, &func->body);
+    typecheck_expr(&ctx, &func->body);
 
     fill_expr(&ctx, &func->body);
 }
 
-static struct Type typecheck_expr(
-    struct serene_Allocator alloc, struct Context *ctx, struct Expr *expr
-) {
+static struct Type typecheck_expr(struct Context *ctx, struct Expr *expr) {
+    struct serene_Allocator alloc = ctx->globals.alloc;
     switch (expr->tag) {
     case ET_NumberLit:
     case ET_StringLit:
@@ -114,10 +113,10 @@ static struct Type typecheck_expr(
         return expr->type;
 
     case ET_If: {
-        struct Type cond = typecheck_expr(alloc, ctx, expr->if_expr.cond);
+        struct Type cond = typecheck_expr(ctx, expr->if_expr.cond);
         unify(alloc, &ctx->equivs, cond, Type_bool(ctx->globals.symbols));
-        struct Type smash = typecheck_expr(alloc, ctx, expr->if_expr.smash);
-        struct Type pass = typecheck_expr(alloc, ctx, expr->if_expr.pass);
+        struct Type smash = typecheck_expr(ctx, expr->if_expr.smash);
+        struct Type pass = typecheck_expr(ctx, expr->if_expr.pass);
         return unify(alloc, &ctx->equivs, smash, pass);
     }
     case ET_Loop: {
@@ -126,7 +125,7 @@ static struct Type typecheck_expr(
         head->current = out;
         head->next = ctx->loops;
         ctx->loops = head;
-        typecheck_expr(alloc, ctx, expr->loop);
+        typecheck_expr(ctx, expr->loop);
         ctx->loops = head->next;
         return out;
     }
@@ -138,7 +137,7 @@ static struct Type typecheck_expr(
         struct Type out = Type_unit(ctx->globals.symbols);
         struct LetsLL *head = ctx->lets;
         for (ll_iter(s, expr->bareblock)) {
-            out = typecheck_expr(alloc, ctx, &s->current);
+            out = typecheck_expr(ctx, &s->current);
         }
         ctx->lets = head;
         return out;
@@ -148,8 +147,8 @@ static struct Type typecheck_expr(
         struct Type *a = serene_alloc(alloc, struct Type);
         struct Type *r = serene_alloc(alloc, struct Type);
         assert(a && r);
-        f = typecheck_expr(alloc, ctx, expr->call.name);
-        *a = typecheck_expr(alloc, ctx, expr->call.args);
+        f = typecheck_expr(ctx, expr->call.name);
+        *a = typecheck_expr(ctx, expr->call.args);
         *r = expr->type;
         struct Type fa =
             (struct Type){.tag = TT_Func, .func.args = a, .func.ret = r};
@@ -175,29 +174,29 @@ static struct Type typecheck_expr(
         assert(false && "no such name!");
     }
     case ET_Comma: {
-        typecheck_expr(alloc, ctx, expr->comma.lhs);
-        typecheck_expr(alloc, ctx, expr->comma.rhs);
+        typecheck_expr(ctx, expr->comma.lhs);
+        typecheck_expr(ctx, expr->comma.rhs);
         return expr->type;
     }
 
     case ST_Let: {
-        struct Type it = typecheck_expr(alloc, ctx, expr->let.init);
-        destructure_binding(alloc, ctx, &expr->let.bind, false, &it);
+        struct Type it = typecheck_expr(ctx, expr->let.init);
+        destructure_binding(ctx, &expr->let.bind, false, &it);
         return expr->type;
     }
     case ST_Mut: {
-        struct Type it = typecheck_expr(alloc, ctx, expr->let.init);
-        destructure_binding(alloc, ctx, &expr->let.bind, true, &it);
+        struct Type it = typecheck_expr(ctx, expr->let.init);
+        destructure_binding(ctx, &expr->let.bind, true, &it);
         return expr->type;
     }
     case ST_Break: {
-        struct Type brk = typecheck_expr(alloc, ctx, expr->break_stmt);
+        struct Type brk = typecheck_expr(ctx, expr->break_stmt);
         assert(ctx->loops);
         unify(alloc, &ctx->equivs, brk, ctx->loops->current);
         return expr->type;
     }
     case ST_Return: {
-        struct Type ret = typecheck_expr(alloc, ctx, expr->return_stmt);
+        struct Type ret = typecheck_expr(ctx, expr->return_stmt);
         unify(alloc, &ctx->equivs, ret, ctx->ret);
         return expr->type;
     }
@@ -207,13 +206,13 @@ static struct Type typecheck_expr(
                 assert(
                     head->current.mutable && "tried modifying an immutable var!"
                 );
-                struct Type ass = typecheck_expr(alloc, ctx, expr->assign.expr);
+                struct Type ass = typecheck_expr(ctx, expr->assign.expr);
                 return unify(alloc, &ctx->equivs, ass, head->current.type);
             }
         }
         assert(false && "no such variable declared!");
     case ST_Const:
-        typecheck_expr(alloc, ctx, expr->const_stmt);
+        typecheck_expr(ctx, expr->const_stmt);
         return expr->type;
     }
     assert(false && "gcc complains about control reaching here??");
@@ -301,9 +300,9 @@ static void fill_type(struct Context *ctx, struct Type *type) {
 }
 
 static void destructure_binding(
-    struct serene_Allocator alloc, struct Context *ctx, struct Binding *binding,
-    bool mut, struct Type *type
+    struct Context *ctx, struct Binding *binding, bool mut, struct Type *type
 ) {
+    struct serene_Allocator alloc = ctx->globals.alloc;
     switch (binding->tag) {
     case BT_Empty:
         return;

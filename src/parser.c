@@ -2,70 +2,69 @@
 
 struct Context {
     struct serene_Allocator alloc;
-    struct Opdecls *ops;
-    struct Symbols *symbols;
-    struct Tokenstream *toks;
-    int *var_counter;
+    struct Opdecls ops;
+    struct Symbols symbols;
+    struct Tokenstream toks;
+    int var_counter;
 };
 
-static struct Type Context_new_typevar(struct Context);
+static struct Type Context_new_typevar(struct Context *);
 
-static struct Function decls_function(struct Context);
+static struct Function decls_function(struct Context *);
 
-static struct Type type(struct Context);
-static struct Type type_func(struct Context);
-static struct Type type_op(struct Context, unsigned);
-static struct Type type_op_left(struct Context);
-static bool type_op_right_first(struct Context, unsigned);
-static struct Type type_op_right(struct Context, struct Type, unsigned);
-static struct Type type_atom(struct Context);
-static struct Type type_parenthesised(struct Context);
+static struct Type type(struct Context *);
+static struct Type type_func(struct Context *);
+static struct Type type_op(struct Context *, unsigned);
+static struct Type type_op_left(struct Context *);
+static bool type_op_right_first(struct Context *, unsigned);
+static struct Type type_op_right(struct Context *, struct Type, unsigned);
+static struct Type type_atom(struct Context *);
+static struct Type type_parenthesised(struct Context *);
 
-static struct Binding binding(struct Context);
-static struct Binding binding_atom(struct Context);
-static struct Binding binding_parenthesised(struct Context);
-static struct Binding binding_name(struct Context);
+static struct Binding binding(struct Context *);
+static struct Binding binding_atom(struct Context *);
+static struct Binding binding_parenthesised(struct Context *);
+static struct Binding binding_name(struct Context *);
 
-static struct Expr expr_delimited(struct Context);
-static struct Expr expr_any(struct Context);
-static struct Expr expr_block(struct Context);
-static struct Expr expr_bareblock(struct Context);
-static struct Expr expr_if(struct Context);
-static struct Expr expr_loop(struct Context);
-static struct Expr expr_inline(struct Context);
-static struct Expr expr_op(struct Context, unsigned);
-static struct Expr expr_op_left(struct Context);
-static bool expr_op_right_first(struct Context, unsigned);
-static struct Expr expr_op_right(struct Context, struct Expr, unsigned);
-static struct Expr expr_atom(struct Context);
+static struct Expr expr_delimited(struct Context *);
+static struct Expr expr_any(struct Context *);
+static struct Expr expr_block(struct Context *);
+static struct Expr expr_bareblock(struct Context *);
+static struct Expr expr_if(struct Context *);
+static struct Expr expr_loop(struct Context *);
+static struct Expr expr_inline(struct Context *);
+static struct Expr expr_op(struct Context *, unsigned);
+static struct Expr expr_op_left(struct Context *);
+static bool expr_op_right_first(struct Context *, unsigned);
+static struct Expr expr_op_right(struct Context *, struct Expr, unsigned);
+static struct Expr expr_atom(struct Context *);
 
-static struct Expr statement(struct Context);
-static struct Expr statement_let(struct Context);
-static struct Expr statement_mut(struct Context);
-static struct Expr statement_break(struct Context);
-static struct Expr statement_return(struct Context);
-static struct Expr statement_assign(struct Context);
+static struct Expr statement(struct Context *);
+static struct Expr statement_let(struct Context *);
+static struct Expr statement_mut(struct Context *);
+static struct Expr statement_break(struct Context *);
+static struct Expr statement_return(struct Context *);
+static struct Expr statement_assign(struct Context *);
 
 struct Ast parse(
     struct serene_Allocator alloc, struct Opdecls ops, struct Symbols symbols,
     struct Tokenstream toks
 ) {
-    int var_counter = 0;
     struct Context ctx = {
         .alloc = alloc,
-        .ops = &ops,
-        .symbols = &symbols,
-        .toks = &toks,
-        .var_counter = &var_counter,
+        .ops = ops,
+        .symbols = symbols,
+        .toks = toks,
+        .var_counter = 0,
     };
     struct FunctionsLL *funcs = NULL;
 
-    while (ctx.toks->len) {
-        switch (ctx.toks->buf[0].kind) {
+    while (ctx.toks.len) {
+        switch (ctx.toks.buf[0].kind) {
         case TK_Func: {
             struct FunctionsLL *tmp = serene_alloc(alloc, struct FunctionsLL);
             assert(tmp && "OOM");
-            tmp->current = decls_function(ctx);
+            tmp->current = decls_function(&ctx);
             tmp->next = funcs;
             funcs = tmp;
             break;
@@ -75,61 +74,61 @@ struct Ast parse(
         }
     }
 after:
-    assert(ctx.toks->len == 0);
+    assert(ctx.toks.len == 0);
 
     return (struct Ast){
         .funcs = funcs,
     };
 }
 
-static struct Function decls_function(struct Context ctx) {
+static struct Function decls_function(struct Context * ctx) {
     const char *name;
     struct Binding args;
     struct Type ret;
     struct Expr body;
 
-    assert(Tokenstream_drop_text(ctx.toks, "func"));
+    assert(Tokenstream_drop_text(&ctx->toks, "func"));
 
-    assert(ctx.toks->len), name = ctx.toks->buf[0].spelling;
-    assert(Tokenstream_drop_kind(ctx.toks, TK_Name));
+    assert(ctx->toks.len), name = ctx->toks.buf[0].spelling;
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_Name));
 
     args = binding_parenthesised(ctx);
-    if (Tokenstream_drop_text(ctx.toks, ":")) {
+    if (Tokenstream_drop_text(&ctx->toks, ":")) {
         ret = type(ctx);
     } else {
         ret = (struct Type){
             .tag = TT_Recall,
-            .recall = ctx.symbols->s_unit,
+            .recall = ctx->symbols.s_unit,
         };
     }
 
-    if (Tokenstream_drop_text(ctx.toks, "=")) {
+    if (Tokenstream_drop_text(&ctx->toks, "=")) {
         body = expr_delimited(ctx);
     } else {
         body = expr_bareblock(ctx);
-        Tokenstream_drop_text(ctx.toks, ";");
+        Tokenstream_drop_text(&ctx->toks, ";");
     };
 
     return (struct Function
     ){.name = name, .args = args, .ret = ret, .body = body};
 }
 
-static struct Type type(struct Context ctx) {
-    assert(ctx.toks->len);
-    if (ctx.toks->buf[0].kind == TK_Func) {
+static struct Type type(struct Context * ctx) {
+    assert(ctx->toks.len);
+    if (ctx->toks.buf[0].kind == TK_Func) {
         return type_func(ctx);
     }
     return type_op(ctx, 0);
 }
 
-static struct Type type_func(struct Context ctx) {
-    struct Type *args = serene_alloc(ctx.alloc, struct Type);
-    struct Type *ret = serene_alloc(ctx.alloc, struct Type);
+static struct Type type_func(struct Context * ctx) {
+    struct Type *args = serene_alloc(ctx->alloc, struct Type);
+    struct Type *ret = serene_alloc(ctx->alloc, struct Type);
     assert(args && ret);
 
-    assert(Tokenstream_drop_text(ctx.toks, "func"));
+    assert(Tokenstream_drop_text(&ctx->toks, "func"));
     *args = type_parenthesised(ctx);
-    assert(Tokenstream_drop_text(ctx.toks, ":"));
+    assert(Tokenstream_drop_text(&ctx->toks, ":"));
     *ret = type(ctx);
 
     return (struct Type){
@@ -139,11 +138,11 @@ static struct Type type_func(struct Context ctx) {
     };
 }
 
-static struct Type type_op(struct Context ctx, unsigned prec) {
+static struct Type type_op(struct Context * ctx, unsigned prec) {
     struct Type left;
 
-    assert(ctx.toks->len);
-    switch (ctx.toks->buf[0].kind) {
+    assert(ctx->toks.len);
+    switch (ctx->toks.buf[0].kind) {
     case TK_Name:
     case TK_OpenParen:
         left = type_atom(ctx);
@@ -158,24 +157,24 @@ static struct Type type_op(struct Context ctx, unsigned prec) {
     return left;
 }
 
-static struct Type type_op_left(struct Context ctx) {
-    struct Type *args = serene_alloc(ctx.alloc, struct Type);
-    struct Type *name = serene_alloc(ctx.alloc, struct Type);
+static struct Type type_op_left(struct Context * ctx) {
+    struct Type *args = serene_alloc(ctx->alloc, struct Type);
+    struct Type *name = serene_alloc(ctx->alloc, struct Type);
     assert(args && name);
 
-    assert(ctx.toks->len);
-    for (size_t i = 0; i < ctx.ops->len; i++) {
-        if (ctx.ops->buf[i].lbp >= 0 || ctx.ops->buf[i].rbp < 0)
+    assert(ctx->toks.len);
+    for (size_t i = 0; i < ctx->ops.len; i++) {
+        if (ctx->ops.buf[i].lbp >= 0 || ctx->ops.buf[i].rbp < 0)
             continue;
-        if (ctx.toks->buf[0].spelling != ctx.ops->buf[i].token)
+        if (ctx->toks.buf[0].spelling != ctx->ops.buf[i].token)
             continue;
 
         *name = (struct Type){
             .tag = TT_Recall,
-            .recall = ctx.toks->buf[0].spelling,
+            .recall = ctx->toks.buf[0].spelling,
         };
-        assert(Tokenstream_drop(ctx.toks));
-        *args = type_op(ctx, ctx.ops->buf[i].rbp);
+        assert(Tokenstream_drop(&ctx->toks));
+        *args = type_op(ctx, ctx->ops.buf[i].rbp);
 
         return (struct Type){
             .tag = TT_Call,
@@ -187,13 +186,13 @@ static struct Type type_op_left(struct Context ctx) {
     assert(false && "unexpected token");
 }
 
-static bool type_op_right_first(struct Context ctx, unsigned prec) {
-    if (!ctx.toks->len)
+static bool type_op_right_first(struct Context * ctx, unsigned prec) {
+    if (!ctx->toks.len)
         return false;
-    if (prec == 0 && ctx.toks->buf[0].kind == TK_Comma)
+    if (prec == 0 && ctx->toks.buf[0].kind == TK_Comma)
         return true;
 
-    switch (ctx.toks->buf[0].kind) {
+    switch (ctx->toks.buf[0].kind) {
     case TK_OpenParen:
     case TK_Name:
         return true;
@@ -201,11 +200,11 @@ static bool type_op_right_first(struct Context ctx, unsigned prec) {
         break;
     }
 
-    for (size_t i = 0; i < ctx.ops->len; i++) {
-        if (ctx.ops->buf[i].lbp < (int)prec)
+    for (size_t i = 0; i < ctx->ops.len; i++) {
+        if (ctx->ops.buf[i].lbp < (int)prec)
             continue;
         // same as for type_op_left()
-        if (ctx.toks->buf[0].spelling != ctx.ops->buf[i].token)
+        if (ctx->toks.buf[0].spelling != ctx->ops.buf[i].token)
             continue;
         return true;
     }
@@ -214,16 +213,16 @@ static bool type_op_right_first(struct Context ctx, unsigned prec) {
 }
 
 static struct Type
-type_op_right(struct Context ctx, struct Type left, unsigned prec) {
-    struct Type *name = serene_alloc(ctx.alloc, struct Type);
-    struct Type *args = serene_alloc(ctx.alloc, struct Type);
+type_op_right(struct Context * ctx, struct Type left, unsigned prec) {
+    struct Type *name = serene_alloc(ctx->alloc, struct Type);
+    struct Type *args = serene_alloc(ctx->alloc, struct Type);
     assert(name && args);
 
-    assert(ctx.toks->len);
-    if (prec == 0 && ctx.toks->buf[0].kind == TK_Comma) {
+    assert(ctx->toks.len);
+    if (prec == 0 && ctx->toks.buf[0].kind == TK_Comma) {
         // reuse allocations, ignore the names
         *name = left;
-        assert(Tokenstream_drop(ctx.toks));
+        assert(Tokenstream_drop(&ctx->toks));
         *args = type_op(ctx, 1);
 
         return (struct Type){
@@ -233,7 +232,7 @@ type_op_right(struct Context ctx, struct Type left, unsigned prec) {
         };
     }
 
-    switch (ctx.toks->buf[0].kind) {
+    switch (ctx->toks.buf[0].kind) {
     case TK_OpenParen:
     case TK_Name:
         /* *name = type_atom(ctx); */
@@ -247,24 +246,24 @@ type_op_right(struct Context ctx, struct Type left, unsigned prec) {
             .call.args = args,
         };
     default:
-        for (size_t i = 0; i < ctx.ops->len; i++) {
-            if (ctx.ops->buf[i].lbp < (int)prec)
+        for (size_t i = 0; i < ctx->ops.len; i++) {
+            if (ctx->ops.buf[i].lbp < (int)prec)
                 continue;
-            if (ctx.toks->buf[0].spelling != ctx.ops->buf[i].token)
+            if (ctx->toks.buf[0].spelling != ctx->ops.buf[i].token)
                 continue;
 
             *name = (struct Type){
                 .tag = TT_Recall,
-                .recall = ctx.toks->buf[0].spelling,
+                .recall = ctx->toks.buf[0].spelling,
             };
-            assert(Tokenstream_drop(ctx.toks));
-            if (ctx.ops->buf[i].rbp >= 0) {
-                struct Type *left_ptr = serene_alloc(ctx.alloc, struct Type);
-                struct Type *right_ptr = serene_alloc(ctx.alloc, struct Type);
+            assert(Tokenstream_drop(&ctx->toks));
+            if (ctx->ops.buf[i].rbp >= 0) {
+                struct Type *left_ptr = serene_alloc(ctx->alloc, struct Type);
+                struct Type *right_ptr = serene_alloc(ctx->alloc, struct Type);
                 assert(left_ptr && right_ptr);
 
                 *left_ptr = left;
-                *right_ptr = type_op(ctx, ctx.ops->buf[i].rbp);
+                *right_ptr = type_op(ctx, ctx->ops.buf[i].rbp);
                 *args = (struct Type){
                     .tag = TT_Comma,
                     .comma.lhs = left_ptr,
@@ -285,14 +284,14 @@ type_op_right(struct Context ctx, struct Type left, unsigned prec) {
     assert(false && "unexpected token");
 }
 
-static struct Type type_atom(struct Context ctx) {
-    assert(ctx.toks->len);
-    switch (ctx.toks->buf[0].kind) {
+static struct Type type_atom(struct Context * ctx) {
+    assert(ctx->toks.len);
+    switch (ctx->toks.buf[0].kind) {
     case TK_OpenParen:
         return type_parenthesised(ctx);
     case TK_Name: {
-        const char *name = ctx.toks->buf[0].spelling;
-        Tokenstream_drop(ctx.toks);
+        const char *name = ctx->toks.buf[0].spelling;
+        Tokenstream_drop(&ctx->toks);
 
         return (struct Type){
             .tag = TT_Recall,
@@ -304,44 +303,44 @@ static struct Type type_atom(struct Context ctx) {
     }
 }
 
-static struct Type type_parenthesised(struct Context ctx) {
-    assert(Tokenstream_drop_text(ctx.toks, "("));
+static struct Type type_parenthesised(struct Context * ctx) {
+    assert(Tokenstream_drop_text(&ctx->toks, "("));
     struct Type out = type(ctx);
-    assert(Tokenstream_drop_text(ctx.toks, ")"));
+    assert(Tokenstream_drop_text(&ctx->toks, ")"));
     return out;
 }
 
-static struct Binding binding(struct Context ctx) { return binding_atom(ctx); }
+static struct Binding binding(struct Context * ctx) { return binding_atom(ctx); }
 
-static struct Binding binding_atom(struct Context ctx) {
-    assert(ctx.toks->len);
-    if (ctx.toks->buf[0].kind == TK_OpenParen) {
+static struct Binding binding_atom(struct Context * ctx) {
+    assert(ctx->toks.len);
+    if (ctx->toks.buf[0].kind == TK_OpenParen) {
         return binding_parenthesised(ctx);
     }
     return binding_name(ctx);
 }
 
-static struct Binding binding_parenthesised(struct Context ctx) {
+static struct Binding binding_parenthesised(struct Context * ctx) {
     struct Binding out = {0};
-    assert(Tokenstream_drop_text(ctx.toks, "("));
-    assert(ctx.toks->len);
-    if (ctx.toks->buf[0].kind != TK_CloseParen) {
+    assert(Tokenstream_drop_text(&ctx->toks, "("));
+    assert(ctx->toks.len);
+    if (ctx->toks.buf[0].kind != TK_CloseParen) {
         out = binding(ctx);
     } else {
         out.tag = BT_Empty;
     }
-    assert(Tokenstream_drop_text(ctx.toks, ")"));
+    assert(Tokenstream_drop_text(&ctx->toks, ")"));
     return out;
 }
 
-static struct Binding binding_name(struct Context ctx) {
+static struct Binding binding_name(struct Context * ctx) {
     struct Type annot;
     const char *name;
 
-    assert(ctx.toks->len), name = ctx.toks->buf[0].spelling;
-    assert(Tokenstream_drop_kind(ctx.toks, TK_Name));
-    if (ctx.toks->len && ctx.toks->buf[0].kind == TK_Colon) {
-        assert(Tokenstream_drop(ctx.toks));
+    assert(ctx->toks.len), name = ctx->toks.buf[0].spelling;
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_Name));
+    if (ctx->toks.len && ctx->toks.buf[0].kind == TK_Colon) {
+        assert(Tokenstream_drop(&ctx->toks));
         annot = type(ctx);
     } else {
         annot = Context_new_typevar(ctx);
@@ -354,14 +353,14 @@ static struct Binding binding_name(struct Context ctx) {
     };
 }
 
-static struct Expr expr_delimited(struct Context ctx) {
-    assert(ctx.toks->len);
-    switch (ctx.toks->buf[0].kind) {
+static struct Expr expr_delimited(struct Context * ctx) {
+    assert(ctx->toks.len);
+    switch (ctx->toks.buf[0].kind) {
     case TK_If:
     case TK_Loop:
     case TK_OpenBrace: {
         struct Expr tmp = expr_block(ctx);
-        Tokenstream_drop_text(ctx.toks, ";");
+        Tokenstream_drop_text(&ctx->toks, ";");
 
         return tmp;
     }
@@ -370,9 +369,9 @@ static struct Expr expr_delimited(struct Context ctx) {
     }
 }
 
-static struct Expr expr_any(struct Context ctx) {
-    assert(ctx.toks->len);
-    switch (ctx.toks->buf[0].kind) {
+static struct Expr expr_any(struct Context * ctx) {
+    assert(ctx->toks.len);
+    switch (ctx->toks.buf[0].kind) {
     case TK_If:
     case TK_Loop:
     case TK_OpenBrace:
@@ -382,9 +381,9 @@ static struct Expr expr_any(struct Context ctx) {
     }
 }
 
-static struct Expr expr_block(struct Context ctx) {
-    assert(ctx.toks->len);
-    switch (ctx.toks->buf[0].kind) {
+static struct Expr expr_block(struct Context * ctx) {
+    assert(ctx->toks.len);
+    switch (ctx->toks.buf[0].kind) {
     case TK_If:
         return expr_if(ctx);
     case TK_Loop:
@@ -396,21 +395,21 @@ static struct Expr expr_block(struct Context ctx) {
     }
 }
 
-static struct Expr expr_if(struct Context ctx) {
-    struct Expr *cond = serene_alloc(ctx.alloc, struct Expr);
-    struct Expr *smash = serene_alloc(ctx.alloc, struct Expr);
-    struct Expr *pass = serene_alloc(ctx.alloc, struct Expr);
+static struct Expr expr_if(struct Context * ctx) {
+    struct Expr *cond = serene_alloc(ctx->alloc, struct Expr);
+    struct Expr *smash = serene_alloc(ctx->alloc, struct Expr);
+    struct Expr *pass = serene_alloc(ctx->alloc, struct Expr);
     assert(cond && smash && pass && "OOM");
 
-    assert(Tokenstream_drop_text(ctx.toks, "if"));
+    assert(Tokenstream_drop_text(&ctx->toks, "if"));
     *cond = expr_any(ctx);
     *smash = expr_block(ctx);
-    if (Tokenstream_drop_text(ctx.toks, "else")) {
+    if (Tokenstream_drop_text(&ctx->toks, "else")) {
         *pass = expr_block(ctx);
     } else {
         *pass = (struct Expr){
             .tag = ET_Unit,
-            .type = Type_unit(*ctx.symbols),
+            .type = Type_unit(ctx->symbols),
         };
     }
 
@@ -423,11 +422,11 @@ static struct Expr expr_if(struct Context ctx) {
     };
 }
 
-static struct Expr expr_loop(struct Context ctx) {
-    struct Expr *block = serene_alloc(ctx.alloc, struct Expr);
+static struct Expr expr_loop(struct Context * ctx) {
+    struct Expr *block = serene_alloc(ctx->alloc, struct Expr);
     assert(block && "OOM");
 
-    assert(Tokenstream_drop_text(ctx.toks, "loop"));
+    assert(Tokenstream_drop_text(&ctx->toks, "loop"));
     *block = expr_block(ctx);
 
     return (struct Expr){
@@ -437,15 +436,15 @@ static struct Expr expr_loop(struct Context ctx) {
     };
 }
 
-static struct Expr expr_bareblock(struct Context ctx) {
+static struct Expr expr_bareblock(struct Context * ctx) {
     struct ExprsLL *block = NULL;
     struct ExprsLL *last = NULL;
-    struct Type type = Type_unit(*ctx.symbols);
+    struct Type type = Type_unit(ctx->symbols);
 
-    assert(Tokenstream_drop_text(ctx.toks, "{"));
-    while (ctx.toks->len && ctx.toks->buf[0].kind != TK_CloseBrace) {
+    assert(Tokenstream_drop_text(&ctx->toks, "{"));
+    while (ctx->toks.len && ctx->toks.buf[0].kind != TK_CloseBrace) {
         {
-            struct ExprsLL *tmp = serene_alloc(ctx.alloc, struct ExprsLL);
+            struct ExprsLL *tmp = serene_alloc(ctx->alloc, struct ExprsLL);
             assert(tmp && "OOM");
             if (!last)
                 block = tmp;
@@ -455,13 +454,13 @@ static struct Expr expr_bareblock(struct Context ctx) {
         }
         last->current = statement(ctx);
 
-        if (Tokenstream_drop_text(ctx.toks, ";")) {
-            struct Expr *e = serene_alloc(ctx.alloc, struct Expr);
+        if (Tokenstream_drop_text(&ctx->toks, ";")) {
+            struct Expr *e = serene_alloc(ctx->alloc, struct Expr);
             assert(e && "OOM");
             *e = last->current;
             last->current = (struct Expr){
                 .tag = ST_Const,
-                .type = Type_unit(*ctx.symbols),
+                .type = Type_unit(ctx->symbols),
                 .const_stmt = e,
             };
         } else {
@@ -469,18 +468,18 @@ static struct Expr expr_bareblock(struct Context ctx) {
             break;
         }
     }
-    assert(Tokenstream_drop_text(ctx.toks, "}"));
+    assert(Tokenstream_drop_text(&ctx->toks, "}"));
 
     return (struct Expr){.tag = ET_Bareblock, .type = type, .bareblock = block};
 }
 
-static struct Expr expr_inline(struct Context ctx) { return expr_op(ctx, 0); }
+static struct Expr expr_inline(struct Context * ctx) { return expr_op(ctx, 0); }
 
-static struct Expr expr_op(struct Context ctx, unsigned prec) {
+static struct Expr expr_op(struct Context * ctx, unsigned prec) {
     struct Expr left;
 
-    assert(ctx.toks->len);
-    switch (ctx.toks->buf[0].kind) {
+    assert(ctx->toks.len);
+    switch (ctx->toks.buf[0].kind) {
     case TK_Name:
     case TK_OpenParen:
     case TK_Number:
@@ -499,25 +498,25 @@ static struct Expr expr_op(struct Context ctx, unsigned prec) {
     return left;
 }
 
-static struct Expr expr_op_left(struct Context ctx) {
-    struct Expr *args = serene_alloc(ctx.alloc, struct Expr);
-    struct Expr *name = serene_alloc(ctx.alloc, struct Expr);
+static struct Expr expr_op_left(struct Context * ctx) {
+    struct Expr *args = serene_alloc(ctx->alloc, struct Expr);
+    struct Expr *name = serene_alloc(ctx->alloc, struct Expr);
     assert(args && name);
 
-    assert(ctx.toks->len);
-    for (size_t i = 0; i < ctx.ops->len; i++) {
-        if (ctx.ops->buf[i].lbp >= 0 || ctx.ops->buf[i].rbp < 0)
+    assert(ctx->toks.len);
+    for (size_t i = 0; i < ctx->ops.len; i++) {
+        if (ctx->ops.buf[i].lbp >= 0 || ctx->ops.buf[i].rbp < 0)
             continue;
-        if (ctx.toks->buf[0].spelling != ctx.ops->buf[i].token)
+        if (ctx->toks.buf[0].spelling != ctx->ops.buf[i].token)
             continue;
 
-        assert(Tokenstream_drop(ctx.toks));
+        assert(Tokenstream_drop(&ctx->toks));
         *name = (struct Expr){
             .tag = ET_Recall,
             .type = Context_new_typevar(ctx),
-            .lit = ctx.ops->buf[i].token,
+            .lit = ctx->ops.buf[i].token,
         };
-        *args = expr_op(ctx, ctx.ops->buf[i].rbp);
+        *args = expr_op(ctx, ctx->ops.buf[i].rbp);
         return (struct Expr){
             .tag = ET_Call,
             .type = Context_new_typevar(ctx),
@@ -529,12 +528,12 @@ static struct Expr expr_op_left(struct Context ctx) {
     assert(false && "unexpected token");
 }
 
-static bool expr_op_right_first(struct Context ctx, unsigned prec) {
-    if (!ctx.toks->len)
+static bool expr_op_right_first(struct Context * ctx, unsigned prec) {
+    if (!ctx->toks.len)
         return false;
-    if (prec == 0 && ctx.toks->buf[0].kind == TK_Comma)
+    if (prec == 0 && ctx->toks.buf[0].kind == TK_Comma)
         return true;
-    switch (ctx.toks->buf[0].kind) {
+    switch (ctx->toks.buf[0].kind) {
     case TK_OpenParen:
     case TK_Name:
     case TK_Number:
@@ -545,10 +544,10 @@ static bool expr_op_right_first(struct Context ctx, unsigned prec) {
         break;
     }
 
-    for (size_t i = 0; i < ctx.ops->len; i++) {
-        if (ctx.ops->buf[i].lbp < (int)prec)
+    for (size_t i = 0; i < ctx->ops.len; i++) {
+        if (ctx->ops.buf[i].lbp < (int)prec)
             continue;
-        if (ctx.toks->buf[0].spelling != ctx.ops->buf[i].token)
+        if (ctx->toks.buf[0].spelling != ctx->ops.buf[i].token)
             continue;
         return true;
     }
@@ -556,14 +555,14 @@ static bool expr_op_right_first(struct Context ctx, unsigned prec) {
 }
 
 static struct Expr
-expr_op_right(struct Context ctx, struct Expr left, unsigned prec) {
-    struct Expr *name = serene_alloc(ctx.alloc, struct Expr);
-    struct Expr *args = serene_alloc(ctx.alloc, struct Expr);
+expr_op_right(struct Context * ctx, struct Expr left, unsigned prec) {
+    struct Expr *name = serene_alloc(ctx->alloc, struct Expr);
+    struct Expr *args = serene_alloc(ctx->alloc, struct Expr);
     assert(name && args);
 
-    assert(ctx.toks->len);
-    if (prec == 0 && ctx.toks->buf[0].kind == TK_Comma) {
-        assert(Tokenstream_drop(ctx.toks));
+    assert(ctx->toks.len);
+    if (prec == 0 && ctx->toks.buf[0].kind == TK_Comma) {
+        assert(Tokenstream_drop(&ctx->toks));
         // reusing allocations, don't mind the names
         *name = left;
         *args = expr_op(ctx, 1);
@@ -571,13 +570,13 @@ expr_op_right(struct Context ctx, struct Expr left, unsigned prec) {
         return (struct Expr){
             .tag = ET_Comma,
             .type =
-                Type_product(ctx.alloc, *ctx.symbols, name->type, args->type),
+                Type_product(ctx->alloc, ctx->symbols, name->type, args->type),
             .comma.lhs = name,
             .comma.rhs = args,
         };
     }
 
-    switch (ctx.toks->buf[0].kind) {
+    switch (ctx->toks.buf[0].kind) {
     case TK_OpenParen:
     case TK_Name:
     case TK_Number:
@@ -593,29 +592,29 @@ expr_op_right(struct Context ctx, struct Expr left, unsigned prec) {
             .call.args = args,
         };
     default:
-        for (size_t i = 0; i < ctx.ops->len; i++) {
-            if (ctx.ops->buf[i].lbp < (int)prec)
+        for (size_t i = 0; i < ctx->ops.len; i++) {
+            if (ctx->ops.buf[i].lbp < (int)prec)
                 continue;
-            if (ctx.toks->buf[0].spelling != ctx.ops->buf[i].token)
+            if (ctx->toks.buf[0].spelling != ctx->ops.buf[i].token)
                 continue;
 
-            assert(Tokenstream_drop(ctx.toks));
+            assert(Tokenstream_drop(&ctx->toks));
             *name = (struct Expr){
                 .tag = ET_Recall,
                 .type = Context_new_typevar(ctx),
-                .lit = ctx.ops->buf[i].token,
+                .lit = ctx->ops.buf[i].token,
             };
-            if (ctx.ops->buf[i].rbp >= 0) {
-                struct Expr *left_ptr = serene_alloc(ctx.alloc, struct Expr);
-                struct Expr *right_ptr = serene_alloc(ctx.alloc, struct Expr);
+            if (ctx->ops.buf[i].rbp >= 0) {
+                struct Expr *left_ptr = serene_alloc(ctx->alloc, struct Expr);
+                struct Expr *right_ptr = serene_alloc(ctx->alloc, struct Expr);
                 assert(left_ptr && right_ptr);
 
                 *left_ptr = left;
-                *right_ptr = expr_op(ctx, ctx.ops->buf[i].rbp);
+                *right_ptr = expr_op(ctx, ctx->ops.buf[i].rbp);
                 *args = (struct Expr){
                     .tag = ET_Comma,
                     .type = Type_product(
-                        ctx.alloc, *ctx.symbols, left_ptr->type, right_ptr->type
+                        ctx->alloc, ctx->symbols, left_ptr->type, right_ptr->type
                     ),
                     .comma.lhs = left_ptr,
                     .comma.rhs = right_ptr,
@@ -636,16 +635,16 @@ expr_op_right(struct Context ctx, struct Expr left, unsigned prec) {
     assert(false && "unexpected token");
 }
 
-static struct Expr expr_atom(struct Context ctx) {
+static struct Expr expr_atom(struct Context * ctx) {
     enum ExprTag tag;
     struct Type type;
 
-    assert(ctx.toks->len);
-    switch (ctx.toks->buf[0].kind) {
+    assert(ctx->toks.len);
+    switch (ctx->toks.buf[0].kind) {
     case TK_OpenParen: {
-        assert(Tokenstream_drop(ctx.toks));
+        assert(Tokenstream_drop(&ctx->toks));
         struct Expr tmp = expr_any(ctx);
-        assert(Tokenstream_drop_text(ctx.toks, ")"));
+        assert(Tokenstream_drop_text(&ctx->toks, ")"));
         return tmp;
     }
     case TK_Name:
@@ -654,22 +653,22 @@ static struct Expr expr_atom(struct Context ctx) {
         break;
     case TK_Number:
         tag = ET_NumberLit;
-        type = Type_int(*ctx.symbols);
+        type = Type_int(ctx->symbols);
         break;
     case TK_String:
         tag = ET_StringLit;
-        type = Type_string(*ctx.symbols);
+        type = Type_string(ctx->symbols);
         break;
     case TK_Bool:
         tag = ET_BoolLit;
-        type = Type_bool(*ctx.symbols);
+        type = Type_bool(ctx->symbols);
         break;
     default:
         assert(false && "unexpected token");
     }
 
-    const char *name = ctx.toks->buf[0].spelling;
-    assert(Tokenstream_drop(ctx.toks));
+    const char *name = ctx->toks.buf[0].spelling;
+    assert(Tokenstream_drop(&ctx->toks));
     return (struct Expr){
         .tag = tag,
         .type = type,
@@ -677,9 +676,9 @@ static struct Expr expr_atom(struct Context ctx) {
     };
 }
 
-static struct Expr statement(struct Context ctx) {
-    assert(ctx.toks->len);
-    switch (ctx.toks->buf[0].kind) {
+static struct Expr statement(struct Context * ctx) {
+    assert(ctx->toks.len);
+    switch (ctx->toks.buf[0].kind) {
     case TK_Let:
         return statement_let(ctx);
     case TK_Mut:
@@ -689,7 +688,7 @@ static struct Expr statement(struct Context ctx) {
     case TK_Return:
         return statement_return(ctx);
     case TK_Name:
-        if (ctx.toks->len > 1 && ctx.toks->buf[1].kind == TK_Equals) {
+        if (ctx->toks.len > 1 && ctx->toks.buf[1].kind == TK_Equals) {
             return statement_assign(ctx);
         }
         __attribute__((fallthrough));
@@ -699,65 +698,65 @@ static struct Expr statement(struct Context ctx) {
     }
 }
 
-static struct Expr statement_let(struct Context ctx) {
-    struct Expr *init = serene_alloc(ctx.alloc, struct Expr);
+static struct Expr statement_let(struct Context * ctx) {
+    struct Expr *init = serene_alloc(ctx->alloc, struct Expr);
     struct Binding bind;
     assert(init && "OOM");
 
-    assert(Tokenstream_drop_text(ctx.toks, "let"));
+    assert(Tokenstream_drop_text(&ctx->toks, "let"));
     bind = binding(ctx);
-    assert(Tokenstream_drop_text(ctx.toks, "="));
+    assert(Tokenstream_drop_text(&ctx->toks, "="));
     *init = expr_any(ctx);
 
     return (struct Expr){
         .tag = ST_Let,
-        .type = Type_unit(*ctx.symbols),
+        .type = Type_unit(ctx->symbols),
         .let.bind = bind,
         .let.init = init,
     };
 }
 
-static struct Expr statement_mut(struct Context ctx) {
-    struct Expr *init = serene_alloc(ctx.alloc, struct Expr);
+static struct Expr statement_mut(struct Context * ctx) {
+    struct Expr *init = serene_alloc(ctx->alloc, struct Expr);
     struct Binding bind;
     assert(init && "OOM");
 
-    assert(Tokenstream_drop_text(ctx.toks, "mut"));
+    assert(Tokenstream_drop_text(&ctx->toks, "mut"));
     bind = binding(ctx);
-    assert(Tokenstream_drop_text(ctx.toks, "="));
+    assert(Tokenstream_drop_text(&ctx->toks, "="));
     *init = expr_any(ctx);
 
     return (struct Expr){
         .tag = ST_Mut,
-        .type = Type_unit(*ctx.symbols),
+        .type = Type_unit(ctx->symbols),
         .let.bind = bind,
         .let.init = init,
     };
 }
 
-static struct Expr statement_break(struct Context ctx) {
+static struct Expr statement_break(struct Context * ctx) {
     struct Expr *expr = NULL;
 
-    assert(Tokenstream_drop_text(ctx.toks, "break"));
-    if (ctx.toks->len && ctx.toks->buf[0].kind != TK_Semicolon) {
-        expr = serene_alloc(ctx.alloc, struct Expr);
+    assert(Tokenstream_drop_text(&ctx->toks, "break"));
+    if (ctx->toks.len && ctx->toks.buf[0].kind != TK_Semicolon) {
+        expr = serene_alloc(ctx->alloc, struct Expr);
         assert(expr && "OOM");
         *expr = expr_any(ctx);
     }
 
     return (struct Expr){
         .tag = ST_Break,
-        .type = Type_unit(*ctx.symbols),
+        .type = Type_unit(ctx->symbols),
         .break_stmt = expr,
     };
 }
 
-static struct Expr statement_return(struct Context ctx) {
-    struct Expr *expr = serene_alloc(ctx.alloc, struct Expr);
+static struct Expr statement_return(struct Context * ctx) {
+    struct Expr *expr = serene_alloc(ctx->alloc, struct Expr);
     assert(expr);
 
-    assert(Tokenstream_drop_text(ctx.toks, "return"));
-    if (ctx.toks->len && ctx.toks->buf[0].kind != TK_Semicolon) {
+    assert(Tokenstream_drop_text(&ctx->toks, "return"));
+    if (ctx->toks.len && ctx->toks.buf[0].kind != TK_Semicolon) {
         *expr = expr_any(ctx);
     } else {
         *expr = (struct Expr){0};
@@ -765,34 +764,32 @@ static struct Expr statement_return(struct Context ctx) {
 
     return (struct Expr){
         .tag = ST_Return,
-        .type = Type_unit(*ctx.symbols),
+        .type = Type_unit(ctx->symbols),
         .return_stmt = expr,
     };
 }
 
-static struct Expr statement_assign(struct Context ctx) {
-    struct Expr *expr = serene_alloc(ctx.alloc, struct Expr);
+static struct Expr statement_assign(struct Context * ctx) {
+    struct Expr *expr = serene_alloc(ctx->alloc, struct Expr);
     const char *name;
     assert(expr);
 
-    assert(ctx.toks->len), name = ctx.toks->buf[0].spelling;
-    assert(Tokenstream_drop_kind(ctx.toks, TK_Name));
-    assert(Tokenstream_drop_text(ctx.toks, "="));
+    assert(ctx->toks.len), name = ctx->toks.buf[0].spelling;
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_Name));
+    assert(Tokenstream_drop_text(&ctx->toks, "="));
     *expr = expr_any(ctx);
 
     return (struct Expr){
         .tag = ST_Assign,
-        .type = Type_unit(*ctx.symbols),
+        .type = Type_unit(ctx->symbols),
         .assign.name = name,
         .assign.expr = expr,
     };
 }
 
-static struct Type Context_new_typevar(struct Context ctx) {
-    int v = *ctx.var_counter;
-    *ctx.var_counter += 1;
+static struct Type Context_new_typevar(struct Context *ctx) {
     return (struct Type){
         .tag = TT_Var,
-        .var = v,
+        .var = ctx->var_counter++,
     };
 }
