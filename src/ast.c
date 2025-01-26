@@ -7,6 +7,11 @@ const struct Type *Binding_to_type(struct TypeIntern *intern, struct Binding thi
         return intern->tsyms.t_unit;
     case BT_Name:
         return this.name.annot;
+    case BT_Comma: {
+        const struct Type *lhs = Binding_to_type(intern, *this.comma.lhs);
+        const struct Type *rhs = Binding_to_type(intern, *this.comma.rhs);
+        return Type_product(intern, lhs, rhs);
+    }
     }
     assert(false && "gcc complains about control reaching here??");
 }

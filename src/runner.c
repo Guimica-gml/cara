@@ -258,6 +258,9 @@ static void declare_binding(
         ctx->lets = tmp;
         return;
     }
+    case BT_Comma:
+        declare_binding(alloc, ctx, *binding.comma.lhs);
+        declare_binding(alloc, ctx, *binding.comma.rhs);
     }
 }
 
@@ -274,6 +277,13 @@ static void assign_binding(
             head->current.val = value;
             return;
         }
+        return;
+    }
+    case BT_Comma: {
+        assert(value.tag == VT_Comma && "uh");
+        assign_binding(ctx, *binding.comma.lhs, *value.v_comma.lhs);
+        assign_binding(ctx, *binding.comma.rhs, *value.v_comma.rhs);
+        return;
     }
     }
 }

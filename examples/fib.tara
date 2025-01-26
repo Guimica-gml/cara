@@ -1,7 +1,7 @@
 
-func less(): bool { return false; }
-func sub(): int { return 5; }
-func add(): int { return 1; }
+func less(a: int, b: int): bool { false }
+func sub(a: int, b: int): int { 5 }
+func add(a: int, b: int): int { 1 }
 
 func fib(n: int): int {
     if less(n, 2) { return n; };
@@ -13,5 +13,5 @@ func fib(n: int): int {
 
 func main(): int {
     let res = fib(5);
-    return res;
+    res
 }

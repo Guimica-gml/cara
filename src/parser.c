@@ -169,8 +169,8 @@ static struct Type const *type_op_left(struct Context * ctx) {
 static bool type_op_right_first(struct Context * ctx, unsigned prec) {
     if (!ctx->toks.len)
         return false;
-    if (prec == 0 && ctx->toks.buf[0].kind == TK_Comma)
-        return true;
+    /* if (prec == 0 && ctx->toks.buf[0].kind == TK_Comma) */
+    /*     return true; */
 
     switch (ctx->toks.buf[0].kind) {
     case TK_OpenParen:
@@ -195,11 +195,11 @@ static bool type_op_right_first(struct Context * ctx, unsigned prec) {
 static struct Type const *
 type_op_right(struct Context *ctx, struct Type const *left, unsigned prec) {
     assert(ctx->toks.len);
-    if (prec == 0 && ctx->toks.buf[0].kind == TK_Comma) {
-        assert(Tokenstream_drop(&ctx->toks));
-        struct Type const *right = type_op(ctx, 1);
-        return Type_comma(ctx->intern, left, right);
-    }
+    /* if (prec == 0 && ctx->toks.buf[0].kind == TK_Comma) { */
+    /*     assert(Tokenstream_drop(&ctx->toks)); */
+    /*     struct Type const *right = type_op(ctx, 1); */
+    /*     return Type_comma(ctx->intern, left, right); */
+    /* } */
 
     struct Type const *name;
     struct Type const *args;
@@ -251,11 +251,16 @@ static const struct Type *type_atom(struct Context * ctx) {
 static const struct Type *type_parenthesised(struct Context * ctx) {
     assert(Tokenstream_drop_text(&ctx->toks, "("));
     const struct Type *out = type(ctx);
+    while (ctx->toks.len && ctx->toks.buf[0].kind == TK_Comma) {
+        assert(Tokenstream_drop(&ctx->toks));
+        const struct Type *rhs = type(ctx);
+        out = Type_comma(ctx->intern, out, rhs);
+    }
     assert(Tokenstream_drop_text(&ctx->toks, ")"));
     return out;
 }
 
-static struct Binding binding(struct Context * ctx) { return binding_atom(ctx); }
+static struct Binding binding(struct Context *ctx) { return binding_atom(ctx); }
 
 static struct Binding binding_atom(struct Context * ctx) {
     assert(ctx->toks.len);
@@ -271,8 +276,22 @@ static struct Binding binding_parenthesised(struct Context * ctx) {
     assert(ctx->toks.len);
     if (ctx->toks.buf[0].kind != TK_CloseParen) {
         out = binding(ctx);
+        while (ctx->toks.len && ctx->toks.buf[0].kind == TK_Comma) {
+            assert(Tokenstream_drop(&ctx->toks));
+            struct Binding *lhs = serene_alloc(ctx->alloc, struct Binding);
+            struct Binding *rhs = serene_alloc(ctx->alloc, struct Binding);
+            assert(lhs && rhs && "OOM");
+            *lhs = out;
+            *rhs = binding(ctx);
+            out = (struct Binding){
+                .tag = BT_Comma,
+                .comma.lhs = lhs,
+                .comma.rhs = rhs,
+            };
+        }
     } else {
         out.tag = BT_Empty;
+        out.empty = Context_new_typevar(ctx);
     }
     assert(Tokenstream_drop_text(&ctx->toks, ")"));
     return out;

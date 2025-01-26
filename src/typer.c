@@ -58,8 +58,7 @@ struct Context {
 static const struct Type *typecheck_expr(struct Context *, struct Expr *);
 static void fill_expr(struct Context *, struct Expr *);
 static const struct Type *fill_type(struct Context *, const struct Type *);
-static void
-destructure_binding(struct Context *, struct Binding *, bool, const struct Type *);
+static const struct Type *destructure_binding(struct Context *, struct Binding *, bool);
 
 void typecheck(
     struct serene_Allocator alloc, struct TypeIntern *intern, struct Ast *ast
@@ -89,7 +88,7 @@ void typecheck(
 static void typecheck_func(struct Globals globals, struct Function *func) {
     struct Context ctx = {0};
     ctx.globals = globals;
-    destructure_binding(&ctx, &func->args, false, NULL);
+    destructure_binding(&ctx, &func->args, false);
     ctx.ret = func->ret;
     unify(
         globals.alloc, &ctx.equivs, func->ret,
@@ -174,13 +173,13 @@ static const struct Type *typecheck_expr(struct Context *ctx, struct Expr *expr)
 
     case ST_Let: {
         const struct Type *it = typecheck_expr(ctx, expr->let.init);
-        destructure_binding(ctx, &expr->let.bind, false, it);
-        return expr->type;
+        const struct Type *bt = destructure_binding(ctx, &expr->let.bind, false);
+        return unify(alloc, &ctx->equivs, it, bt);
     }
     case ST_Mut: {
         const struct Type *it = typecheck_expr(ctx, expr->let.init);
-        destructure_binding(ctx, &expr->let.bind, true, it);
-        return expr->type;
+        const struct Type *bt = destructure_binding(ctx, &expr->let.bind, true);
+        return unify(alloc, &ctx->equivs, it, bt);
     }
     case ST_Break: {
         const struct Type *brk = typecheck_expr(ctx, expr->break_stmt);
@@ -292,27 +291,26 @@ static const struct Type *fill_type(struct Context *ctx, const struct Type *type
     }
 }
 
-static void destructure_binding(
-    struct Context *ctx, struct Binding *binding, bool mut, const struct Type *type
+static const struct Type *destructure_binding(
+    struct Context *ctx, struct Binding *binding, bool mut
 ) {
-    struct serene_Allocator alloc = ctx->globals.alloc;
     switch (binding->tag) {
     case BT_Empty:
-        return;
+        return binding->empty;
     case BT_Name: {
-        struct LetsLL *tmp = serene_alloc(alloc, struct LetsLL);
+        struct LetsLL *tmp = serene_alloc(ctx->globals.alloc, struct LetsLL);
         assert(tmp);
         tmp->current.name = binding->name.name;
         tmp->current.mutable = mut;
         tmp->current.type = binding->name.annot;
         tmp->next = ctx->lets;
         ctx->lets = tmp;
-        // we want to avoid destructuring the type
-        // in the case this function becomes recursive
-        // pass NULL to further calls
-        if (type)
-            unify(alloc, &ctx->equivs, type, tmp->current.type);
-        return;
+        return binding->name.annot;
+    }
+    case BT_Comma: {
+        const struct Type *lhs = destructure_binding(ctx, binding->comma.lhs, mut);
+        const struct Type *rhs = destructure_binding(ctx, binding->comma.rhs, mut);
+        return Type_product(ctx->globals.intern, lhs, rhs);
     }
     }
 }
@@ -378,7 +376,7 @@ static struct TypeLL *DSet_root(struct TypeLL *type) {
 
 static struct TypeLL *DSet_find_root(struct DSet *this, const struct Type *type) {
     for (ll_iter(head, this->types)) {
-        if (head->current.type == type)
+        if (Type_cmp(head->current.type, type) == 0)
             return DSet_root(head);
     }
     return NULL;

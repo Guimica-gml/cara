@@ -39,14 +39,20 @@ struct Ast;
 enum BindingTag {
     BT_Empty,
     BT_Name,
+    BT_Comma,
 };
 struct Binding {
     enum BindingTag tag;
     union {
+        struct Type const *empty;
         struct {
             const char *name;
             struct Type const *annot;
         } name;
+        struct {
+            struct Binding *lhs;
+            struct Binding *rhs;
+        } comma;
     };
 };
 
