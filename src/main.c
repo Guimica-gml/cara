@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
     printf("[\n");
     struct Tokenstream stream = Tokenvec_stream(&tokens);
     for (size_t i = 0; i < stream.len; i++) {
-        printf("\t'%s'\n", stream.buf[i].spelling);
+        printf("\t(%p)\t'%s'\n", stream.buf[i].spelling, stream.buf[i].spelling);
     }
     printf("]\n");
 
@@ -59,19 +59,19 @@ int main(int argc, char **argv) {
     struct Ast ast = parse(
         serene_Arena_dyn(&ast_arena), ops, symbols, Tokenvec_stream(&tokens)
     );
+    Tokenvec_deinit(&tokens);
 
     typecheck(serene_Arena_dyn(&type_arena), symbols, &ast);
+    serene_Arena_deinit(&type_arena);
 
     convert_ast(serene_Arena_dyn(&tst_arena), symbols, ast);
+    serene_Arena_deinit(&tst_arena);
 
     run(serene_Arena_dyn(&exec_arena), symbols, ast);
-
-    Tokenvec_deinit(&tokens);
-    serene_Arena_deinit(&strings_arena);
-    serene_Arena_deinit(&ast_arena);
-    serene_Arena_deinit(&type_arena);
-    serene_Arena_deinit(&tst_arena);
     serene_Arena_deinit(&exec_arena);
+
+    serene_Arena_deinit(&ast_arena);
+    serene_Arena_deinit(&strings_arena);
     printf("\n");
     return 0;
 }

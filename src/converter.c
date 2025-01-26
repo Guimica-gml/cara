@@ -219,6 +219,8 @@ static struct tst_Expr convert_expr(struct Context *ctx, struct Expr expr) {
         };
     }
     }
+
+    assert(false && "why");
 }
 
 static struct tst_Binding
@@ -235,6 +237,7 @@ convert_binding(struct Context *ctx, struct Binding binding) {
             .name.type = convert_type(ctx, binding.name.annot, NULL),
         };
     }
+    assert(false && "christ");
 }
 
 static struct tst_Type convert_type(struct Context *ctx, struct Type type, struct Type *params) {
@@ -290,4 +293,6 @@ static struct tst_Type convert_type(struct Context *ctx, struct Type type, struc
     case TT_Comma:
         assert(false && "shouldn't occur in convert_type on it's own!");
     }
+
+    assert(false && "aaaa");
 }

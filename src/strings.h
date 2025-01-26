@@ -2,6 +2,7 @@
 #define STRINGS_H
 
 #include "serene.h"
+#include "btrings.h"
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -13,13 +14,7 @@ bool strings_prefix_of(const char *, const char *);
 bool strings_equal(const char *, const char *);
 
 struct Intern {
-    struct HashesLL {
-        struct {
-            long int hash;
-            const char *string;
-        } current;
-        struct HashesLL *next;
-    } *hashes;
+    struct Btrings tree;
 };
 
 // copies the contents of the passed in string

@@ -12,6 +12,7 @@
     instances = [
       (import ./src/tokenvec.nix { inherit pkgs; })
       (import ./src/opdeclvec.nix { inherit pkgs; })
+      (import ./src/ordstrings.nix { inherit pkgs; serene = serene-drv; })
     ];
   in {
     packages."${system}" = let
@@ -27,6 +28,7 @@
         "parser"
         "symbols"
         "runner"
+        "ordstrings"
       ];
       debugOpts = "-Wall -Wextra -g -O0";
       releaseOpts = "-O2";

@@ -1,7 +1,7 @@
 #include "./strings.h"
 #include <assert.h>
+#include <stdio.h>
 
-static long int hash_string(const char *, size_t);
 
 bool strings_ascii_whitespace(char c) {
     char ws[5] = {0x09, 0x0A, 0x0C, 0x0D, 0x20};
@@ -48,34 +48,18 @@ const char *Intern_insert(
     struct Intern *this, struct serene_Allocator alloc, const char *s,
     size_t len
 ) {
-    long int hash = hash_string(s, len);
-    for (struct HashesLL *head = this->hashes; head; head = head->next) {
-        if (head->current.hash == hash) {
-            if (strings_n_equal(head->current.string, s, len))
-                return head->current.string;
-        }
+    printf("searching for: %.*s\n", len, s);
+    struct Ordstring *entry = Btrings_search(&this->tree, (struct Ordstring) {.str = s, .len = len});
+    if (entry) {
+        printf("found: %s[%d]\n", entry->str, entry->len);
+        return entry->str;
     }
+    printf("found: nothing\n");
 
-    struct HashesLL *new = serene_alloc(alloc, struct HashesLL);
-    char *new_s = serene_nalloc(alloc, 1 + len, char);
-    assert(new &&new_s && "OOM");
-    for (size_t i = 0; i < len; i++)
-        new_s[i] = s[i];
-    new_s[len] = '\0';
-    new->next = this->hashes;
-    new->current.string = new_s;
-    new->current.hash = hash;
-    this->hashes = new;
-    return new_s;
-}
-
-static long int hash_string(const char *s, size_t len) {
-    long int out = 0;
-    for (size_t i = 0; i < len; i++) {
-        // polynomial rolling hash function or smt
-        // idk, it's supposed to be good
-        out *= 53;
-        out += s[i];
-    }
-    return out;
+    char *new = serene_nalloc(alloc, 1 + len, char);
+    assert(new && "OOM");
+    for (size_t i = 0; i < len; i++) new[i] = s[i];
+    new[len] = '\0';
+    assert(Btrings_insert(&this->tree, alloc, (struct Ordstring) {.str = new, .len = len}));
+    return new;
 }
