@@ -1,51 +1,40 @@
-#ifndef TYPES_H
-#define TYPES_H
+#ifndef AST_H
+#define AST_H
 
 #include "./symbols.h"
+#include "./types.h"
+#include "typereg.h"
+
+struct Typesyms {
+    const struct Type *t_unit;
+    const struct Type *t_bool;
+    const struct Type *t_int;
+    const struct Type *t_string;
+    const struct Type *t_star;
+};
+
+struct TypeIntern {
+    struct serene_Allocator alloc;
+    struct Typereg tree;
+    struct Typesyms tsyms;
+    struct Symbols syms;
+};
+struct TypeIntern TypeIntern_init(struct serene_Allocator, struct Symbols);
+const struct Type *TypeIntern_intern(struct TypeIntern *, struct Type *);
+
+const struct Type *Type_recall(struct TypeIntern *, const char *);
+const struct Type *Type_func(struct TypeIntern *, const struct Type *, const struct Type *);
+const struct Type *Type_comma(struct TypeIntern *, const struct Type *, const struct Type *);
+const struct Type *Type_call(struct TypeIntern *, const struct Type *, const struct Type *);
+const struct Type *Type_product(
+    struct TypeIntern *, const struct Type *, const struct Type *
+);
 
 struct Binding;
 struct Expr;
 struct ExprsLL;
-struct Type;
 struct Function;
 struct Ast;
-
-enum TypeTag {
-    TT_Func,
-    TT_Call,
-    TT_Recall,
-    TT_Comma,
-    TT_Var,
-};
-struct Type {
-    enum TypeTag tag;
-    union {
-        struct {
-            struct Type *args;
-            struct Type *ret;
-        } func;
-        struct {
-            struct Type *name;
-            struct Type *args;
-        } call;
-        struct {
-            struct Type *lhs;
-            struct Type *rhs;
-        } comma;
-        const char *recall;
-        int var;
-    };
-};
-
-struct Type Binding_to_type(struct Symbols, struct Binding);
-
-struct Type Type_unit(struct Symbols);
-struct Type Type_bool(struct Symbols);
-struct Type Type_int(struct Symbols);
-struct Type Type_string(struct Symbols);
-struct Type Type_product(
-    struct serene_Allocator, struct Symbols, struct Type, struct Type
-);
 
 enum BindingTag {
     BT_Empty,
@@ -56,10 +45,12 @@ struct Binding {
     union {
         struct {
             const char *name;
-            struct Type annot;
+            struct Type const *annot;
         } name;
     };
 };
+
+const struct Type *Binding_to_type(struct TypeIntern *, struct Binding);
 
 enum ExprTag {
     ET_Unit = 0,
@@ -82,7 +73,7 @@ enum ExprTag {
 };
 struct Expr {
     enum ExprTag tag;
-    struct Type type;
+    struct Type const *type;
     union {
         struct {
             struct Expr *cond;
@@ -121,7 +112,7 @@ struct ExprsLL {
 
 struct Function {
     const char *name;
-    struct Type ret;
+    struct Type const *ret;
     struct Binding args;
     struct Expr body;
 };

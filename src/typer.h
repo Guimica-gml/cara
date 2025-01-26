@@ -6,6 +6,6 @@
 #include "./tst.h"
 #include "serene.h"
 
-void typecheck(struct serene_Allocator, struct Symbols, struct Ast *);
+void typecheck(struct serene_Allocator, struct TypeIntern *, struct Ast *);
 
 #endif

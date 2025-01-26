@@ -48,13 +48,8 @@ const char *Intern_insert(
     struct Intern *this, struct serene_Allocator alloc, const char *s,
     size_t len
 ) {
-    printf("searching for: %.*s\n", len, s);
     struct Ordstring *entry = Btrings_search(&this->tree, (struct Ordstring) {.str = s, .len = len});
-    if (entry) {
-        printf("found: %s[%d]\n", entry->str, entry->len);
-        return entry->str;
-    }
-    printf("found: nothing\n");
+    if (entry) return entry->str;
 
     char *new = serene_nalloc(alloc, 1 + len, char);
     assert(new && "OOM");

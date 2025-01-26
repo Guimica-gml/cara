@@ -4,20 +4,20 @@
 
 struct Context {
     struct serene_Allocator alloc;
-    struct Symbols symbols;
+    struct TypeIntern *intern;
 };
 
 static struct tst_Function convert_func(struct Context *, struct Function);
 static struct tst_Expr convert_expr(struct Context *, struct Expr);
 static struct tst_Binding convert_binding(struct Context *, struct Binding);
-static struct tst_Type convert_type(struct Context *, struct Type, struct Type *);
+static struct tst_Type convert_type(struct Context *, const struct Type *, const struct Type *);
 
 struct Tst convert_ast(
-    struct serene_Allocator alloc, struct Symbols symbols, struct Ast ast
+    struct serene_Allocator alloc, struct TypeIntern *intern, struct Ast ast
 ) {
     struct Context ctx = {
         .alloc = alloc,
-        .symbols = symbols,
+        .intern = intern,
     };
     struct Tst out = {0};
     struct tst_FunctionsLL *funcs_last = NULL;
@@ -44,11 +44,11 @@ convert_func(struct Context *ctx, struct Function func) {
     struct tst_Binding args = convert_binding(ctx, func.args);
     struct tst_Type type;
     {
-        struct Type ret = func.ret;
-        struct Type args = Binding_to_type(ctx->symbols, func.args);
+        const struct Type *ret = func.ret;
+        const struct Type *args = Binding_to_type(ctx->intern, func.args);
         type = convert_type(
             ctx,
-            (struct Type){.tag = TT_Func, .func.ret = &ret, .func.args = &args},
+            Type_func(ctx->intern, args, ret),
             NULL
         );
     }
@@ -240,27 +240,27 @@ convert_binding(struct Context *ctx, struct Binding binding) {
     assert(false && "christ");
 }
 
-static struct tst_Type convert_type(struct Context *ctx, struct Type type, struct Type *params) {
-    switch (type.tag) {
+static struct tst_Type convert_type(struct Context *ctx, const struct Type *type, const struct Type *params) {
+    switch (type->tag) {
     case TT_Var:
         assert(false && "should've been eliminated in fill_type");
     case TT_Recall: {
         enum tst_TypeTag tag;
-        if (ctx->symbols.s_unit == type.recall) {
+        if (ctx->intern->syms.s_unit == type->recall) {
             tag = TTT_Unit;
-        } else if (ctx->symbols.s_int == type.recall) {
+        } else if (ctx->intern->syms.s_int == type->recall) {
             tag = TTT_Int;
-        } else if (ctx->symbols.s_bool == type.recall) {
+        } else if (ctx->intern->syms.s_bool == type->recall) {
             tag = TTT_Bool;
-        } else if (ctx->symbols.s_string == type.recall) {
+        } else if (ctx->intern->syms.s_string == type->recall) {
             tag = TTT_String;
-        } else if (ctx->symbols.s_star == type.recall) {
+        } else if (ctx->intern->syms.s_star == type->recall) {
             assert(params && params->tag == TT_Comma && "expected two parameters");
             struct tst_Type *lhs = serene_alloc(ctx->alloc, struct tst_Type);
             struct tst_Type *rhs = serene_alloc(ctx->alloc, struct tst_Type);
             assert(lhs && rhs && "OOM");
-            *lhs = convert_type(ctx, *params->comma.lhs, NULL);
-            *rhs = convert_type(ctx, *params->comma.rhs, NULL);
+            *lhs = convert_type(ctx, params->comma.lhs, NULL);
+            *rhs = convert_type(ctx, params->comma.rhs, NULL);
             return (struct tst_Type){
                 .tag = TTT_Star,
                 .star.lhs = lhs,
@@ -278,8 +278,8 @@ static struct tst_Type convert_type(struct Context *ctx, struct Type type, struc
         struct tst_Type *args = serene_alloc(ctx->alloc, struct tst_Type);
         struct tst_Type *ret = serene_alloc(ctx->alloc, struct tst_Type);
         assert(args && ret && "OOM");
-        *args = convert_type(ctx, *type.func.args, NULL);
-        *ret = convert_type(ctx, *type.func.ret, NULL);
+        *args = convert_type(ctx, type->func.args, NULL);
+        *ret = convert_type(ctx, type->func.ret, NULL);
         assert(!params && "expected no parameters");
         return (struct tst_Type){
             .tag = TTT_Func,
@@ -289,7 +289,7 @@ static struct tst_Type convert_type(struct Context *ctx, struct Type type, struc
     }
     case TT_Call:
         assert(!params && "should have no parameters");
-        return convert_type(ctx, *type.call.name, type.call.args);
+        return convert_type(ctx, type->call.name, type->call.args);
     case TT_Comma:
         assert(false && "shouldn't occur in convert_type on it's own!");
     }

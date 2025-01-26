@@ -18,8 +18,8 @@
 #include "serene.h"
 
 int main(int argc, char **argv) {
-    struct serene_Arena strings_arena, ast_arena, type_arena, tst_arena, exec_arena;
-    strings_arena = ast_arena = type_arena = tst_arena = exec_arena = (struct serene_Arena){
+    struct serene_Arena strings_arena, ast_arena, type_arena, check_arena, tst_arena, exec_arena;
+    strings_arena = ast_arena = type_arena = check_arena = tst_arena = exec_arena = (struct serene_Arena){
         .backing = serene_Libc_dyn(),
     };
 
@@ -55,22 +55,24 @@ int main(int argc, char **argv) {
     printf("]\n");
 
     struct Opdecls ops = {0};
+    struct TypeIntern types = TypeIntern_init(serene_Arena_dyn(&type_arena), symbols);
 
     struct Ast ast = parse(
-        serene_Arena_dyn(&ast_arena), ops, symbols, Tokenvec_stream(&tokens)
+        serene_Arena_dyn(&ast_arena), ops, &types, Tokenvec_stream(&tokens)
     );
     Tokenvec_deinit(&tokens);
 
-    typecheck(serene_Arena_dyn(&type_arena), symbols, &ast);
-    serene_Arena_deinit(&type_arena);
+    typecheck(serene_Arena_dyn(&check_arena), &types, &ast);
+    serene_Arena_deinit(&check_arena);
 
-    convert_ast(serene_Arena_dyn(&tst_arena), symbols, ast);
+    convert_ast(serene_Arena_dyn(&tst_arena), &types, ast);
     serene_Arena_deinit(&tst_arena);
 
     run(serene_Arena_dyn(&exec_arena), symbols, ast);
     serene_Arena_deinit(&exec_arena);
 
     serene_Arena_deinit(&ast_arena);
+    serene_Arena_deinit(&type_arena);
     serene_Arena_deinit(&strings_arena);
     printf("\n");
     return 0;

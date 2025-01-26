@@ -13,6 +13,7 @@
       (import ./src/tokenvec.nix { inherit pkgs; })
       (import ./src/opdeclvec.nix { inherit pkgs; })
       (import ./src/ordstrings.nix { inherit pkgs; serene = serene-drv; })
+      (import ./src/types.nix { inherit pkgs; serene = serene-drv; })
     ];
   in {
     packages."${system}" = let
@@ -22,6 +23,7 @@
         "tokens"
         "lexer"
         "ast"
+        "types"
         "typer"
         "converter"
         "strings"
