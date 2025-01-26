@@ -57,6 +57,7 @@ struct Context {
 
 static const struct Type *typecheck_expr(struct Context *, struct Expr *);
 static void fill_expr(struct Context *, struct Expr *);
+static void fill_binding(struct Context *, struct Binding *);
 static const struct Type *fill_type(struct Context *, const struct Type *);
 static const struct Type *destructure_binding(struct Context *, struct Binding *, bool);
 
@@ -246,6 +247,7 @@ static void fill_expr(struct Context *ctx, struct Expr *expr) {
     case ST_Mut:
     case ST_Let:
         fill_expr(ctx, expr->let.init);
+        fill_binding(ctx, &expr->let.bind);
         break;
     case ST_Break:
         fill_expr(ctx, expr->break_stmt);
@@ -260,6 +262,21 @@ static void fill_expr(struct Context *ctx, struct Expr *expr) {
         fill_expr(ctx, expr->assign.expr);
         break;
     }
+}
+
+static void fill_binding(struct Context *ctx, struct Binding *binding) {
+    switch (binding->tag) {
+    case BT_Empty: return;
+    case BT_Name: {
+        binding->name.annot = fill_type(ctx, binding->name.annot);
+        return;
+    }
+    case BT_Comma: {
+        fill_binding(ctx, binding->comma.lhs);
+        fill_binding(ctx, binding->comma.rhs);
+        return;
+    }
+    };
 }
 
 static const struct Type *fill_type(struct Context *ctx, const struct Type *type) {

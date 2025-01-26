@@ -29,5 +29,6 @@ struct Type {
 };
 
 int Type_cmp(const struct Type *, const struct Type *);
+void Type_print(const struct Type *);
 
 #endif

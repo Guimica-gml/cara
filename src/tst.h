@@ -44,6 +44,7 @@ struct tst_Type {
 enum tst_BindingTag {
     TBT_Empty,
     TBT_Name,
+    TBT_Comma,
 };
 struct tst_Binding {
     enum tst_BindingTag tag;
@@ -52,6 +53,10 @@ struct tst_Binding {
             const char *name;
             struct tst_Type type;
         } name;
+        struct {
+            struct tst_Binding *lhs;
+            struct tst_Binding *rhs;
+        } comma;
     };
 };
 

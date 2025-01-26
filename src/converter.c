@@ -236,6 +236,18 @@ convert_binding(struct Context *ctx, struct Binding binding) {
             .name.name = binding.name.name,
             .name.type = convert_type(ctx, binding.name.annot, NULL),
         };
+    case BT_Comma: {
+        struct tst_Binding *lhs = serene_alloc(ctx->alloc, struct tst_Binding);
+        struct tst_Binding *rhs = serene_alloc(ctx->alloc, struct tst_Binding);
+        assert(lhs && rhs && "OOM");
+        *lhs = convert_binding(ctx, *binding.comma.lhs);
+        *rhs = convert_binding(ctx, *binding.comma.rhs);
+        return (struct tst_Binding) {
+            .tag = TBT_Comma,
+            .comma.lhs = lhs,
+            .comma.rhs = rhs
+        };
+    }
     }
     assert(false && "christ");
 }

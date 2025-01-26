@@ -65,6 +65,8 @@ int main(int argc, char **argv) {
     typecheck(serene_Arena_dyn(&check_arena), &types, &ast);
     serene_Arena_deinit(&check_arena);
 
+    Ast_print(&ast);
+
     convert_ast(serene_Arena_dyn(&tst_arena), &types, ast);
     serene_Arena_deinit(&tst_arena);
 

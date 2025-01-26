@@ -1,5 +1,7 @@
 #include "./ast.h"
+#include "common_ll.h"
 #include <assert.h>
+#include <stdio.h>
 
 const struct Type *Binding_to_type(struct TypeIntern *intern, struct Binding this) {
     switch (this.tag) {
@@ -64,11 +66,19 @@ TypeIntern_init(struct serene_Allocator alloc, struct Symbols syms) {
 }
 
 const struct Type *TypeIntern_intern(struct TypeIntern *this, struct Type *t) {
+    printf("interning: ");
+    Type_print(t);
+    printf("\n");
     struct Type **entry = Typereg_search(&this->tree, t);
-    if (entry) return *entry;
-
+    if (entry) {
+        printf("found (%p)!\n\n", entry);
+        return *entry;
+    }
+    printf("found nothing!\ninserting!\n");
+    
     struct Type *new = Type_copy(this->alloc, t);
     assert(Typereg_insert(&this->tree, this->alloc, new));
+    printf("\n\n");
     return new;
 }
 
@@ -107,4 +117,109 @@ const struct Type *Type_product(
         .call.name = intern->tsyms.t_star,
     };
     return TypeIntern_intern(intern, &prod);
+}
+
+static void Binding_print(struct Binding *binding) {
+    switch (binding->tag) {
+    case BT_Empty: printf("()"); break;
+    case BT_Name:
+        printf("%s: ", binding->name.name);
+        Type_print(binding->name.annot);
+        break;
+    case BT_Comma:
+        Binding_print(binding->comma.lhs);
+        printf(", ");
+        Binding_print(binding->comma.rhs);
+    }
+}
+
+static void Expr_print(struct Expr *expr, int level) {
+    switch (expr->tag) {
+    case ET_Unit: printf("()"); break;
+    case ET_NumberLit:
+    case ET_StringLit:
+    case ET_BoolLit:
+    case ET_Recall: printf("%s", expr->lit); break;
+
+    case ET_If:
+        printf("if ");
+        Expr_print(expr->if_expr.cond, level);
+        printf(" ");
+        Expr_print(expr->if_expr.smash, level);
+        printf(" else ");
+        Expr_print(expr->if_expr.pass, level);
+        break;
+    case ET_Loop:
+        printf("loop ");
+        Expr_print(expr->loop, level);
+        break;
+    case ET_Bareblock: {
+        printf("{\n");
+        for (ll_iter(h, expr->bareblock)) {
+            for (int i = 0; i < level+1; i++) printf("  ");
+            Expr_print(&h->current, level+1);
+            printf("\n");
+        }
+        for (int i = 0; i < level; i++) printf("  ");
+        printf("}");
+        break;
+    }
+    case ET_Call:
+        Expr_print(expr->call.name, level);
+        printf("(");
+        Expr_print(expr->call.args, level+1);
+        printf(")");
+        break;
+    case ET_Comma:
+        Expr_print(expr->comma.lhs, level);
+        printf(", ");
+        Expr_print(expr->comma.rhs, level);
+        break;
+
+    case ST_Let:
+        printf("let ");
+        Binding_print(&expr->let.bind);
+        printf(" = ");
+        Expr_print(expr->let.init, level);
+        break;
+    case ST_Mut:
+        printf("mut ");
+        Binding_print(&expr->let.bind);
+        printf(" = ");
+        Expr_print(expr->let.init, level);
+        break;
+    case ST_Break:
+        printf("break ");
+        Expr_print(expr->break_stmt, level);
+        break;
+    case ST_Return:
+        printf("return ");
+        Expr_print(expr->return_stmt, level);
+        break;
+    case ST_Assign:
+        printf("%s = ", expr->assign.name);
+        Expr_print(expr->assign.expr, level);
+        break;
+    case ST_Const:
+        Expr_print(expr->const_stmt, level);
+        printf(";");
+        break;
+    }
+}
+
+static void Function_print(struct Function *func, int level) {
+    for (int i = 0; i < level; i++) printf("  ");
+    printf("func %s(", func->name);
+    Binding_print(&func->args);
+    printf("): ");
+    Type_print(func->ret);
+    printf(" ");
+    Expr_print(&func->body, level);
+}
+
+void Ast_print(struct Ast *ast) {
+    for (ll_iter(f, ast->funcs)) {
+        Function_print(&f->current, 0);
+        printf("\n");
+    }
 }

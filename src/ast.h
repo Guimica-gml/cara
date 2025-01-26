@@ -130,4 +130,6 @@ struct Ast {
     } *funcs;
 };
 
+void Ast_print(struct Ast *);
+
 #endif
