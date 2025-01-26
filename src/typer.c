@@ -2,6 +2,7 @@
 #include "./common_ll.h"
 #include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 static bool Type_equal(struct Type, struct Type);
 
@@ -20,6 +21,7 @@ DSet_insert(struct serene_Allocator, struct DSet *, const struct Type *);
 static struct TypeLL *DSet_root(struct TypeLL *);
 static struct TypeLL *DSet_find_root(struct DSet *, const struct Type *);
 static struct TypeLL *DSet_join(struct TypeLL *, struct TypeLL *);
+static void DSet_print(struct DSet *);
 
 struct Globals {
     struct TypeIntern *intern;
@@ -95,7 +97,8 @@ static void typecheck_func(struct Globals globals, struct Function *func) {
         globals.alloc, &ctx.equivs, func->ret,
         typecheck_expr(&ctx, &func->body)
     );
-
+    DSet_print(&ctx.equivs);
+    
     fill_expr(&ctx, &func->body);
 }
 
@@ -373,6 +376,11 @@ static struct TypeLL *DSet_insert(
         if (head->current.type == type)
             return head;
     }
+
+    printf("inserting type: (%p) ", type);
+    Type_print(type);
+    printf("\n");
+
     struct TypeLL *tmp = serene_alloc(alloc, struct TypeLL);
     assert(tmp && "OOM");
     tmp->next = this->types;
@@ -393,9 +401,12 @@ static struct TypeLL *DSet_root(struct TypeLL *type) {
 
 static struct TypeLL *DSet_find_root(struct DSet *this, const struct Type *type) {
     for (ll_iter(head, this->types)) {
-        if (Type_cmp(head->current.type, type) == 0)
+        if (head->current.type == type)
             return DSet_root(head);
     }
+    printf("couldn't find type: (%p) ", type);
+    Type_print(type);
+    printf("\n");
     return NULL;
 }
 
@@ -409,4 +420,13 @@ static struct TypeLL *DSet_join(struct TypeLL *lhs, struct TypeLL *rhs) {
     }
     rhr->current.parent = lhr;
     return lhr;
+}
+
+static void DSet_print(struct DSet *this) {
+    printf("---DSet:\n");
+    for (ll_iter(h, this->types)) {
+        printf("[%p] ", h);
+        Type_print(h->current.type);
+        printf("\t^ (%p)\n", h->current.parent);
+    }
 }
