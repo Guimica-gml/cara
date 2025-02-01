@@ -3,7 +3,8 @@
 #include <assert.h>
 #include <stdio.h>
 
-const struct Type *Binding_to_type(struct TypeIntern *intern, struct Binding this) {
+const struct Type *
+Binding_to_type(struct TypeIntern *intern, struct Binding this) {
     switch (this.tag) {
     case BT_Empty:
         return intern->tsyms.t_unit;
@@ -18,7 +19,8 @@ const struct Type *Binding_to_type(struct TypeIntern *intern, struct Binding thi
     assert(false && "gcc complains about control reaching here??");
 }
 
-static struct Type *Type_copy(struct serene_Allocator alloc, const struct Type *t) {
+static struct Type *
+Type_copy(struct serene_Allocator alloc, const struct Type *t) {
     struct Type *out = serene_alloc(alloc, struct Type);
     assert(out && "OOM");
     out->tag = t->tag;
@@ -45,6 +47,8 @@ static struct Type *Type_copy(struct serene_Allocator alloc, const struct Type *
     return out;
 }
 
+void TypeIntern_print(struct TypeIntern *this) { Typereg_print(&this->tree); }
+
 struct TypeIntern
 TypeIntern_init(struct serene_Allocator alloc, struct Symbols syms) {
     struct Type t_unit = {.tag = TT_Recall, .recall = syms.s_unit};
@@ -58,8 +62,7 @@ TypeIntern_init(struct serene_Allocator alloc, struct Symbols syms) {
     out.syms = syms;
     out.tsyms = (struct Typesyms){
 #define ins(t) .t = TypeIntern_intern(&out, &t)
-        ins(t_unit), ins(t_bool), ins(t_int), ins(t_string),
-        ins(t_star),
+        ins(t_unit), ins(t_bool), ins(t_int), ins(t_string), ins(t_star),
 #undef ins
     };
     return out;
@@ -75,10 +78,13 @@ const struct Type *TypeIntern_intern(struct TypeIntern *this, struct Type *t) {
         return *entry;
     }
     printf("found nothing!\ninserting!\n");
-    
-    struct Type *new = Type_copy(this->alloc, t);
+
+    /* struct Type *new = Type_copy(this->alloc, t); */
+    struct Type *new = serene_alloc(this->alloc, struct Type);
+    assert(new && "OOM");
+    *new = *t;
     assert(Typereg_insert(&this->tree, this->alloc, new));
-    printf("\n\n");
+    printf("inserted (%p)\n\n", new);
     return new;
 }
 
@@ -121,7 +127,9 @@ const struct Type *Type_product(
 
 static void Binding_print(struct Binding *binding) {
     switch (binding->tag) {
-    case BT_Empty: printf("()"); break;
+    case BT_Empty:
+        printf("()");
+        break;
     case BT_Name:
         printf("%s: ", binding->name.name);
         Type_print(binding->name.annot);
@@ -135,11 +143,15 @@ static void Binding_print(struct Binding *binding) {
 
 static void Expr_print(struct Expr *expr, int level) {
     switch (expr->tag) {
-    case ET_Unit: printf("()"); break;
+    case ET_Unit:
+        printf("()");
+        break;
     case ET_NumberLit:
     case ET_StringLit:
     case ET_BoolLit:
-    case ET_Recall: printf("%s", expr->lit); break;
+    case ET_Recall:
+        printf("%s", expr->lit);
+        break;
 
     case ET_If:
         printf("if ");
@@ -156,18 +168,20 @@ static void Expr_print(struct Expr *expr, int level) {
     case ET_Bareblock: {
         printf("{\n");
         for (ll_iter(h, expr->bareblock)) {
-            for (int i = 0; i < level+1; i++) printf("  ");
-            Expr_print(&h->current, level+1);
+            for (int i = 0; i < level + 1; i++)
+                printf("  ");
+            Expr_print(&h->current, level + 1);
             printf("\n");
         }
-        for (int i = 0; i < level; i++) printf("  ");
+        for (int i = 0; i < level; i++)
+            printf("  ");
         printf("}");
         break;
     }
     case ET_Call:
         Expr_print(expr->call.name, level);
         printf("(");
-        Expr_print(expr->call.args, level+1);
+        Expr_print(expr->call.args, level + 1);
         printf(")");
         break;
     case ET_Comma:
@@ -208,7 +222,8 @@ static void Expr_print(struct Expr *expr, int level) {
 }
 
 static void Function_print(struct Function *func, int level) {
-    for (int i = 0; i < level; i++) printf("  ");
+    for (int i = 0; i < level; i++)
+        printf("  ");
     printf("func %s(", func->name);
     Binding_print(&func->args);
     printf("): ");

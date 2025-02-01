@@ -19,16 +19,19 @@ struct TypeIntern {
     struct Typesyms tsyms;
     struct Symbols syms;
 };
+void TypeIntern_print(struct TypeIntern *);
 struct TypeIntern TypeIntern_init(struct serene_Allocator, struct Symbols);
 const struct Type *TypeIntern_intern(struct TypeIntern *, struct Type *);
 
 const struct Type *Type_recall(struct TypeIntern *, const char *);
-const struct Type *Type_func(struct TypeIntern *, const struct Type *, const struct Type *);
-const struct Type *Type_comma(struct TypeIntern *, const struct Type *, const struct Type *);
-const struct Type *Type_call(struct TypeIntern *, const struct Type *, const struct Type *);
-const struct Type *Type_product(
-    struct TypeIntern *, const struct Type *, const struct Type *
-);
+const struct Type *
+Type_func(struct TypeIntern *, const struct Type *, const struct Type *);
+const struct Type *
+Type_comma(struct TypeIntern *, const struct Type *, const struct Type *);
+const struct Type *
+Type_call(struct TypeIntern *, const struct Type *, const struct Type *);
+const struct Type *
+Type_product(struct TypeIntern *, const struct Type *, const struct Type *);
 
 struct Binding;
 struct Expr;

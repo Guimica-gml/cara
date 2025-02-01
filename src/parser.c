@@ -17,7 +17,8 @@ static struct Type const *type_func(struct Context *);
 static struct Type const *type_op(struct Context *, unsigned);
 static struct Type const *type_op_left(struct Context *);
 static bool type_op_right_first(struct Context *, unsigned);
-static struct Type const *type_op_right(struct Context *, struct Type const *, unsigned);
+static struct Type const *
+type_op_right(struct Context *, struct Type const *, unsigned);
 static struct Type const *type_atom(struct Context *);
 static struct Type const *type_parenthesised(struct Context *);
 
@@ -47,8 +48,8 @@ static struct Expr statement_return(struct Context *);
 static struct Expr statement_assign(struct Context *);
 
 struct Ast parse(
-    struct serene_Allocator alloc, struct Opdecls ops, struct TypeIntern *intern,
-    struct Tokenstream toks
+    struct serene_Allocator alloc, struct Opdecls ops,
+    struct TypeIntern *intern, struct Tokenstream toks
 ) {
     struct Context ctx = {
         .alloc = alloc,
@@ -81,7 +82,7 @@ after:
     };
 }
 
-static struct Function decls_function(struct Context * ctx) {
+static struct Function decls_function(struct Context *ctx) {
     const char *name;
     struct Binding args;
     struct Type const *ret;
@@ -110,14 +111,14 @@ static struct Function decls_function(struct Context * ctx) {
     ){.name = name, .args = args, .ret = ret, .body = body};
 }
 
-static struct Type const *type(struct Context * ctx) {
+static struct Type const *type(struct Context *ctx) {
     assert(ctx->toks.len);
     if (ctx->toks.buf[0].kind == TK_Func)
         return type_func(ctx);
     return type_op(ctx, 0);
 }
 
-static struct Type const *type_func(struct Context * ctx) {
+static struct Type const *type_func(struct Context *ctx) {
     assert(Tokenstream_drop_text(&ctx->toks, "func"));
     struct Type const *args = type_parenthesised(ctx);
     assert(Tokenstream_drop_text(&ctx->toks, ":"));
@@ -125,7 +126,7 @@ static struct Type const *type_func(struct Context * ctx) {
     return Type_func(ctx->intern, args, ret);
 }
 
-static struct Type const *type_op(struct Context * ctx, unsigned prec) {
+static struct Type const *type_op(struct Context *ctx, unsigned prec) {
     struct Type const *left;
 
     assert(ctx->toks.len);
@@ -144,7 +145,7 @@ static struct Type const *type_op(struct Context * ctx, unsigned prec) {
     return left;
 }
 
-static struct Type const *type_op_left(struct Context * ctx) {
+static struct Type const *type_op_left(struct Context *ctx) {
     struct Type const *args;
     struct Type const *name;
 
@@ -166,7 +167,7 @@ static struct Type const *type_op_left(struct Context * ctx) {
     assert(false && "unexpected token");
 }
 
-static bool type_op_right_first(struct Context * ctx, unsigned prec) {
+static bool type_op_right_first(struct Context *ctx, unsigned prec) {
     if (!ctx->toks.len)
         return false;
     /* if (prec == 0 && ctx->toks.buf[0].kind == TK_Comma) */
@@ -232,7 +233,7 @@ type_op_right(struct Context *ctx, struct Type const *left, unsigned prec) {
     assert(false && "unexpected token");
 }
 
-static const struct Type *type_atom(struct Context * ctx) {
+static const struct Type *type_atom(struct Context *ctx) {
     assert(ctx->toks.len);
     switch (ctx->toks.buf[0].kind) {
     case TK_OpenParen:
@@ -248,7 +249,7 @@ static const struct Type *type_atom(struct Context * ctx) {
     }
 }
 
-static const struct Type *type_parenthesised(struct Context * ctx) {
+static const struct Type *type_parenthesised(struct Context *ctx) {
     assert(Tokenstream_drop_text(&ctx->toks, "("));
     const struct Type *out = type(ctx);
     while (ctx->toks.len && ctx->toks.buf[0].kind == TK_Comma) {
@@ -262,7 +263,7 @@ static const struct Type *type_parenthesised(struct Context * ctx) {
 
 static struct Binding binding(struct Context *ctx) { return binding_atom(ctx); }
 
-static struct Binding binding_atom(struct Context * ctx) {
+static struct Binding binding_atom(struct Context *ctx) {
     assert(ctx->toks.len);
     if (ctx->toks.buf[0].kind == TK_OpenParen) {
         return binding_parenthesised(ctx);
@@ -270,7 +271,7 @@ static struct Binding binding_atom(struct Context * ctx) {
     return binding_name(ctx);
 }
 
-static struct Binding binding_parenthesised(struct Context * ctx) {
+static struct Binding binding_parenthesised(struct Context *ctx) {
     struct Binding out = {0};
     assert(Tokenstream_drop_text(&ctx->toks, "("));
     assert(ctx->toks.len);
@@ -297,7 +298,7 @@ static struct Binding binding_parenthesised(struct Context * ctx) {
     return out;
 }
 
-static struct Binding binding_name(struct Context * ctx) {
+static struct Binding binding_name(struct Context *ctx) {
     const struct Type *annot;
     const char *name;
 
@@ -317,7 +318,7 @@ static struct Binding binding_name(struct Context * ctx) {
     };
 }
 
-static struct Expr expr_delimited(struct Context * ctx) {
+static struct Expr expr_delimited(struct Context *ctx) {
     assert(ctx->toks.len);
     switch (ctx->toks.buf[0].kind) {
     case TK_If:
@@ -328,12 +329,15 @@ static struct Expr expr_delimited(struct Context * ctx) {
 
         return tmp;
     }
-    default:
-        return expr_inline(ctx);
+    default: {
+        struct Expr out = expr_inline(ctx);
+        assert(Tokenstream_drop_text(&ctx->toks, ";"));
+        return out;
+    }
     }
 }
 
-static struct Expr expr_any(struct Context * ctx) {
+static struct Expr expr_any(struct Context *ctx) {
     assert(ctx->toks.len);
     switch (ctx->toks.buf[0].kind) {
     case TK_If:
@@ -345,7 +349,7 @@ static struct Expr expr_any(struct Context * ctx) {
     }
 }
 
-static struct Expr expr_block(struct Context * ctx) {
+static struct Expr expr_block(struct Context *ctx) {
     assert(ctx->toks.len);
     switch (ctx->toks.buf[0].kind) {
     case TK_If:
@@ -359,7 +363,7 @@ static struct Expr expr_block(struct Context * ctx) {
     }
 }
 
-static struct Expr expr_if(struct Context * ctx) {
+static struct Expr expr_if(struct Context *ctx) {
     struct Expr *cond = serene_alloc(ctx->alloc, struct Expr);
     struct Expr *smash = serene_alloc(ctx->alloc, struct Expr);
     struct Expr *pass = serene_alloc(ctx->alloc, struct Expr);
@@ -386,7 +390,7 @@ static struct Expr expr_if(struct Context * ctx) {
     };
 }
 
-static struct Expr expr_loop(struct Context * ctx) {
+static struct Expr expr_loop(struct Context *ctx) {
     struct Expr *block = serene_alloc(ctx->alloc, struct Expr);
     assert(block && "OOM");
 
@@ -400,7 +404,7 @@ static struct Expr expr_loop(struct Context * ctx) {
     };
 }
 
-static struct Expr expr_bareblock(struct Context * ctx) {
+static struct Expr expr_bareblock(struct Context *ctx) {
     struct ExprsLL *block = NULL;
     struct ExprsLL *last = NULL;
     const struct Type *type = ctx->intern->tsyms.t_unit;
@@ -437,9 +441,9 @@ static struct Expr expr_bareblock(struct Context * ctx) {
     return (struct Expr){.tag = ET_Bareblock, .type = type, .bareblock = block};
 }
 
-static struct Expr expr_inline(struct Context * ctx) { return expr_op(ctx, 0); }
+static struct Expr expr_inline(struct Context *ctx) { return expr_op(ctx, 0); }
 
-static struct Expr expr_op(struct Context * ctx, unsigned prec) {
+static struct Expr expr_op(struct Context *ctx, unsigned prec) {
     struct Expr left;
 
     assert(ctx->toks.len);
@@ -462,7 +466,7 @@ static struct Expr expr_op(struct Context * ctx, unsigned prec) {
     return left;
 }
 
-static struct Expr expr_op_left(struct Context * ctx) {
+static struct Expr expr_op_left(struct Context *ctx) {
     struct Expr *args = serene_alloc(ctx->alloc, struct Expr);
     struct Expr *name = serene_alloc(ctx->alloc, struct Expr);
     assert(args && name);
@@ -492,7 +496,7 @@ static struct Expr expr_op_left(struct Context * ctx) {
     assert(false && "unexpected token");
 }
 
-static bool expr_op_right_first(struct Context * ctx, unsigned prec) {
+static bool expr_op_right_first(struct Context *ctx, unsigned prec) {
     if (!ctx->toks.len)
         return false;
     if (prec == 0 && ctx->toks.buf[0].kind == TK_Comma)
@@ -519,7 +523,7 @@ static bool expr_op_right_first(struct Context * ctx, unsigned prec) {
 }
 
 static struct Expr
-expr_op_right(struct Context * ctx, struct Expr left, unsigned prec) {
+expr_op_right(struct Context *ctx, struct Expr left, unsigned prec) {
     struct Expr *name = serene_alloc(ctx->alloc, struct Expr);
     struct Expr *args = serene_alloc(ctx->alloc, struct Expr);
     assert(name && args);
@@ -576,7 +580,9 @@ expr_op_right(struct Context * ctx, struct Expr left, unsigned prec) {
                 *right_ptr = expr_op(ctx, ctx->ops.buf[i].rbp);
                 *args = (struct Expr){
                     .tag = ET_Comma,
-                    .type = Type_product(ctx->intern, left_ptr->type, right_ptr->type),
+                    .type = Type_product(
+                        ctx->intern, left_ptr->type, right_ptr->type
+                    ),
                     .comma.lhs = left_ptr,
                     .comma.rhs = right_ptr,
                 };
@@ -596,7 +602,7 @@ expr_op_right(struct Context * ctx, struct Expr left, unsigned prec) {
     assert(false && "unexpected token");
 }
 
-static struct Expr expr_atom(struct Context * ctx) {
+static struct Expr expr_atom(struct Context *ctx) {
     enum ExprTag tag;
     const struct Type *type;
 
@@ -637,7 +643,7 @@ static struct Expr expr_atom(struct Context * ctx) {
     };
 }
 
-static struct Expr statement(struct Context * ctx) {
+static struct Expr statement(struct Context *ctx) {
     assert(ctx->toks.len);
     switch (ctx->toks.buf[0].kind) {
     case TK_Let:
@@ -659,7 +665,7 @@ static struct Expr statement(struct Context * ctx) {
     }
 }
 
-static struct Expr statement_let(struct Context * ctx) {
+static struct Expr statement_let(struct Context *ctx) {
     struct Expr *init = serene_alloc(ctx->alloc, struct Expr);
     struct Binding bind;
     assert(init && "OOM");
@@ -677,7 +683,7 @@ static struct Expr statement_let(struct Context * ctx) {
     };
 }
 
-static struct Expr statement_mut(struct Context * ctx) {
+static struct Expr statement_mut(struct Context *ctx) {
     struct Expr *init = serene_alloc(ctx->alloc, struct Expr);
     struct Binding bind;
     assert(init && "OOM");
@@ -695,7 +701,7 @@ static struct Expr statement_mut(struct Context * ctx) {
     };
 }
 
-static struct Expr statement_break(struct Context * ctx) {
+static struct Expr statement_break(struct Context *ctx) {
     struct Expr *expr = NULL;
 
     assert(Tokenstream_drop_text(&ctx->toks, "break"));
@@ -712,7 +718,7 @@ static struct Expr statement_break(struct Context * ctx) {
     };
 }
 
-static struct Expr statement_return(struct Context * ctx) {
+static struct Expr statement_return(struct Context *ctx) {
     struct Expr *expr = serene_alloc(ctx->alloc, struct Expr);
     assert(expr);
 
@@ -721,6 +727,7 @@ static struct Expr statement_return(struct Context * ctx) {
         *expr = expr_any(ctx);
     } else {
         *expr = (struct Expr){0};
+        expr->type = ctx->intern->tsyms.t_unit;
     };
 
     return (struct Expr){
@@ -730,7 +737,7 @@ static struct Expr statement_return(struct Context * ctx) {
     };
 }
 
-static struct Expr statement_assign(struct Context * ctx) {
+static struct Expr statement_assign(struct Context *ctx) {
     struct Expr *expr = serene_alloc(ctx->alloc, struct Expr);
     const char *name;
     assert(expr);

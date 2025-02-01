@@ -9,5 +9,6 @@ struct Ordstring {
 };
 
 int Ordstring_cmp(struct Ordstring, struct Ordstring);
+void Ordstring_print(struct Ordstring);
 
 #endif

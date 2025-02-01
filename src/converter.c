@@ -10,7 +10,8 @@ struct Context {
 static struct tst_Function convert_func(struct Context *, struct Function);
 static struct tst_Expr convert_expr(struct Context *, struct Expr);
 static struct tst_Binding convert_binding(struct Context *, struct Binding);
-static struct tst_Type convert_type(struct Context *, const struct Type *, const struct Type *);
+static struct tst_Type
+convert_type(struct Context *, const struct Type *, const struct Type *);
 
 struct Tst convert_ast(
     struct serene_Allocator alloc, struct TypeIntern *intern, struct Ast ast
@@ -46,11 +47,7 @@ convert_func(struct Context *ctx, struct Function func) {
     {
         const struct Type *ret = func.ret;
         const struct Type *args = Binding_to_type(ctx->intern, func.args);
-        type = convert_type(
-            ctx,
-            Type_func(ctx->intern, args, ret),
-            NULL
-        );
+        type = convert_type(ctx, Type_func(ctx->intern, args, ret), NULL);
     }
     return (struct tst_Function){
         .name = func.name,
@@ -242,17 +239,16 @@ convert_binding(struct Context *ctx, struct Binding binding) {
         assert(lhs && rhs && "OOM");
         *lhs = convert_binding(ctx, *binding.comma.lhs);
         *rhs = convert_binding(ctx, *binding.comma.rhs);
-        return (struct tst_Binding) {
-            .tag = TBT_Comma,
-            .comma.lhs = lhs,
-            .comma.rhs = rhs
-        };
+        return (struct tst_Binding
+        ){.tag = TBT_Comma, .comma.lhs = lhs, .comma.rhs = rhs};
     }
     }
     assert(false && "christ");
 }
 
-static struct tst_Type convert_type(struct Context *ctx, const struct Type *type, const struct Type *params) {
+static struct tst_Type convert_type(
+    struct Context *ctx, const struct Type *type, const struct Type *params
+) {
     switch (type->tag) {
     case TT_Var:
         assert(false && "should've been eliminated in fill_type");
@@ -267,7 +263,9 @@ static struct tst_Type convert_type(struct Context *ctx, const struct Type *type
         } else if (ctx->intern->syms.s_string == type->recall) {
             tag = TTT_String;
         } else if (ctx->intern->syms.s_star == type->recall) {
-            assert(params && params->tag == TT_Comma && "expected two parameters");
+            assert(
+                params && params->tag == TT_Comma && "expected two parameters"
+            );
             struct tst_Type *lhs = serene_alloc(ctx->alloc, struct tst_Type);
             struct tst_Type *rhs = serene_alloc(ctx->alloc, struct tst_Type);
             assert(lhs && rhs && "OOM");
@@ -282,7 +280,7 @@ static struct tst_Type convert_type(struct Context *ctx, const struct Type *type
             assert(false && "TODO");
         }
         assert(!params && "expected no parameters");
-        return (struct tst_Type) {
+        return (struct tst_Type){
             .tag = tag,
         };
     }

@@ -14,6 +14,7 @@ struct @treename@ {
 bool @treename@_insert(struct @treename@ *, struct serene_Allocator, @basetype@);
 @basetype@ *@treename@_search(struct @treename@ *, @basetype@);
 void @treename@_deinit(struct @treename@ *, struct serene_Allocator);
+void @treename@_print(struct @treename@ *);
 
 #endif
 

@@ -5,12 +5,13 @@
   basetype,
   branching,
   cmp,
+  print,
   treename,
   filename,
 }: let
   include = builtins.baseNameOf include-path;
 in pkgs.stdenv.mkDerivation {
-  inherit basetype branching cmp treename filename include;
+  inherit basetype branching cmp print treename filename include;
   name = filename;
   src = pkgs.lib.fileset.toSource {
     root = ./..;

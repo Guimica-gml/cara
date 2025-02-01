@@ -6,22 +6,24 @@
 #include <unistd.h>
 
 #include "./ast.h"
+#include "./converter.h"
 #include "./lexer.h"
 #include "./parser.h"
 #include "./runner.h"
 #include "./strings.h"
 #include "./symbols.h"
 #include "./tokens.h"
-#include "./converter.h"
 #include "./tst.h"
 #include "./typer.h"
 #include "serene.h"
 
 int main(int argc, char **argv) {
-    struct serene_Arena strings_arena, ast_arena, type_arena, check_arena, tst_arena, exec_arena;
-    strings_arena = ast_arena = type_arena = check_arena = tst_arena = exec_arena = (struct serene_Arena){
-        .backing = serene_Libc_dyn(),
-    };
+    struct serene_Arena strings_arena, ast_arena, type_arena, check_arena,
+        tst_arena, exec_arena;
+    strings_arena = ast_arena = type_arena = check_arena = tst_arena =
+        exec_arena = (struct serene_Arena){
+            .backing = serene_Libc_dyn(),
+        };
 
     if (argc != 2) {
         printf("Please provide a filename!\n");
@@ -50,12 +52,15 @@ int main(int argc, char **argv) {
     printf("[\n");
     struct Tokenstream stream = Tokenvec_stream(&tokens);
     for (size_t i = 0; i < stream.len; i++) {
-        printf("\t(%p)\t'%s'\n", stream.buf[i].spelling, stream.buf[i].spelling);
+        printf(
+            "\t(%p)\t'%s'\n", stream.buf[i].spelling, stream.buf[i].spelling
+        );
     }
     printf("]\n");
 
     struct Opdecls ops = {0};
-    struct TypeIntern types = TypeIntern_init(serene_Arena_dyn(&type_arena), symbols);
+    struct TypeIntern types =
+        TypeIntern_init(serene_Arena_dyn(&type_arena), symbols);
 
     struct Ast ast = parse(
         serene_Arena_dyn(&ast_arena), ops, &types, Tokenvec_stream(&tokens)

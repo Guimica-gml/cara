@@ -2,7 +2,6 @@
 #include <assert.h>
 #include <stdio.h>
 
-
 bool strings_ascii_whitespace(char c) {
     char ws[5] = {0x09, 0x0A, 0x0C, 0x0D, 0x20};
     for (int i = 0; i < 5; i++) {
@@ -48,13 +47,18 @@ const char *Intern_insert(
     struct Intern *this, struct serene_Allocator alloc, const char *s,
     size_t len
 ) {
-    struct Ordstring *entry = Btrings_search(&this->tree, (struct Ordstring) {.str = s, .len = len});
-    if (entry) return entry->str;
+    struct Ordstring *entry =
+        Btrings_search(&this->tree, (struct Ordstring){.str = s, .len = len});
+    if (entry)
+        return entry->str;
 
     char *new = serene_nalloc(alloc, 1 + len, char);
     assert(new && "OOM");
-    for (size_t i = 0; i < len; i++) new[i] = s[i];
+    for (size_t i = 0; i < len; i++)
+        new[i] = s[i];
     new[len] = '\0';
-    assert(Btrings_insert(&this->tree, alloc, (struct Ordstring) {.str = new, .len = len}));
+    assert(Btrings_insert(
+        &this->tree, alloc, (struct Ordstring){.str = new, .len = len}
+    ));
     return new;
 }

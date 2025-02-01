@@ -4,8 +4,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-static bool Type_equal(struct Type, struct Type);
-
 struct DSet {
     struct TypeLL {
         struct {
@@ -61,7 +59,8 @@ static const struct Type *typecheck_expr(struct Context *, struct Expr *);
 static void fill_expr(struct Context *, struct Expr *);
 static void fill_binding(struct Context *, struct Binding *);
 static const struct Type *fill_type(struct Context *, const struct Type *);
-static const struct Type *destructure_binding(struct Context *, struct Binding *, bool);
+static const struct Type *
+destructure_binding(struct Context *, struct Binding *, bool);
 
 void typecheck(
     struct serene_Allocator alloc, struct TypeIntern *intern, struct Ast *ast
@@ -94,15 +93,19 @@ static void typecheck_func(struct Globals globals, struct Function *func) {
     destructure_binding(&ctx, &func->args, false);
     ctx.ret = func->ret;
     unify(
-        globals.alloc, &ctx.equivs, func->ret,
-        typecheck_expr(&ctx, &func->body)
+        globals.alloc, &ctx.equivs, func->ret, typecheck_expr(&ctx, &func->body)
     );
+
     DSet_print(&ctx.equivs);
-    
+    printf("---interns:");
+    TypeIntern_print(globals.intern);
+    printf("\n\n");
+
     fill_expr(&ctx, &func->body);
 }
 
-static const struct Type *typecheck_expr(struct Context *ctx, struct Expr *expr) {
+static const struct Type *
+typecheck_expr(struct Context *ctx, struct Expr *expr) {
     struct serene_Allocator alloc = ctx->globals.alloc;
     switch (expr->tag) {
     case ET_NumberLit:
@@ -177,7 +180,8 @@ static const struct Type *typecheck_expr(struct Context *ctx, struct Expr *expr)
 
     case ST_Let: {
         const struct Type *it = typecheck_expr(ctx, expr->let.init);
-        const struct Type *bt = destructure_binding(ctx, &expr->let.bind, false);
+        const struct Type *bt =
+            destructure_binding(ctx, &expr->let.bind, false);
         return unify(alloc, &ctx->equivs, it, bt);
     }
     case ST_Mut: {
@@ -269,7 +273,8 @@ static void fill_expr(struct Context *ctx, struct Expr *expr) {
 
 static void fill_binding(struct Context *ctx, struct Binding *binding) {
     switch (binding->tag) {
-    case BT_Empty: return;
+    case BT_Empty:
+        return;
     case BT_Name: {
         binding->name.annot = fill_type(ctx, binding->name.annot);
         return;
@@ -282,7 +287,8 @@ static void fill_binding(struct Context *ctx, struct Binding *binding) {
     };
 }
 
-static const struct Type *fill_type(struct Context *ctx, const struct Type *type) {
+static const struct Type *
+fill_type(struct Context *ctx, const struct Type *type) {
     switch (type->tag) {
     case TT_Func: {
         const struct Type *args = fill_type(ctx, type->func.args);
@@ -311,9 +317,8 @@ static const struct Type *fill_type(struct Context *ctx, const struct Type *type
     }
 }
 
-static const struct Type *destructure_binding(
-    struct Context *ctx, struct Binding *binding, bool mut
-) {
+static const struct Type *
+destructure_binding(struct Context *ctx, struct Binding *binding, bool mut) {
     switch (binding->tag) {
     case BT_Empty:
         return binding->empty;
@@ -328,8 +333,10 @@ static const struct Type *destructure_binding(
         return binding->name.annot;
     }
     case BT_Comma: {
-        const struct Type *lhs = destructure_binding(ctx, binding->comma.lhs, mut);
-        const struct Type *rhs = destructure_binding(ctx, binding->comma.rhs, mut);
+        const struct Type *lhs =
+            destructure_binding(ctx, binding->comma.lhs, mut);
+        const struct Type *rhs =
+            destructure_binding(ctx, binding->comma.rhs, mut);
         return Type_product(ctx->globals.intern, lhs, rhs);
     }
     }
@@ -364,7 +371,9 @@ static const struct Type *unify(
             break;
         }
     } else {
-        assert((ltype->tag == TT_Var || rtype->tag == TT_Var) && "type mismatch");
+        assert(
+            (ltype->tag == TT_Var || rtype->tag == TT_Var) && "type mismatch"
+        );
     }
     return DSet_join(lroot, rroot)->current.type;
 }
@@ -399,7 +408,8 @@ static struct TypeLL *DSet_root(struct TypeLL *type) {
     return type;
 }
 
-static struct TypeLL *DSet_find_root(struct DSet *this, const struct Type *type) {
+static struct TypeLL *
+DSet_find_root(struct DSet *this, const struct Type *type) {
     for (ll_iter(head, this->types)) {
         if (head->current.type == type)
             return DSet_root(head);
@@ -425,7 +435,7 @@ static struct TypeLL *DSet_join(struct TypeLL *lhs, struct TypeLL *rhs) {
 static void DSet_print(struct DSet *this) {
     printf("---DSet:\n");
     for (ll_iter(h, this->types)) {
-        printf("[%p] ", h);
+        printf("[%p] (%p) ", h, h->current.type);
         Type_print(h->current.type);
         printf("\t^ (%p)\n", h->current.parent);
     }

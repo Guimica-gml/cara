@@ -1,8 +1,8 @@
 #ifndef STRINGS_H
 #define STRINGS_H
 
-#include "serene.h"
 #include "btrings.h"
+#include "serene.h"
 #include <stdbool.h>
 #include <stddef.h>
 

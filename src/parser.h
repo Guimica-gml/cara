@@ -13,7 +13,8 @@
 #include "./symbols.h"
 
 struct Ast parse(
-    struct serene_Allocator, struct Opdecls, struct TypeIntern *, struct Tokenstream
+    struct serene_Allocator, struct Opdecls, struct TypeIntern *,
+    struct Tokenstream
 );
 
 #endif

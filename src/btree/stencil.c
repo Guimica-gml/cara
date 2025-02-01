@@ -1,6 +1,7 @@
 #include "stencil.h"
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
 
 #define tmove(dst, src, num, T)  {                      \
         T* __dst__ = dst;                               \
@@ -168,4 +169,27 @@ static @basetype@ *impl_search(struct @treename@_impl *this, @basetype@ elem) {
 @basetype@ *@treename@_search(struct @treename@ *this, @basetype@ elem) {
     if (!this->root) return NULL;
     impl_search(this->root, elem);
+}
+
+static void impl_print(struct @treename@_impl *this, int level) {
+    if (this->subs[0] != NULL) {
+        for (int i = 0; i < this->len; i++) {
+            impl_print(this->subs[i], level + 1);
+            for (int j = 0; j < level; j++) printf("  ");
+            @print@(this->keys[i]);
+            printf("\n");
+        }
+        impl_print(this->subs[this->len], level + 1);
+    } else {
+        for (int i = 0; i < this->len; i++) {
+            for (int j = 0; j < level; j++) printf("  ");
+            @print@(this->keys[i]);
+            printf("\n");
+        }
+    }
+}
+
+void @treename@_print(struct @treename@ *this) {
+    if (!this->root) return;
+    impl_print(this->root, 0);
 }
