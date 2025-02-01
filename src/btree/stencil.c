@@ -1,136 +1,171 @@
 #include "stencil.h"
-#include <stdio.h>
+#include <string.h>
 #include <assert.h>
+
+#define tmove(dst, src, num, T)  {                      \
+        T* __dst__ = dst;                               \
+        T* __src__ = src;                               \
+        memmove(__dst__, __src__, sizeof(T) * (num));   \
+    }
+
+#define tcopy(dst, src, num, T)  {                      \
+        T* __dst__ = dst;                               \
+        T* __src__ = src;                               \
+        memcpy(__dst__, __src__, sizeof(T) * (num));    \
+    }
 
 struct @treename@_impl {
     struct @treename@_impl *subs[@branching@ + 1];
-	struct @treename@_impl *parent;
+    struct @treename@_impl *parent;
     @basetype@ keys[@branching@];
     int len;
 };
 
 static struct @treename@_impl *impl_goto(
-	struct @treename@_impl *this, @basetype@ elem
+    struct @treename@_impl *this, @basetype@ elem
 ) {
-	while (this->subs[0]) {
-		int i;
-		for (i = 0; i < this->len; i++) {
-			if (@cmp@(elem, this->keys[i]) < 0)
-				break;
-		}
-		this = this->subs[i];
-	}
-	return this;
+    while (this->subs[0]) {
+        int i = 0;
+        while (
+            i < this->len && @cmp@(this->keys[i], elem) < 0
+        ) i++;
+        this = this->subs[i];
+    }
+    return this;
 }
 
-static struct Split {
-	struct @treename@_impl *node;
-	@basetype@ lowbound;
-} impl_input(
-	struct @treename@_impl *this, struct serene_Allocator alloc,
-	@basetype@ elem, struct @treename@_impl *sub
+/* static struct Split { */
+/*     struct @treename@_impl *node; */
+/*     @basetype@ elem; */
+/* } impl_input( */
+static bool impl_input(
+    struct @treename@_impl *this, struct serene_Allocator alloc,
+    @basetype@ *elem, struct @treename@_impl **node
+    /* struct Split data */
 ) {
-	bool is_node = this->subs[0] != NULL;
-	bool is_full = this->len >= @branching@;
-	int i;
+    bool is_node = this->subs[0] != NULL;
+    bool is_full = this->len >= @branching@;
 
-	for (i = 0; i < this->len; i++) {
-		if (@cmp@(elem, this->keys[i]) < 0)
-			break;
-	}
+    int i = 0;
+    while (
+        i < this->len && @cmp@(this->keys[i], *elem) < 0
+    ) i++; 
 
-	if (!is_full) {
-		for (int j = this->len; j > i; j--)
-			this->keys[j] = this->keys[j-1];
-		this->keys[i] = elem;
-		if (is_node) {
-			for (int j = this->len; j > i; j--)
-				this->subs[j+1] = this->subs[j];
-			this->subs[i+1] = sub;
-			sub->parent = this;
-		}
-		return (struct Split) {0};
-	}
-	struct @treename@_impl *node = serene_alloc(alloc, struct @treename@_impl);
-	struct @treename@_impl subs[@branching@+2];
-	@basetype@ keys[@branching@+1];
-	int m = (@branching@+1)/2;
-	assert(node);
-	
-	memcpy(&keys, &this->keys, i);
-	memcpy(&keys[i+1], &this->keys[i], @branching@ - i);
-	keys[i] = elem;
-	if (is_node) {
-		memcpy(&subs, &this->subs, i+1);
-		memcpy(&subs[i+2], &this->subs[i+1], @branching@ - i);
-		keys[i+1] = sub;
-	}
+    if (!is_full) {
+        tmove(&this->keys[i+1], &this->keys[i], this->len-i, @basetype@);
+        this->keys[i] = *elem;
 
-	this->len = m-1;
-	node->len = @branching@-m;
-	memcpy(&this->keys, &keys, m-1);
-	memcpy(&node->keys, &keys[m+1], @branching@-m);
-	if (is_node) {
-		memcpy(&this->subs, &subs, m);
-		for (int j = 0; j < m-1; j++) this->subs[j]->parent = this;
-		memcpy(&node->keys, &subs[m], @branching@+2-m);
-		for (int j = 0; j < @branching@-m; j++) node->subs[j]->parent = node;
-	}
-	return (struct Split) {
-		.node = node,
-		.lowbound = keys[m],
-	};
+        if (is_node) {
+            tmove(&this->subs[i+2], &this->subs[i+1], this->len-i, struct @treename@_impl*);
+            this->subs[i+1] = *node;
+            (*node)->parent = this;
+        }
+
+        this->len++;
+        *node = NULL;
+        return true;
+    }
+
+    struct @treename@_impl *subs[@branching@+2];
+    @basetype@ keys[@branching@+1];
+    int m = (@branching@+1)/2;
+    tcopy(&keys[0], &this->keys[0], i, @basetype@);
+    tcopy(&keys[i+1], &this->keys[i], @branching@ - i, @basetype@);
+    keys[i] = *elem;
+    if (is_node) {
+        tcopy(&subs[0], &this->subs[0], i+1, struct @treename@_impl*);
+        tcopy(&subs[i+2], &this->subs[i+1], @branching@ - i, struct @treename@_impl*);
+        subs[i+1] = *node;
+    }
+
+    struct @treename@_impl *new = serene_alloc(alloc, struct @treename@_impl);
+    if (!new) return false;
+    *new = (struct @treename@_impl) {0};
+    new->len = @branching@-m;
+    this->len = m;
+    tcopy(&this->keys[0], &keys[0], m, @basetype@);
+    tcopy(&new->keys[0], &keys[m+1], @branching@-m, @basetype@);
+    if (is_node) {
+        tcopy(&this->subs[0], &subs[0], m+1, struct @treename@_impl*);
+        for (int j = 0; j < m+1; j++) this->subs[j]->parent = this;
+        tcopy(&new->subs[0], &subs[m+1], @branching@+1-m, struct @treename@_impl*);
+        for (int j = 0; j < @branching@+1-m; j++) new->subs[j]->parent = *node;
+    }
+
+    *node = new;
+    *elem = keys[m];
+    return true;
 }
 
 static struct @treename@_impl *impl_insert(
     struct @treename@_impl *this, struct serene_Allocator alloc,
-	@basetype@ elem
+    @basetype@ elem
 ) {
-	struct @treename@_impl *leaf = impl_goto(this, elem);
-	struct Split split = impl_input(leaf, alloc, elem, NULL)
-	for (
-		struct @treenam@_impl *cur = leaf->parent;
-		cur && split.node;
-		cur = cur->parent
-	) split = impl_input(cur, alloc, split.lowbound, split.node);
+    struct @treename@_impl *leaf = impl_goto(this, elem);
+    struct @treename@_impl *node = NULL;
+    do {
+        if (!impl_input(leaf, alloc, &elem, &node)) return NULL;
+        leaf = leaf->parent;
+    } while (leaf && node);
 
-	if (split.node) {
-		struct @treename@_impl *root = serene_alloc(alloc, struct @treename@_impl);
-		assert(root && "OOM");
-		*root = (struct @treename@_impl) {
-			.parent = NULL,
-			.len = 1,
-			.keys = {split.lowbound},
-			.subs = {this, split.node},
-		};
-		this->parent = root;
-		return root;
-	}
+    if (!node) return this;
 
-	return this;
+    struct @treename@_impl *root = serene_alloc(alloc, struct @treename@_impl);
+    assert(root && "OOM");
+    *root = (struct @treename@_impl) {
+        .parent = NULL,
+        .len = 1,
+        .keys = {elem},
+        .subs = {this, node},
+    };
+    this->parent = root;
+    node->parent = root;
+    return root;
 }
 
-void @treename@_insert(
-	struct @treenam@ *this, struct serene_Allocator alloc,
-	@basetype@ elem
+bool @treename@_insert(
+    struct @treename@ *this, struct serene_Allocator alloc,
+    @basetype@ elem
 ) {
-	if (!this->root) {
-		this->root = serene_alloc(alloc, struct @treename@_impl);
-		assert(this->root);
-		*this->root = (struct @treename@_impl) {0};
-	}
-	this->root = @treename@_insert(this->root, alloc, elem);
+    if (!this->root) {
+        this->root = serene_alloc(alloc, struct @treename@_impl);
+        if (!this->root) return false;
+        *this->root = (struct @treename@_impl) {0};
+    }
+    struct @treename@_impl *tmp = impl_insert(this->root, alloc, elem);
+    if (!tmp) return false;
+    this->root = tmp;
+    return true;
 }
 
 static void impl_deinit(struct @treename@_impl *this, struct serene_Allocator alloc) {
     if (this->subs[0] != NULL) {
         for (int i = 0; i <= this->len; i++) {
-			impl_deinit(this->subs[i], alloc);
+            impl_deinit(this->subs[i], alloc);
         }
-	}
+    }
     serene_free(alloc, this);
 }
 
 void @treename@_deinit(struct @treename@ *this, struct serene_Allocator alloc) {
+    if (!this->root) return;
     impl_deinit(this->root, alloc);
+}
+
+static @basetype@ *impl_search(struct @treename@_impl *this, @basetype@ elem) {
+    while (this) {
+        int diff = -1;
+        int i = 0;
+        while (
+            i < this->len && (diff = @cmp@(this->keys[i], elem)) < 0
+        ) i++;
+        if (diff == 0) return &this->keys[i];
+        this = this->subs[i];
+    }
+    return NULL;
+}
+
+@basetype@ *@treename@_search(struct @treename@ *this, @basetype@ elem) {
+    if (!this->root) return NULL;
+    impl_search(this->root, elem);
 }
