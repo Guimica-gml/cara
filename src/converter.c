@@ -27,6 +27,7 @@ struct Tst convert_ast(
         struct tst_FunctionsLL *tmp =
             serene_alloc(alloc, struct tst_FunctionsLL);
         assert(tmp && "OOM");
+        *tmp = (struct tst_FunctionsLL){0};
         if (!funcs_last)
             out.funcs = tmp;
         else

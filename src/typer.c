@@ -315,6 +315,7 @@ fill_type(struct Context *ctx, const struct Type *type) {
         return fill_type(ctx, type);
     }
     }
+    assert(false && "shouldn't");
 }
 
 static const struct Type *
@@ -340,6 +341,7 @@ destructure_binding(struct Context *ctx, struct Binding *binding, bool mut) {
         return Type_product(ctx->globals.intern, lhs, rhs);
     }
     }
+    assert(false && "shouldn't");
 }
 
 static const struct Type *unify(

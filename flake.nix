@@ -31,6 +31,7 @@
         "symbols"
         "runner"
         "ordstrings"
+        "codegen"
       ];
       debugOpts = "-Wall -Wextra -g -O0";
       releaseOpts = "-O2";
@@ -45,19 +46,31 @@
         dontStrip = true;
         buildInputs = commonBuildInputs ++ instances;
         buildPhase =
-          "gcc -o ./main " + debugOpts
+          "cc `llvm-config --cflags` -c " + debugOpts
+          # "gcc -o ./main " + debugOpts
           + pkgs.lib.concatStrings (map (m: " $src/${m}.c") modules)
+          # + pkgs.lib.concatStrings (map (d: " ${d}/lib/*") instances)
+          # + " ${serene-drv}/lib/*; "
+          + "; "
+          + "c++ `llvm-config --cxxflags --ldflags --libs core analysis target --system-libs` -o ./main ./*.o "
           + pkgs.lib.concatStrings (map (d: " ${d}/lib/*") instances)
-          + " ${serene-drv}/lib/*";
+          + " ${serene-drv}/lib/*"
+        ;
       };
       default = pkgs.stdenv.mkDerivation {
         inherit name src installPhase;
         nativeBuildInputs = commonBuildInputs ++ instances;
         buildPhase = 
-          "gcc -o ./main " + releaseOpts
+          "cc `llvm-config --cflags` -c " + releaseOpts
+          # "gcc -o ./main " + releaseOpts
           + pkgs.lib.concatStrings (map (m: " $src/${m}.c") modules)
+          # + pkgs.lib.concatStrings (map (d: " ${d}/lib/*") instances)
+          # + " ${serene-drv}/lib/*; "
+          + "; "
+          + "c++ `llvm-config --cxxflags --ldflags --libs core analysis target --system-libs` -o ./main ./*.o "
           + pkgs.lib.concatStrings (map (d: " ${d}/lib/*") instances)
-          + " ${serene-drv}/lib/*";
+          + " ${serene-drv}/lib/*"
+        ;
       };
     };
     apps."${system}" = {

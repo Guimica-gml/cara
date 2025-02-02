@@ -5,6 +5,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <llvm-c/Core.h>
+
 #include "./ast.h"
 #include "./converter.h"
 #include "./lexer.h"
@@ -14,16 +16,17 @@
 #include "./symbols.h"
 #include "./tokens.h"
 #include "./tst.h"
+#include "./codegen.h"
 #include "./typer.h"
 #include "serene.h"
 
 int main(int argc, char **argv) {
     struct serene_Arena strings_arena, ast_arena, type_arena, check_arena,
-        tst_arena, exec_arena;
+        tst_arena, exec_arena, codegen_arena;
     strings_arena = ast_arena = type_arena = check_arena = tst_arena =
-        exec_arena = (struct serene_Arena){
+        exec_arena = codegen_arena = (struct serene_Arena){
             .backing = serene_Libc_dyn(),
-        };
+    };
 
     if (argc != 2) {
         printf("Please provide a filename!\n");
@@ -72,8 +75,14 @@ int main(int argc, char **argv) {
 
     Ast_print(&ast);
 
-    convert_ast(serene_Arena_dyn(&tst_arena), &types, ast);
+    struct Tst tst = convert_ast(serene_Arena_dyn(&tst_arena), &types, ast);
+    LLVMModuleRef mod = lower(&tst, serene_Arena_dyn(&codegen_arena));
+    serene_Arena_deinit(&codegen_arena);
     serene_Arena_deinit(&tst_arena);
+
+    printf("----module start----\n");
+    LLVMDumpModule(mod);
+    printf("----module end----\n");
 
     run(serene_Arena_dyn(&exec_arena), symbols, ast);
     serene_Arena_deinit(&exec_arena);
