@@ -6,6 +6,8 @@
 #include <unistd.h>
 
 #include <llvm-c/Core.h>
+#include <llvm-c/Target.h>
+#include <llvm-c/TargetMachine.h>
 
 #include "./ast.h"
 #include "./converter.h"
@@ -83,6 +85,39 @@ int main(int argc, char **argv) {
     printf("----module start----\n");
     LLVMDumpModule(mod);
     printf("----module end----\n");
+
+	LLVMInitializeNativeTarget();
+	LLVMInitializeNativeAsmPrinter();
+	char *emitfile = "out.o";
+	const char *triple = LLVMGetDefaultTargetTriple();
+	const char *cpu = LLVMGetHostCPUName();
+	const char *features = LLVMGetHostCPUFeatures();
+
+	char *error = NULL;
+	LLVMTargetRef target;
+	if (LLVMGetTargetFromTriple(triple, &target, &error)) {
+		printf("error occured!\n%s\n", error);
+		assert(false);
+	}
+	LLVMDisposeMessage(error);
+	
+	LLVMTargetMachineRef machine = LLVMCreateTargetMachine(
+		target, triple, cpu, features, LLVMCodeGenLevelNone,
+		LLVMRelocDefault, LLVMCodeModelDefault
+	);
+
+	error = NULL;
+	if (LLVMTargetMachineEmitToFile(
+        machine, mod, emitfile, LLVMObjectFile, &error
+    )) {
+		printf("error occured!\n%s\n", error);
+		assert(false);
+	}
+	LLVMDisposeMessage(error);
+
+	LLVMDisposeTargetMachine(machine);
+	
+	LLVMDisposeModule(mod);
 
     run(serene_Arena_dyn(&exec_arena), symbols, ast);
     serene_Arena_deinit(&exec_arena);
