@@ -29,7 +29,6 @@
         "strings"
         "parser"
         "symbols"
-        "runner"
         "ordstrings"
         "codegen"
       ];

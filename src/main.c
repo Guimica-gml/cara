@@ -13,7 +13,6 @@
 #include "./converter.h"
 #include "./lexer.h"
 #include "./parser.h"
-#include "./runner.h"
 #include "./strings.h"
 #include "./symbols.h"
 #include "./tokens.h"
@@ -24,11 +23,11 @@
 
 int main(int argc, char **argv) {
     struct serene_Arena strings_arena, ast_arena, type_arena, check_arena,
-        tst_arena, exec_arena, codegen_arena;
+        tst_arena, codegen_arena;
     strings_arena = ast_arena = type_arena = check_arena = tst_arena =
-        exec_arena = codegen_arena = (struct serene_Arena){
+        codegen_arena = (struct serene_Arena){
             .backing = serene_Libc_dyn(),
-    };
+        };
 
     if (argc != 2) {
         printf("Please provide a filename!\n");
@@ -86,41 +85,38 @@ int main(int argc, char **argv) {
     LLVMDumpModule(mod);
     printf("----module end----\n");
 
-	LLVMInitializeNativeTarget();
-	LLVMInitializeNativeAsmPrinter();
-	char *emitfile = "out.o";
-	const char *triple = LLVMGetDefaultTargetTriple();
-	const char *cpu = LLVMGetHostCPUName();
-	const char *features = LLVMGetHostCPUFeatures();
+    LLVMInitializeNativeTarget();
+    LLVMInitializeNativeAsmPrinter();
+    char *emitfile = "out.o";
+    const char *triple = LLVMGetDefaultTargetTriple();
+    const char *cpu = LLVMGetHostCPUName();
+    const char *features = LLVMGetHostCPUFeatures();
 
-	char *error = NULL;
-	LLVMTargetRef target;
-	if (LLVMGetTargetFromTriple(triple, &target, &error)) {
-		printf("error occured!\n%s\n", error);
-		assert(false);
-	}
-	LLVMDisposeMessage(error);
-	
-	LLVMTargetMachineRef machine = LLVMCreateTargetMachine(
-		target, triple, cpu, features, LLVMCodeGenLevelNone,
-		LLVMRelocDefault, LLVMCodeModelDefault
-	);
+    char *error = NULL;
+    LLVMTargetRef target;
+    if (LLVMGetTargetFromTriple(triple, &target, &error)) {
+        printf("error occured!\n%s\n", error);
+        assert(false);
+    }
+    LLVMDisposeMessage(error);
+    
+    LLVMTargetMachineRef machine = LLVMCreateTargetMachine(
+        target, triple, cpu, features, LLVMCodeGenLevelNone,
+        LLVMRelocDefault, LLVMCodeModelDefault
+    );
 
-	error = NULL;
-	if (LLVMTargetMachineEmitToFile(
+    error = NULL;
+    if (LLVMTargetMachineEmitToFile(
         machine, mod, emitfile, LLVMObjectFile, &error
     )) {
-		printf("error occured!\n%s\n", error);
-		assert(false);
-	}
-	LLVMDisposeMessage(error);
+        printf("error occured!\n%s\n", error);
+        assert(false);
+    }
+    LLVMDisposeMessage(error);
 
-	LLVMDisposeTargetMachine(machine);
-	
-	LLVMDisposeModule(mod);
-
-    run(serene_Arena_dyn(&exec_arena), symbols, ast);
-    serene_Arena_deinit(&exec_arena);
+    LLVMDisposeTargetMachine(machine);
+    
+    LLVMDisposeModule(mod);
 
     serene_Arena_deinit(&ast_arena);
     serene_Arena_deinit(&type_arena);
