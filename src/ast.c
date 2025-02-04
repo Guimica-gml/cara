@@ -19,34 +19,6 @@ Binding_to_type(struct TypeIntern *intern, struct Binding this) {
     assert(false && "gcc complains about control reaching here??");
 }
 
-static struct Type *
-Type_copy(struct serene_Allocator alloc, const struct Type *t) {
-    struct Type *out = serene_alloc(alloc, struct Type);
-    assert(out && "OOM");
-    out->tag = t->tag;
-    switch (t->tag) {
-    case TT_Func:
-        out->func.args = Type_copy(alloc, t->func.args);
-        out->func.ret = Type_copy(alloc, t->func.ret);
-        break;
-    case TT_Call:
-        out->call.name = Type_copy(alloc, t->call.name);
-        out->call.args = Type_copy(alloc, t->call.args);
-        break;
-    case TT_Comma:
-        out->comma.lhs = Type_copy(alloc, t->comma.lhs);
-        out->comma.rhs = Type_copy(alloc, t->comma.rhs);
-        break;
-    case TT_Recall:
-        out->recall = t->recall;
-        break;
-    case TT_Var:
-        out->var = t->var;
-        break;
-    }
-    return out;
-}
-
 void TypeIntern_print(struct TypeIntern *this) { Typereg_print(&this->tree); }
 
 struct TypeIntern
@@ -141,8 +113,36 @@ static void Binding_print(struct Binding *binding) {
     }
 }
 
+static void print_ET_If(struct ExprIf *expr, int level),
+    print_ET_Loop(struct Expr *body, int level),
+    print_ET_Bareblock(struct ExprsLL *body, int level),
+    print_ET_Call(struct ExprCall *expr, int level),
+    print_ET_Comma(struct ExprComma *expr, int level),
+    print_ST_Let(struct ExprLet *expr, int level),
+    print_ST_Mut(struct ExprLet *expr, int level),
+    print_ST_Break(struct Expr *expr, int level),
+    print_ST_Return(struct Expr *expr, int level),
+    print_ST_Assign(struct ExprAssign *expr, int level),
+    print_ST_Const(struct Expr *expr, int level);
+
 static void Expr_print(struct Expr *expr, int level) {
+#define Case(Tag, ...) \
+    case Tag: print_##Tag(__VA_ARGS__); break;
+
     switch (expr->tag) {
+        Case(ET_If, expr->if_expr, level);
+        Case(ET_Loop, expr->loop, level);
+        Case(ET_Bareblock, expr->bareblock, level);
+        Case(ET_Call, expr->call, level);
+        Case(ET_Comma, expr->comma, level);
+
+        Case(ST_Let, expr->let, level);
+        Case(ST_Mut, expr->let, level);
+        Case(ST_Break, expr->break_stmt, level);
+        Case(ST_Return, expr->return_stmt, level);
+        Case(ST_Assign, expr->assign, level);
+        Case(ST_Const, expr->const_stmt, level);
+
     case ET_Unit:
         printf("()");
         break;
@@ -152,73 +152,83 @@ static void Expr_print(struct Expr *expr, int level) {
     case ET_Recall:
         printf("%s", expr->lit);
         break;
+    }
 
-    case ET_If:
-        printf("if ");
-        Expr_print(expr->if_expr.cond, level);
-        printf(" ");
-        Expr_print(expr->if_expr.smash, level);
-        printf(" else ");
-        Expr_print(expr->if_expr.pass, level);
-        break;
-    case ET_Loop:
-        printf("loop ");
-        Expr_print(expr->loop, level);
-        break;
-    case ET_Bareblock: {
-        printf("{\n");
-        for (ll_iter(h, expr->bareblock)) {
-            for (int i = 0; i < level + 1; i++)
-                printf("  ");
-            Expr_print(&h->current, level + 1);
-            printf("\n");
-        }
-        for (int i = 0; i < level; i++)
+#undef Case
+}
+
+static void print_ET_If(struct ExprIf *expr, int level) {
+    printf("if ");
+    Expr_print(&expr->cond, level);
+    printf(" ");
+    Expr_print(&expr->smash, level);
+    printf(" else ");
+    Expr_print(&expr->pass, level);
+}
+
+static void print_ET_Loop(struct Expr *body, int level) {
+    printf("loop ");
+    Expr_print(body, level);
+}
+
+static void print_ET_Bareblock(struct ExprsLL *body, int level) {
+    printf("{\n");
+    for (ll_iter(h, body)) {
+        for (int i = 0; i < level + 1; i++)
             printf("  ");
-        printf("}");
-        break;
+        Expr_print(&h->current, level + 1);
+        printf("\n");
     }
-    case ET_Call:
-        Expr_print(expr->call.name, level);
-        printf("(");
-        Expr_print(expr->call.args, level + 1);
-        printf(")");
-        break;
-    case ET_Comma:
-        Expr_print(expr->comma.lhs, level);
-        printf(", ");
-        Expr_print(expr->comma.rhs, level);
-        break;
+    for (int i = 0; i < level; i++)
+        printf("  ");
+    printf("}");
+}
 
-    case ST_Let:
-        printf("let ");
-        Binding_print(&expr->let.bind);
-        printf(" = ");
-        Expr_print(expr->let.init, level);
-        break;
-    case ST_Mut:
-        printf("mut ");
-        Binding_print(&expr->let.bind);
-        printf(" = ");
-        Expr_print(expr->let.init, level);
-        break;
-    case ST_Break:
-        printf("break ");
-        Expr_print(expr->break_stmt, level);
-        break;
-    case ST_Return:
-        printf("return ");
-        Expr_print(expr->return_stmt, level);
-        break;
-    case ST_Assign:
-        printf("%s = ", expr->assign.name);
-        Expr_print(expr->assign.expr, level);
-        break;
-    case ST_Const:
-        Expr_print(expr->const_stmt, level);
-        printf(";");
-        break;
-    }
+static void print_ET_Call(struct ExprCall *expr, int level) {
+    Expr_print(&expr->name, level);
+    printf("(");
+    Expr_print(&expr->args, level + 1);
+    printf(")");
+}
+
+static void print_ET_Comma(struct ExprComma *expr, int level) {
+    Expr_print(&expr->lhs, level);
+    printf(", ");
+    Expr_print(&expr->rhs, level);
+}
+
+static void print_ST_Let(struct ExprLet *expr, int level) {
+    printf("let ");
+    Binding_print(&expr->bind);
+    printf(" = ");
+    Expr_print(&expr->init, level);
+}
+
+static void print_ST_Mut(struct ExprLet *expr, int level) {
+    printf("mut ");
+    Binding_print(&expr->bind);
+    printf(" = ");
+    Expr_print(&expr->init, level);
+}
+
+static void print_ST_Break(struct Expr *expr, int level) {
+    printf("break ");
+    Expr_print(expr, level);
+}
+
+static void print_ST_Return(struct Expr *expr, int level) {
+    printf("return ");
+    Expr_print(expr, level);
+}
+
+static void print_ST_Assign(struct ExprAssign *expr, int level) {
+    printf("%s = ", expr->name);
+    Expr_print(&expr->expr, level);
+}
+
+static void print_ST_Const(struct Expr *expr, int level) {
+    Expr_print(expr, level);
+    printf(";");
 }
 
 static void Function_print(struct Function *func, int level) {

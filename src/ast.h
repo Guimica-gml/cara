@@ -80,43 +80,56 @@ enum ExprTag {
     ST_Assign,
     ST_Const,
 };
+struct ExprIf;
+struct ExprCall;
+struct ExprComma;
+struct ExprLet;
+struct ExprAssign;
+
 struct Expr {
     enum ExprTag tag;
     struct Type const *type;
     union {
-        struct {
-            struct Expr *cond;
-            struct Expr *smash;
-            struct Expr *pass;
-        } if_expr;
-        struct {
-            struct Expr *name;
-            struct Expr *args;
-        } call;
-        struct {
-            struct Expr *lhs;
-            struct Expr *rhs;
-        } comma;
+        struct ExprIf *if_expr;
+        struct ExprCall *call;
+        struct ExprComma *comma;
         struct Expr *loop;
         struct ExprsLL *bareblock;
         const char *lit;
 
-        struct {
-            struct Binding bind;
-            struct Expr *init;
-        } let;
-        struct {
-            const char *name;
-            struct Expr *expr;
-        } assign;
+        struct ExprLet *let;
+        struct ExprAssign *assign;
         struct Expr *break_stmt;
         struct Expr *return_stmt;
         struct Expr *const_stmt;
     };
 };
+
 struct ExprsLL {
     struct Expr current;
     struct ExprsLL *next;
+};
+
+struct ExprIf {
+    struct Expr cond;
+    struct Expr smash;
+    struct Expr pass;
+};
+struct ExprCall {
+    struct Expr name;
+    struct Expr args;
+};
+struct ExprComma {
+    struct Expr lhs;
+    struct Expr rhs;
+};
+struct ExprLet {
+    struct Binding bind;
+    struct Expr init;
+};
+struct ExprAssign {
+    const char *name;
+    struct Expr expr;
 };
 
 struct Function {

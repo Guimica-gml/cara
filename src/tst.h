@@ -15,30 +15,25 @@ enum tst_TypeTag {
     TTT_String,
     TTT_Star,
     TTT_Func,
-    /* TTT_Call, */
-    /* TTT_Comma, */
 };
+struct tst_TypeFunc;
+struct tst_TypeStar;
+
 struct tst_Type {
     enum tst_TypeTag tag;
     union {
-        struct {
-            struct tst_Type *args;
-            struct tst_Type *ret;
-        } func;
-        struct {
-            struct tst_Type *lhs;
-            struct tst_Type *rhs;
-        } star;
-
-        /* struct { */
-        /*     struct tst_Type *name; */
-        /*     struct tst_Type *args; */
-        /* } call; */
-        /* struct { */
-        /*     struct tst_Type *lhs; */
-        /*     struct tst_Type *rhs; */
-        /* } comma; */
+        struct tst_TypeFunc* func;
+        struct tst_TypeStar* star;
     };
+};
+
+struct tst_TypeFunc {
+    struct tst_Type args;
+    struct tst_Type ret;
+};
+struct tst_TypeStar {
+    struct tst_Type lhs;
+    struct tst_Type rhs;
 };
 
 enum tst_BindingTag {
@@ -78,35 +73,25 @@ enum tst_ExprTag {
     TST_Assign,
     TST_Const,
 };
+struct tst_ExprIf;
+struct tst_ExprCall;
+struct tst_ExprComma;
+struct tst_ExprLet;
+struct tst_ExprAssign;
+
 struct tst_Expr {
     enum tst_ExprTag tag;
     struct tst_Type type;
     union {
-        struct {
-            struct tst_Expr *cond;
-            struct tst_Expr *smash;
-            struct tst_Expr *pass;
-        } if_expr;
-        struct {
-            struct tst_Expr *name;
-            struct tst_Expr *args;
-        } call;
-        struct {
-            struct tst_Expr *lhs;
-            struct tst_Expr *rhs;
-        } comma;
+        struct tst_ExprIf *if_expr;
+        struct tst_ExprCall* call;
+        struct tst_ExprComma *comma;
         struct tst_Expr *loop;
         struct tst_ExprsLL *bareblock;
         const char *lit;
 
-        struct {
-            struct tst_Binding bind;
-            struct tst_Expr *init;
-        } let;
-        struct {
-            const char *name;
-            struct tst_Expr *expr;
-        } assign;
+        struct tst_ExprLet* let;
+        struct tst_ExprAssign *assign;
         struct tst_Expr *break_stmt;
         struct tst_Expr *return_stmt;
         struct tst_Expr *const_stmt;
@@ -115,6 +100,28 @@ struct tst_Expr {
 struct tst_ExprsLL {
     struct tst_Expr current;
     struct tst_ExprsLL *next;
+};
+
+struct tst_ExprIf {
+    struct tst_Expr cond;
+    struct tst_Expr smash;
+    struct tst_Expr pass;
+};
+struct tst_ExprCall {
+    struct tst_Expr name;
+    struct tst_Expr args;
+};
+struct tst_ExprComma {
+    struct tst_Expr lhs;
+    struct tst_Expr rhs;
+};
+struct tst_ExprLet {
+    struct tst_Binding bind;
+    struct tst_Expr init;
+};
+struct tst_ExprAssign {
+    const char *name;
+    struct tst_Expr expr;
 };
 
 struct tst_Function {

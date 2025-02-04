@@ -8,21 +8,26 @@ enum TypeTag {
     TT_Comma,
     TT_Var,
 };
+
+struct TypeFunc {
+    const struct Type *args;
+    const struct Type *ret;
+};
+struct TypeCall {
+    const struct Type *name;
+    const struct Type *args;
+};
+struct TypeComma {
+    const struct Type *lhs;
+    const struct Type *rhs;
+};
+
 struct Type {
     enum TypeTag tag;
     union {
-        struct {
-            struct Type const *args;
-            struct Type const *ret;
-        } func;
-        struct {
-            struct Type const *name;
-            struct Type const *args;
-        } call;
-        struct {
-            struct Type const *lhs;
-            struct Type const *rhs;
-        } comma;
+        struct TypeFunc func;
+        struct TypeCall call;
+        struct TypeComma comma;
         const char *recall;
         int var;
     };
