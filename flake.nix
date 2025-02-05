@@ -8,7 +8,7 @@
     src = ./src;
     pkgs = (import nixpkgs) { inherit system; };
     serene-drv = serene.packages."${system}".default;
-    commonBuildInputs = [ serene-drv pkgs.gcc pkgs.libllvm ];
+    commonBuildInputs = [ serene-drv pkgs.gcc pkgs.libllvm pkgs.lld ];
     instances = [
       (import ./src/tokenvec.nix { inherit pkgs; })
       (import ./src/opdeclvec.nix { inherit pkgs; })
