@@ -147,7 +147,7 @@ int main(int argc, char **argv) {
 
     LLVMDisposeModule(mod);
 
-    system("ld -o out out.o");
+    system("ld.lld -o out out.o");
 
     serene_Arena_deinit(&ast_arena);
     serene_Arena_deinit(&type_arena);
