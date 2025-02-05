@@ -69,6 +69,46 @@ void typecheck(
     globals.intern = intern;
     globals.alloc = alloc;
 
+    {
+        Type t_int = intern->tsyms.t_int;
+        Type t_bool = intern->tsyms.t_bool;
+        Type int_to_int = Type_func(globals.intern, t_int, t_int);
+        Type int2 = Type_product(globals.intern, t_int, t_int);
+        Type int2_to_int = Type_func(globals.intern, int2, t_int);
+        Type int2_to_bool = Type_func(globals.intern, int2, t_bool);
+        struct {
+            const char* name;
+            Type type;
+        } builtins[] = {
+            {.name = intern->syms.s_badd, .type = int2_to_int},
+            {.name = intern->syms.s_bsub, .type = int2_to_int},
+            {.name = intern->syms.s_bmul, .type = int2_to_int},
+            {.name = intern->syms.s_bdiv, .type = int2_to_int},
+            {.name = intern->syms.s_bmod, .type = int2_to_int},
+            {.name = intern->syms.s_band, .type = int2_to_int},
+            {.name = intern->syms.s_bor, .type = int2_to_int},
+            {.name = intern->syms.s_bxor, .type = int2_to_int},
+            {.name = intern->syms.s_bshl, .type = int2_to_int},
+            {.name = intern->syms.s_bshr, .type = int2_to_int},
+            {.name = intern->syms.s_bnot, .type = int_to_int},
+            {.name = intern->syms.s_bneg, .type = int_to_int},
+            {.name = intern->syms.s_bcmpEQ, .type = int2_to_bool},
+            {.name = intern->syms.s_bcmpNE, .type = int2_to_bool},
+            {.name = intern->syms.s_bcmpGT, .type = int2_to_bool},
+            {.name = intern->syms.s_bcmpLT, .type = int2_to_bool},
+            {.name = intern->syms.s_bcmpGE, .type = int2_to_bool},
+            {.name = intern->syms.s_bcmpLE, .type = int2_to_bool},
+        };
+        for (int i = 0; i < sizeof(builtins) / sizeof(builtins[0]); i++) {
+            struct GlobalsLL* tmp = serene_alloc(alloc, struct GlobalsLL);
+            assert(tmp && "OOM");
+            tmp->current.type = builtins[i].type;
+            tmp->current.name = builtins[i].name;
+            tmp->next = globals.globals;
+            globals.globals = tmp;
+        }
+    }
+
     for (ll_iter(f, ast->funcs)) {
         struct GlobalsLL *tmp = serene_alloc(alloc, struct GlobalsLL);
         assert(tmp);

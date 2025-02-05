@@ -58,7 +58,7 @@
       };
       default = pkgs.stdenv.mkDerivation {
         inherit name src installPhase;
-        nativeBuildInputs = commonBuildInputs ++ instances;
+        buildInputs = commonBuildInputs ++ instances;
         buildPhase = 
           "cc `llvm-config --cflags` -c " + releaseOpts
           # "gcc -o ./main " + releaseOpts

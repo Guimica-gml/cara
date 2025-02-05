@@ -1,30 +1,32 @@
 #include "./codegen.h"
+
 #include "./common_ll.h"
 #include "./strings.h"
+
+#include <assert.h>
+#include <llvm-c/Analysis.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdlib.h>
-#include <assert.h>
 #include <stdio.h>
-#include <llvm-c/Analysis.h>
+#include <stdlib.h>
 
 struct Ctx {
     struct serene_Allocator alloc;
     LLVMModuleRef mod;
     struct FuncsLL {
-        struct FuncsLL *next;
-        struct tst_Function *f;
+        struct FuncsLL* next;
+        struct tst_Function* f;
         LLVMValueRef fval;
         LLVMTypeRef ftype;
-    } *funcs;
+    }* funcs;
     LLVMTypeRef t_unit;
     LLVMValueRef v_unit;
 };
 
 static LLVMTypeRef lower_type(struct Ctx* ctx, struct tst_Type* type);
-static void lower_function(struct Ctx *ctx, struct tst_Function *func, LLVMValueRef fvar, LLVMTypeRef ftype);
+static void lower_function(struct Ctx* ctx, struct tst_Function* func, LLVMValueRef fvar, LLVMTypeRef ftype);
 
-LLVMModuleRef lower(struct Tst *tst, struct serene_Allocator alloc) {
+LLVMModuleRef lower(struct Tst* tst, struct serene_Allocator alloc) {
     struct Ctx ctx = {
         .alloc = alloc,
         .mod = LLVMModuleCreateWithName("mod"),
@@ -35,7 +37,7 @@ LLVMModuleRef lower(struct Tst *tst, struct serene_Allocator alloc) {
     for (ll_iter(f, tst->funcs)) {
         LLVMTypeRef type = lower_type(&ctx, &f->current.type);
         LLVMValueRef val = LLVMAddFunction(ctx.mod, f->current.name, type);
-        struct FuncsLL *tmp = serene_alloc(ctx.alloc, struct FuncsLL);
+        struct FuncsLL* tmp = serene_alloc(ctx.alloc, struct FuncsLL);
         assert(tmp && "OOM");
         tmp->next = ctx.funcs;
         tmp->f = &f->current;
@@ -46,7 +48,8 @@ LLVMModuleRef lower(struct Tst *tst, struct serene_Allocator alloc) {
     for (ll_iter(f, ctx.funcs)) {
         lower_function(&ctx, f->f, f->fval, f->ftype);
     }
-    char *error = NULL;
+    LLVMDumpModule(ctx.mod);
+    char* error = NULL;
     if (LLVMVerifyModule(ctx.mod, LLVMAbortProcessAction, &error)) {
         printf("error arose:\n%s\n", error);
         assert(false);
@@ -54,17 +57,17 @@ LLVMModuleRef lower(struct Tst *tst, struct serene_Allocator alloc) {
     return ctx.mod;
 }
 
-static LLVMTypeRef lower_TTT_Star(struct Ctx *ctx, struct tst_TypeStar *type),
-    lower_TTT_Func(struct Ctx *ctx, struct tst_TypeFunc *type);
+static LLVMTypeRef lower_TTT_Star(struct Ctx* ctx, struct tst_TypeStar* type),
+    lower_TTT_Func(struct Ctx* ctx, struct tst_TypeFunc* type);
 
-static LLVMTypeRef lower_type(struct Ctx *ctx, struct tst_Type *type) {
+static LLVMTypeRef lower_type(struct Ctx* ctx, struct tst_Type* type) {
     switch (type->tag) {
-    case TTT_Unit: return ctx->t_unit;
-    case TTT_Int: return LLVMInt64Type();
-    case TTT_Bool: return LLVMInt1Type();
-    case TTT_String: return LLVMPointerType(LLVMInt8Type(), 0);
-    case TTT_Star: return lower_TTT_Star(ctx, type->star);
-    case TTT_Func: return lower_TTT_Func(ctx, type->func);
+        case TTT_Unit: return ctx->t_unit;
+        case TTT_Int: return LLVMInt64Type();
+        case TTT_Bool: return LLVMInt1Type();
+        case TTT_String: return LLVMPointerType(LLVMInt8Type(), 0);
+        case TTT_Star: return lower_TTT_Star(ctx, type->star);
+        case TTT_Func: return lower_TTT_Func(ctx, type->func);
     }
     assert(false && "shouldn't");
 }
@@ -78,48 +81,55 @@ static LLVMTypeRef lower_TTT_Star(struct Ctx* ctx, struct tst_TypeStar* type) {
 }
 
 static LLVMTypeRef lower_TTT_Func(struct Ctx* ctx, struct tst_TypeFunc* type) {
-    LLVMTypeRef args[] = { lower_type(ctx, &type->args) };
+    LLVMTypeRef args[] = {lower_type(ctx, &type->args)};
     LLVMTypeRef ret = lower_type(ctx, &type->ret);
     return LLVMFunctionType(ret, args, 1, false);
 }
 
 struct FCtx {
-    struct Ctx *ctx;
+    struct Ctx* ctx;
     LLVMBuilderRef b;
     LLVMValueRef f;
     LLVMValueRef v_ret;
     LLVMBasicBlockRef b_ret;
     struct LetsLL {
-        struct LetsLL *next;
-        const char *name;
+        struct LetsLL* next;
+        const char* name;
         LLVMValueRef slot;
-    } *lets;
+        LLVMTypeRef type;
+    }* lets;
     struct LoopsLL {
-        struct LoopsLL *next;
+        struct LoopsLL* next;
         LLVMBasicBlockRef post;
         LLVMValueRef v_break;
-    } *loops;
+        LLVMTypeRef type;
+    }* loops;
 };
 
 struct Control {
-    enum { CT_Plain, CT_Break, CT_Return } tag;
+    enum { CT_Plain,
+           CT_Break,
+           CT_Return } tag;
     LLVMValueRef val;
 };
 struct Control Control_plain(LLVMValueRef v) {
-    return (struct Control){ .tag = CT_Plain, .val = v };
+    return (struct Control){.tag = CT_Plain, .val = v};
 }
 struct Control Control_break(LLVMValueRef v) {
-    return (struct Control){ .tag = CT_Break, .val = v };
+    return (struct Control){.tag = CT_Break, .val = v};
 }
 struct Control Control_return(LLVMValueRef v) {
-    return (struct Control){ .tag = CT_Return, .val = v };
+    return (struct Control){.tag = CT_Return, .val = v};
 }
 
-static struct Control lower_expr(struct tst_Expr *, struct FCtx *);
-static void lower_binding(struct tst_Binding *, struct FCtx *, LLVMValueRef);
+static struct Control lower_expr(struct tst_Expr*, struct FCtx*);
+static void lower_binding(struct tst_Binding*, struct FCtx*, LLVMValueRef);
 
 static void lower_function(
-    struct Ctx* ctx, struct tst_Function *func, LLVMValueRef fval, LLVMTypeRef ftype
+    struct Ctx* ctx,
+    struct tst_Function* func,
+    LLVMValueRef fval,
+    LLVMTypeRef ftype
 ) {
     struct FCtx fctx = {
         .ctx = ctx,
@@ -154,11 +164,12 @@ static struct Control lower_TET_BoolLit(struct FCtx* ctx, const char* lit),
     lower_TET_NumberLit(struct FCtx* ctx, const char* lit),
     lower_TET_StringLit(struct FCtx* ctx, const char* lit),
     lower_TET_If(struct FCtx* ctx, struct tst_ExprIf* expr),
-    lower_TET_Loop(struct FCtx* ctx, struct tst_Expr* body, struct tst_Type *type),
+    lower_TET_Loop(struct FCtx* ctx, struct tst_Expr* body, struct tst_Type* type),
     lower_TET_Bareblock(struct FCtx* ctx, struct tst_ExprsLL* body),
     lower_TET_Call(struct FCtx* ctx, struct tst_ExprCall* expr),
     lower_TET_Recall(struct FCtx* ctx, const char* lit),
-    lower_TET_Comma(struct FCtx* ctx, struct tst_ExprComma *expr, struct tst_Type *type),
+    lower_TET_Comma(struct FCtx* ctx, struct tst_ExprComma* expr, struct tst_Type* type),
+    lower_TET_Builtin(struct FCtx* ctx, enum tst_ExprBuiltin built),
     lower_TST_Let(struct FCtx* ctx, struct tst_ExprLet* expr),
     lower_TST_Break(struct FCtx* ctx, struct tst_Expr* body),
     lower_TST_Return(struct FCtx* ctx, struct tst_Expr* body),
@@ -170,21 +181,22 @@ static struct Control lower_expr(struct tst_Expr* expr, struct FCtx* ctx) {
     case Tag: return lower_##Tag(ctx, __VA_ARGS__);
 
     switch (expr->tag) {
+        Case(TET_BoolLit, expr->lit);
+        Case(TET_NumberLit, expr->lit);
+        Case(TET_StringLit, expr->lit);
+        Case(TET_If, expr->if_expr);
+        Case(TET_Loop, expr->loop, &expr->type);
+        Case(TET_Bareblock, expr->bareblock);
+        Case(TET_Call, expr->call);
+        Case(TET_Recall, expr->lit);
+        Case(TET_Comma, expr->comma, &expr->type);
+        Case(TET_Builtin, expr->builtin);
+        Case(TST_Let, expr->let);
+        Case(TST_Break, expr->break_stmt);
+        Case(TST_Return, expr->return_stmt);
+        Case(TST_Assign, expr->assign);
+        Case(TST_Const, expr->const_stmt);
         case TET_Unit: return Control_plain(ctx->ctx->v_unit);
-            Case(TET_BoolLit, expr->lit);
-            Case(TET_NumberLit, expr->lit);
-            Case(TET_StringLit, expr->lit);
-            Case(TET_If, expr->if_expr);
-            Case(TET_Loop, expr->loop, &expr->type);
-            Case(TET_Bareblock, expr->bareblock);
-            Case(TET_Call, expr->call);
-            Case(TET_Recall, expr->lit);
-            Case(TET_Comma, expr->comma, &expr->type);
-            Case(TST_Let, expr->let);
-            Case(TST_Break, expr->break_stmt);
-            Case(TST_Return, expr->return_stmt);
-            Case(TST_Assign, expr->assign);
-            Case(TST_Const, expr->const_stmt);
     }
 #undef Case
     assert(false && "shouldn't");
@@ -229,7 +241,7 @@ static struct Control lower_TET_If(struct FCtx* ctx, struct tst_ExprIf* expr) {
     if (v_pass.tag == CT_Break && v_smash.tag != CT_Plain) return v_pass;
     if (v_smash.tag == CT_Break && v_pass.tag != CT_Plain) return v_smash;
     if (v_pass.tag != CT_Plain && v_smash.tag != CT_Plain) return v_pass;
-        
+
     LLVMPositionBuilderAtEnd(ctx->b, b_post);
     LLVMTypeRef t_phi;
     if (v_pass.tag == CT_Plain) t_phi = LLVMTypeOf(v_pass.val);
@@ -252,14 +264,16 @@ static struct Control lower_TET_If(struct FCtx* ctx, struct tst_ExprIf* expr) {
     return Control_plain(v_phi);
 }
 
-static struct Control lower_TET_Loop(struct FCtx* ctx, struct tst_Expr* body, struct tst_Type *type) {
-    LLVMValueRef v_break = LLVMBuildAlloca(ctx->b, lower_type(ctx->ctx, type), "");
+static struct Control lower_TET_Loop(struct FCtx* ctx, struct tst_Expr* body, struct tst_Type* type) {
+    LLVMTypeRef t_break = lower_type(ctx->ctx, type);
+    LLVMValueRef v_break = LLVMBuildAlloca(ctx->b, t_break, "");
     LLVMBasicBlockRef b_loop = LLVMAppendBasicBlock(ctx->f, "");
     LLVMBasicBlockRef b_post = LLVMAppendBasicBlock(ctx->f, "");
-    struct LoopsLL *tmp = serene_alloc(ctx->ctx->alloc, struct LoopsLL);
+    struct LoopsLL* tmp = serene_alloc(ctx->ctx->alloc, struct LoopsLL);
     assert(tmp && "OOM");
     tmp->next = ctx->loops;
     tmp->v_break = v_break;
+    tmp->type = t_break;
     tmp->post = b_post;
     LLVMBuildBr(ctx->b, b_loop);
     LLVMPositionBuilderAtEnd(ctx->b, b_loop);
@@ -270,7 +284,7 @@ static struct Control lower_TET_Loop(struct FCtx* ctx, struct tst_Expr* body, st
     }
     LLVMPositionBuilderAtEnd(ctx->b, b_post);
     ctx->loops = ctx->loops->next;
-    return Control_plain(LLVMBuildLoad2(ctx->b, LLVMTypeOf(v_break), v_break, ""));
+    return Control_plain(LLVMBuildLoad2(ctx->b, t_break, v_break, ""));
 }
 
 static struct Control lower_TET_Bareblock(struct FCtx* ctx, struct tst_ExprsLL* body) {
@@ -283,19 +297,64 @@ static struct Control lower_TET_Bareblock(struct FCtx* ctx, struct tst_ExprsLL* 
     return Control_plain(out);
 }
 
+static struct Control lower_builtin_call(
+    struct FCtx* ctx,
+    enum tst_ExprBuiltin tag,
+    struct tst_Expr args
+) {
+    LLVMValueRef v_args[2] = {0};
+    if (args.tag == TET_Comma) {
+        struct Control lhs = lower_expr(&args.comma->lhs, ctx);
+        if (lhs.tag == CT_Break || lhs.tag == CT_Return) return lhs;
+        struct Control rhs = lower_expr(&args.comma->rhs, ctx);
+        if (rhs.tag == CT_Break || rhs.tag == CT_Return) return rhs;
+        v_args[0] = lhs.val;
+        v_args[1] = rhs.val;
+    } else {
+        struct Control arg = lower_expr(&args, ctx);
+        if (arg.tag == CT_Break || arg.tag == CT_Return) return arg;
+        v_args[0] = arg.val;
+    }
+    LLVMValueRef out;
+    switch (tag) {
+        case EB_badd: out = LLVMBuildAdd(ctx->b, v_args[0], v_args[1], ""); break;
+        case EB_bsub: out = LLVMBuildSub(ctx->b, v_args[0], v_args[1], ""); break;
+        case EB_bmul: out = LLVMBuildMul(ctx->b, v_args[0], v_args[1], ""); break;
+        case EB_bdiv: out = LLVMBuildUDiv(ctx->b, v_args[0], v_args[1], ""); break;
+        case EB_bmod: out = LLVMBuildURem(ctx->b, v_args[0], v_args[1], ""); break;
+        case EB_band: out = LLVMBuildAnd(ctx->b, v_args[0], v_args[1], ""); break;
+        case EB_bor: out = LLVMBuildOr(ctx->b, v_args[0], v_args[1], ""); break;
+        case EB_bxor: out = LLVMBuildXor(ctx->b, v_args[0], v_args[1], ""); break;
+        case EB_bshl: out = LLVMBuildShl(ctx->b, v_args[0], v_args[1], ""); break;
+        case EB_bshr: out = LLVMBuildLShr(ctx->b, v_args[0], v_args[1], ""); break;
+        case EB_bcmpEQ: out = LLVMBuildICmp(ctx->b, LLVMIntEQ, v_args[0], v_args[1], ""); break;
+        case EB_bcmpNE: out = LLVMBuildICmp(ctx->b, LLVMIntNE, v_args[0], v_args[1], ""); break;
+        case EB_bcmpGT: out = LLVMBuildICmp(ctx->b, LLVMIntUGT, v_args[0], v_args[1], ""); break;
+        case EB_bcmpLT: out = LLVMBuildICmp(ctx->b, LLVMIntULT, v_args[0], v_args[1], ""); break;
+        case EB_bcmpGE: out = LLVMBuildICmp(ctx->b, LLVMIntUGE, v_args[0], v_args[1], ""); break;
+        case EB_bcmpLE: out = LLVMBuildICmp(ctx->b, LLVMIntULE, v_args[0], v_args[1], ""); break;
+        case EB_bneg: out = LLVMBuildNeg(ctx->b, v_args[0], ""); break;
+        case EB_bnot: out = LLVMBuildNot(ctx->b, v_args[0], ""); break;
+    }
+    return Control_plain(out);
+}
+
 static struct Control lower_TET_Call(struct FCtx* ctx, struct tst_ExprCall* expr) {
+    if (expr->name.tag == TET_Builtin)
+        return lower_builtin_call(ctx, expr->name.builtin, expr->args);
+
     struct Control name = lower_expr(&expr->name, ctx);
     if (name.tag == CT_Return || name.tag == CT_Break) return name;
     struct Control args = lower_expr(&expr->args, ctx);
     if (args.tag == CT_Return || args.tag == CT_Break) return args;
-    LLVMValueRef res = LLVMBuildCall2(ctx->b, LLVMTypeOf(name.val), name.val, &args.val, 1, "");
+    LLVMValueRef res = LLVMBuildCall2(ctx->b, LLVMGlobalGetValueType(name.val), name.val, &args.val, 1, "");
     return Control_plain(res);
 }
 
 static struct Control lower_TET_Recall(struct FCtx* ctx, const char* lit) {
     for (ll_iter(head, ctx->lets)) {
         if (head->name == lit) {
-            return Control_plain(LLVMBuildLoad2(ctx->b, LLVMTypeOf(head->slot), head->slot, head->name));
+            return Control_plain(LLVMBuildLoad2(ctx->b, head->type, head->slot, head->name));
         }
     }
     for (ll_iter(head, ctx->ctx->funcs)) {
@@ -306,7 +365,7 @@ static struct Control lower_TET_Recall(struct FCtx* ctx, const char* lit) {
     assert(false && "no such name found, something in typer must've gone wrong!");
 }
 
-static struct Control lower_TET_Comma(struct FCtx* ctx, struct tst_ExprComma* expr, struct tst_Type *type) {
+static struct Control lower_TET_Comma(struct FCtx* ctx, struct tst_ExprComma* expr, struct tst_Type* type) {
     LLVMTypeRef llvm_type = lower_type(ctx->ctx, type);
     LLVMValueRef comma = LLVMGetUndef(llvm_type);
     struct Control lhs = lower_expr(&expr->lhs, ctx);
@@ -316,6 +375,10 @@ static struct Control lower_TET_Comma(struct FCtx* ctx, struct tst_ExprComma* ex
     comma = LLVMBuildInsertValue(ctx->b, comma, lhs.val, 0, "");
     comma = LLVMBuildInsertValue(ctx->b, comma, rhs.val, 1, "");
     return Control_plain(comma);
+}
+
+static struct Control lower_TET_Builtin(struct FCtx* ctx, enum tst_ExprBuiltin built) {
+    assert(false && "should not be called");
 }
 
 static struct Control lower_TST_Let(struct FCtx* ctx, struct tst_ExprLet* expr) {
@@ -355,29 +418,37 @@ static struct Control lower_TST_Assign(struct FCtx* ctx, struct tst_ExprAssign* 
 }
 
 static struct Control lower_TST_Const(struct FCtx* ctx, struct tst_Expr* body) {
-    lower_expr(body, ctx);
+    struct Control v = lower_expr(body, ctx);
+    if (v.tag == CT_Break || v.tag == CT_Return) return v;
     return Control_plain(ctx->ctx->v_unit);
 }
 
 static void lower_binding(
-    struct tst_Binding *binding, struct FCtx *ctx, LLVMValueRef val
+    struct tst_Binding* binding,
+    struct FCtx* ctx,
+    LLVMValueRef val
 ) {
     switch (binding->tag) {
-    case TBT_Empty: return;
-    case TBT_Name: {
-        LLVMValueRef loc = LLVMBuildAlloca(
-            ctx->b, lower_type(ctx->ctx, &binding->name.type), ""
-        );
-        LLVMBuildStore(ctx->b, val, loc);
-        struct LetsLL *tmp = serene_alloc(ctx->ctx->alloc, struct LetsLL);
-        assert(tmp && "OOM");
-        tmp->next = ctx->lets;
-        tmp->name = binding->name.name;
-        tmp->slot = loc;
-        ctx->lets = tmp;
-        return;
-    }
-    case TBT_Comma:
-        assert(false && "TODO");
+        case TBT_Empty: return;
+        case TBT_Name: {
+            LLVMTypeRef type = lower_type(ctx->ctx, &binding->name.type);
+            LLVMValueRef loc = LLVMBuildAlloca(ctx->b, type, "");
+            LLVMBuildStore(ctx->b, val, loc);
+            struct LetsLL* tmp = serene_alloc(ctx->ctx->alloc, struct LetsLL);
+            assert(tmp && "OOM");
+            tmp->next = ctx->lets;
+            tmp->name = binding->name.name;
+            tmp->slot = loc;
+            tmp->type = type;
+            ctx->lets = tmp;
+            return;
+        }
+        case TBT_Comma: {
+            LLVMValueRef lhs = LLVMBuildExtractValue(ctx->b, val, 0, "");
+            lower_binding(binding->comma.lhs, ctx, lhs);
+            LLVMValueRef rhs = LLVMBuildExtractValue(ctx->b, val, 1, "");
+            lower_binding(binding->comma.rhs, ctx, rhs);
+            return;
+        }
     }
 }

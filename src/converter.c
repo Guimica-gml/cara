@@ -58,10 +58,11 @@ convert_func(struct Context *ctx, struct Function func) {
     };
 }
 
-static struct tst_Expr convert_ET_If(struct Context *ctx, struct ExprIf *expr, struct tst_Type type),
-    convert_ET_Loop(struct Context *ctx, struct Expr *body, struct tst_Type type),
-    convert_ET_Bareblock(struct Context *ctx, struct ExprsLL *body, struct tst_Type type),
-    convert_ET_Call(struct Context *ctx, struct ExprCall *expr, struct tst_Type type),
+static struct tst_Expr convert_ET_If(struct Context* ctx, struct ExprIf* expr, struct tst_Type type),
+    convert_ET_Loop(struct Context* ctx, struct Expr* body, struct tst_Type type),
+    convert_ET_Bareblock(struct Context* ctx, struct ExprsLL* body, struct tst_Type type),
+    convert_ET_Call(struct Context* ctx, struct ExprCall* expr, struct tst_Type type),
+    convert_ET_Recall(struct Context *ctx, const char *lit, struct tst_Type type),
     convert_ET_Comma(struct Context *ctx, struct ExprComma *expr, struct tst_Type type),
     convert_ST_Let(struct Context *ctx, struct ExprLet *expr, struct tst_Type type),
     convert_ST_Break(struct Context *ctx, struct Expr *body, struct tst_Type type),
@@ -80,6 +81,7 @@ static struct tst_Expr convert_expr(struct Context *ctx, struct Expr *expr) {
         Case(ET_Loop, expr->loop, type);
         Case(ET_Bareblock, expr->bareblock, type);
         Case(ET_Call, expr->call, type);
+        Case(ET_Recall, expr->lit, type);
         Case(ET_Comma, expr->comma, type);
         Case(ST_Break, expr->break_stmt, type);
         Case(ST_Return, expr->return_stmt, type);
@@ -104,11 +106,6 @@ static struct tst_Expr convert_expr(struct Context *ctx, struct Expr *expr) {
         .tag = TET_BoolLit,
         .type = type,
         .lit = expr->lit,
-    };
-    case ET_Recall: return (struct tst_Expr){
-        .tag = TET_Recall,
-        .type = type,
-        .lit = expr->lit
     };
     case ET_Unit: return (struct tst_Expr){
         .tag = TET_Unit,
@@ -151,6 +148,7 @@ static struct tst_Expr convert_ET_Bareblock(struct Context* ctx, struct ExprsLL*
         struct tst_ExprsLL* tmp =
             serene_alloc(ctx->alloc, struct tst_ExprsLL);
         assert(tmp && "OOM");
+        *tmp = (struct tst_ExprsLL){0};
         if (!last)
             new = tmp;
         else
@@ -176,6 +174,42 @@ static struct tst_Expr convert_ET_Call(struct Context* ctx, struct ExprCall* exp
         .type = type,
         .call = call,
     };
+}
+
+
+static struct tst_Expr convert_ET_Recall(struct Context* ctx, const char* lit, struct tst_Type type) {
+#define builtin(sym) \
+    (lit == ctx->intern->syms.sym)
+#define mk_builtin(def) \
+    { return (struct tst_Expr){.tag = TET_Builtin, .builtin = def}; }
+
+    if builtin (s_badd) mk_builtin(EB_badd);
+    if builtin (s_bsub) mk_builtin(EB_bsub);
+    if builtin (s_bmul) mk_builtin(EB_bmul);
+    if builtin (s_bdiv) mk_builtin(EB_bdiv);
+    if builtin (s_bmod) mk_builtin(EB_bmod);
+    if builtin (s_bneg) mk_builtin(EB_bneg);
+    if builtin (s_band) mk_builtin(EB_band);
+    if builtin (s_bor) mk_builtin(EB_bor);
+    if builtin (s_bxor) mk_builtin(EB_bxor);
+    if builtin (s_bnot) mk_builtin(EB_bnot);
+    if builtin (s_bshl) mk_builtin(EB_bshl);
+    if builtin (s_bshr) mk_builtin(EB_bshr);
+    if builtin (s_bcmpEQ) mk_builtin(EB_bcmpEQ);
+    if builtin (s_bcmpNE) mk_builtin(EB_bcmpNE);
+    if builtin (s_bcmpGT) mk_builtin(EB_bcmpGT);
+    if builtin (s_bcmpLT) mk_builtin(EB_bcmpLT);
+    if builtin (s_bcmpGE) mk_builtin(EB_bcmpGE);
+    if builtin (s_bcmpLE) mk_builtin(EB_bcmpLE);
+
+    return (struct tst_Expr){
+        .tag = TET_Recall,
+        .type = type,
+        .lit = lit
+    };
+
+#undef mk_builtin
+#undef builtin
 }
 
 static struct tst_Expr convert_ET_Comma(struct Context* ctx, struct ExprComma* expr, struct tst_Type type) {

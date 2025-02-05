@@ -66,6 +66,7 @@ enum tst_ExprTag {
     TET_StringLit,
     TET_BoolLit,
     TET_Comma,
+    TET_Builtin,
 
     TST_Let,
     TST_Break,
@@ -78,6 +79,26 @@ struct tst_ExprCall;
 struct tst_ExprComma;
 struct tst_ExprLet;
 struct tst_ExprAssign;
+enum tst_ExprBuiltin {
+    EB_badd,
+    EB_bsub,
+    EB_bmul,
+    EB_bdiv,
+    EB_bmod,
+    EB_bneg,
+    EB_band,
+    EB_bor,
+    EB_bxor,
+    EB_bnot,
+    EB_bshl,
+    EB_bshr,
+    EB_bcmpEQ,
+    EB_bcmpNE,
+    EB_bcmpGT,
+    EB_bcmpLT,
+    EB_bcmpGE,
+    EB_bcmpLE,
+};
 
 struct tst_Expr {
     enum tst_ExprTag tag;
@@ -87,7 +108,8 @@ struct tst_Expr {
         struct tst_ExprCall* call;
         struct tst_ExprComma *comma;
         struct tst_Expr *loop;
-        struct tst_ExprsLL *bareblock;
+        struct tst_ExprsLL* bareblock;
+        enum tst_ExprBuiltin builtin;
         const char *lit;
 
         struct tst_ExprLet* let;
