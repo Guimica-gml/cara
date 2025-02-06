@@ -60,8 +60,8 @@ struct Ast parse(
     };
     struct FunctionsLL *funcs = NULL;
 
-    while (ctx.toks.len) {
-        switch (ctx.toks.buf[0].kind) {
+    while (true) {
+        switch (Tokenstream_peek(&ctx.toks).kind) {
         case TK_Func: {
             struct FunctionsLL *tmp = serene_alloc(alloc, struct FunctionsLL);
             assert(tmp && "OOM");
@@ -75,7 +75,7 @@ struct Ast parse(
         }
     }
 after:
-    assert(ctx.toks.len == 0);
+	assert(Tokenstream_peek(&ctx.toks).kind == TK_EOF);
 
     return (struct Ast){
         .funcs = funcs,
@@ -90,7 +90,7 @@ static struct Function decls_function(struct Context *ctx) {
 
     assert(Tokenstream_drop_text(&ctx->toks, "func"));
 
-    assert(ctx->toks.len), name = ctx->toks.buf[0].spelling;
+	name = Tokenstream_peek(&ctx->toks).spelling;
     assert(Tokenstream_drop_kind(&ctx->toks, TK_Name));
 
     args = binding_parenthesised(ctx);
@@ -107,13 +107,11 @@ static struct Function decls_function(struct Context *ctx) {
         Tokenstream_drop_text(&ctx->toks, ";");
     };
 
-    return (struct Function
-    ){.name = name, .args = args, .ret = ret, .body = body};
+    return (struct Function){.name = name, .args = args, .ret = ret, .body = body};
 }
 
 static struct Type const *type(struct Context *ctx) {
-    assert(ctx->toks.len);
-    if (ctx->toks.buf[0].kind == TK_Func)
+    if (Tokenstream_peek(&ctx->toks).kind == TK_Func)
         return type_func(ctx);
     return type_op(ctx, 0);
 }
@@ -129,8 +127,7 @@ static struct Type const *type_func(struct Context *ctx) {
 static struct Type const *type_op(struct Context *ctx, unsigned prec) {
     struct Type const *left;
 
-    assert(ctx->toks.len);
-    switch (ctx->toks.buf[0].kind) {
+    switch (Tokenstream_peek(&ctx->toks).kind) {
     case TK_Name:
     case TK_OpenParen:
         left = type_atom(ctx);
@@ -149,14 +146,13 @@ static struct Type const *type_op_left(struct Context *ctx) {
     struct Type const *args;
     struct Type const *name;
 
-    assert(ctx->toks.len);
     for (size_t i = 0; i < ctx->ops.len; i++) {
         if (ctx->ops.buf[i].lbp >= 0 || ctx->ops.buf[i].rbp < 0)
             continue;
-        if (ctx->toks.buf[0].spelling != ctx->ops.buf[i].token)
+        if (Tokenstream_peek(&ctx->toks).spelling != ctx->ops.buf[i].token)
             continue;
 
-        name = Type_recall(ctx->intern, ctx->toks.buf[0].spelling);
+        name = Type_recall(ctx->intern, Tokenstream_peek(&ctx->toks).spelling);
 
         assert(Tokenstream_drop(&ctx->toks));
         args = type_op(ctx, ctx->ops.buf[i].rbp);
@@ -168,10 +164,7 @@ static struct Type const *type_op_left(struct Context *ctx) {
 }
 
 static bool type_op_right_first(struct Context *ctx, unsigned prec) {
-    if (!ctx->toks.len)
-        return false;
-
-    switch (ctx->toks.buf[0].kind) {
+    switch (Tokenstream_peek(&ctx->toks).kind) {
     case TK_OpenParen:
     case TK_Name:
         return true;
@@ -183,7 +176,7 @@ static bool type_op_right_first(struct Context *ctx, unsigned prec) {
         if (ctx->ops.buf[i].lbp < (int)prec)
             continue;
         // same as for type_op_left()
-        if (ctx->toks.buf[0].spelling != ctx->ops.buf[i].token)
+        if (Tokenstream_peek(&ctx->toks).spelling != ctx->ops.buf[i].token)
             continue;
         return true;
     }
@@ -193,11 +186,9 @@ static bool type_op_right_first(struct Context *ctx, unsigned prec) {
 
 static struct Type const *
 type_op_right(struct Context *ctx, struct Type const *left, unsigned prec) {
-    assert(ctx->toks.len);
-
     struct Type const *name;
     struct Type const *args;
-    switch (ctx->toks.buf[0].kind) {
+    switch (Tokenstream_peek(&ctx->toks).kind) {
     case TK_OpenParen:
     case TK_Name:
         name = left;
@@ -207,10 +198,10 @@ type_op_right(struct Context *ctx, struct Type const *left, unsigned prec) {
         for (size_t i = 0; i < ctx->ops.len; i++) {
             if (ctx->ops.buf[i].lbp < (int)prec)
                 continue;
-            if (ctx->toks.buf[0].spelling != ctx->ops.buf[i].token)
+            if (Tokenstream_peek(&ctx->toks).spelling != ctx->ops.buf[i].token)
                 continue;
 
-            name = Type_recall(ctx->intern, ctx->toks.buf[0].spelling);
+            name = Type_recall(ctx->intern, Tokenstream_peek(&ctx->toks).spelling);
             assert(Tokenstream_drop(&ctx->toks));
             if (ctx->ops.buf[i].rbp >= 0) {
                 const struct Type *right = type_op(ctx, ctx->ops.buf[i].rbp);
@@ -227,12 +218,11 @@ type_op_right(struct Context *ctx, struct Type const *left, unsigned prec) {
 }
 
 static const struct Type *type_atom(struct Context *ctx) {
-    assert(ctx->toks.len);
-    switch (ctx->toks.buf[0].kind) {
+    switch (Tokenstream_peek(&ctx->toks).kind) {
     case TK_OpenParen:
         return type_parenthesised(ctx);
     case TK_Name: {
-        const char *name = ctx->toks.buf[0].spelling;
+        const char *name = Tokenstream_peek(&ctx->toks).spelling;
         Tokenstream_drop(&ctx->toks);
 
         return Type_recall(ctx->intern, name);
@@ -245,7 +235,7 @@ static const struct Type *type_atom(struct Context *ctx) {
 static const struct Type *type_parenthesised(struct Context *ctx) {
     assert(Tokenstream_drop_text(&ctx->toks, "("));
     const struct Type *out = type(ctx);
-    while (ctx->toks.len && ctx->toks.buf[0].kind == TK_Comma) {
+    while (Tokenstream_peek(&ctx->toks).kind == TK_Comma) {
         assert(Tokenstream_drop(&ctx->toks));
         const struct Type *rhs = type(ctx);
         out = Type_comma(ctx->intern, out, rhs);
@@ -257,8 +247,7 @@ static const struct Type *type_parenthesised(struct Context *ctx) {
 static struct Binding binding(struct Context *ctx) { return binding_atom(ctx); }
 
 static struct Binding binding_atom(struct Context *ctx) {
-    assert(ctx->toks.len);
-    if (ctx->toks.buf[0].kind == TK_OpenParen) {
+    if (Tokenstream_peek(&ctx->toks).kind == TK_OpenParen) {
         return binding_parenthesised(ctx);
     }
     return binding_name(ctx);
@@ -267,10 +256,9 @@ static struct Binding binding_atom(struct Context *ctx) {
 static struct Binding binding_parenthesised(struct Context *ctx) {
     struct Binding out = {0};
     assert(Tokenstream_drop_text(&ctx->toks, "("));
-    assert(ctx->toks.len);
-    if (ctx->toks.buf[0].kind != TK_CloseParen) {
+    if (Tokenstream_peek(&ctx->toks).kind != TK_CloseParen) {
         out = binding(ctx);
-        while (ctx->toks.len && ctx->toks.buf[0].kind == TK_Comma) {
+        while (Tokenstream_peek(&ctx->toks).kind == TK_Comma) {
             assert(Tokenstream_drop(&ctx->toks));
             struct Binding *lhs = serene_alloc(ctx->alloc, struct Binding);
             struct Binding *rhs = serene_alloc(ctx->alloc, struct Binding);
@@ -295,9 +283,9 @@ static struct Binding binding_name(struct Context *ctx) {
     const struct Type *annot;
     const char *name;
 
-    assert(ctx->toks.len), name = ctx->toks.buf[0].spelling;
+	name = Tokenstream_peek(&ctx->toks).spelling;
     assert(Tokenstream_drop_kind(&ctx->toks, TK_Name));
-    if (ctx->toks.len && ctx->toks.buf[0].kind == TK_Colon) {
+    if (Tokenstream_peek(&ctx->toks).kind == TK_Colon) {
         assert(Tokenstream_drop(&ctx->toks));
         annot = type(ctx);
     } else {
@@ -312,8 +300,7 @@ static struct Binding binding_name(struct Context *ctx) {
 }
 
 static struct Expr expr_delimited(struct Context *ctx) {
-    assert(ctx->toks.len);
-    switch (ctx->toks.buf[0].kind) {
+    switch (Tokenstream_peek(&ctx->toks).kind) {
     case TK_If:
     case TK_Loop:
     case TK_OpenBrace: {
@@ -331,8 +318,7 @@ static struct Expr expr_delimited(struct Context *ctx) {
 }
 
 static struct Expr expr_any(struct Context *ctx) {
-    assert(ctx->toks.len);
-    switch (ctx->toks.buf[0].kind) {
+    switch (Tokenstream_peek(&ctx->toks).kind) {
     case TK_If:
     case TK_Loop:
     case TK_OpenBrace:
@@ -343,8 +329,7 @@ static struct Expr expr_any(struct Context *ctx) {
 }
 
 static struct Expr expr_block(struct Context *ctx) {
-    assert(ctx->toks.len);
-    switch (ctx->toks.buf[0].kind) {
+    switch (Tokenstream_peek(&ctx->toks).kind) {
     case TK_If:
         return expr_if(ctx);
     case TK_Loop:
@@ -399,7 +384,7 @@ static struct Expr expr_bareblock(struct Context *ctx) {
     const struct Type *type = ctx->intern->tsyms.t_unit;
 
     assert(Tokenstream_drop_text(&ctx->toks, "{"));
-    while (ctx->toks.len && ctx->toks.buf[0].kind != TK_CloseBrace) {
+    while (Tokenstream_peek(&ctx->toks).kind != TK_CloseBrace) {
         {
             struct ExprsLL *tmp = serene_alloc(ctx->alloc, struct ExprsLL);
             assert(tmp && "OOM");
@@ -435,8 +420,7 @@ static struct Expr expr_inline(struct Context *ctx) { return expr_op(ctx, 0); }
 static struct Expr expr_op(struct Context *ctx, unsigned prec) {
     struct Expr left;
 
-    assert(ctx->toks.len);
-    switch (ctx->toks.buf[0].kind) {
+    switch (Tokenstream_peek(&ctx->toks).kind) {
     case TK_Name:
     case TK_OpenParen:
     case TK_Number:
@@ -459,11 +443,10 @@ static struct Expr expr_op_left(struct Context *ctx) {
     struct ExprCall* call = serene_alloc(ctx->alloc, struct ExprCall);
     assert(call && "OOM");
 
-    assert(ctx->toks.len);
     for (size_t i = 0; i < ctx->ops.len; i++) {
         if (ctx->ops.buf[i].lbp >= 0 || ctx->ops.buf[i].rbp < 0)
             continue;
-        if (ctx->toks.buf[0].spelling != ctx->ops.buf[i].token)
+        if (Tokenstream_peek(&ctx->toks).spelling != ctx->ops.buf[i].token)
             continue;
 
         assert(Tokenstream_drop(&ctx->toks));
@@ -484,11 +467,9 @@ static struct Expr expr_op_left(struct Context *ctx) {
 }
 
 static bool expr_op_right_first(struct Context *ctx, unsigned prec) {
-    if (!ctx->toks.len)
-        return false;
-    if (prec == 0 && ctx->toks.buf[0].kind == TK_Comma)
+    if (prec == 0 && Tokenstream_peek(&ctx->toks).kind == TK_Comma)
         return true;
-    switch (ctx->toks.buf[0].kind) {
+    switch (Tokenstream_peek(&ctx->toks).kind) {
     case TK_OpenParen:
     case TK_Name:
     case TK_Number:
@@ -502,7 +483,7 @@ static bool expr_op_right_first(struct Context *ctx, unsigned prec) {
     for (size_t i = 0; i < ctx->ops.len; i++) {
         if (ctx->ops.buf[i].lbp < (int)prec)
             continue;
-        if (ctx->toks.buf[0].spelling != ctx->ops.buf[i].token)
+        if (Tokenstream_peek(&ctx->toks).spelling != ctx->ops.buf[i].token)
             continue;
         return true;
     }
@@ -511,9 +492,7 @@ static bool expr_op_right_first(struct Context *ctx, unsigned prec) {
 
 static struct Expr
 expr_op_right(struct Context *ctx, struct Expr left, unsigned prec) {
-
-    assert(ctx->toks.len);
-    if (prec == 0 && ctx->toks.buf[0].kind == TK_Comma) {
+    if (prec == 0 && Tokenstream_peek(&ctx->toks).kind == TK_Comma) {
         assert(Tokenstream_drop(&ctx->toks));
         struct ExprComma* comma = serene_alloc(ctx->alloc, struct ExprComma);
         assert(comma && "comma");
@@ -530,7 +509,7 @@ expr_op_right(struct Context *ctx, struct Expr left, unsigned prec) {
     struct ExprCall* call = serene_alloc(ctx->alloc, struct ExprCall);
     assert(call && "OOM");
 
-    switch (ctx->toks.buf[0].kind) {
+    switch (Tokenstream_peek(&ctx->toks).kind) {
     case TK_OpenParen:
     case TK_Name:
     case TK_Number:
@@ -548,7 +527,7 @@ expr_op_right(struct Context *ctx, struct Expr left, unsigned prec) {
         for (size_t i = 0; i < ctx->ops.len; i++) {
             if (ctx->ops.buf[i].lbp < (int)prec)
                 continue;
-            if (ctx->toks.buf[0].spelling != ctx->ops.buf[i].token)
+            if (Tokenstream_peek(&ctx->toks).spelling != ctx->ops.buf[i].token)
                 continue;
 
             assert(Tokenstream_drop(&ctx->toks));
@@ -591,8 +570,7 @@ static struct Expr expr_atom(struct Context *ctx) {
     enum ExprTag tag;
     const struct Type *type;
 
-    assert(ctx->toks.len);
-    switch (ctx->toks.buf[0].kind) {
+    switch (Tokenstream_peek(&ctx->toks).kind) {
     case TK_OpenParen: {
         assert(Tokenstream_drop(&ctx->toks));
         struct Expr tmp = expr_any(ctx);
@@ -619,7 +597,7 @@ static struct Expr expr_atom(struct Context *ctx) {
         assert(false && "unexpected token");
     }
 
-    const char *name = ctx->toks.buf[0].spelling;
+    const char *name = Tokenstream_peek(&ctx->toks).spelling;
     assert(Tokenstream_drop(&ctx->toks));
     return (struct Expr){
         .tag = tag,
@@ -629,8 +607,7 @@ static struct Expr expr_atom(struct Context *ctx) {
 }
 
 static struct Expr statement(struct Context *ctx) {
-    assert(ctx->toks.len);
-    switch (ctx->toks.buf[0].kind) {
+    switch (Tokenstream_peek(&ctx->toks).kind) {
     case TK_Let:
         return statement_let(ctx);
     case TK_Mut:
@@ -639,11 +616,14 @@ static struct Expr statement(struct Context *ctx) {
         return statement_break(ctx);
     case TK_Return:
         return statement_return(ctx);
-    case TK_Name:
-        if (ctx->toks.len > 1 && ctx->toks.buf[1].kind == TK_Equals) {
+    case TK_Name: {
+		struct Tokenstream tmp = ctx->toks;
+		assert(Tokenstream_drop(&tmp));
+		if (Tokenstream_peek(&tmp).kind == TK_Equals) {
             return statement_assign(ctx);
         }
         __attribute__((fallthrough));
+	}
     default: {
         return expr_any(ctx);
     }
@@ -686,7 +666,7 @@ static struct Expr statement_break(struct Context *ctx) {
     struct Expr *expr = NULL;
 
     assert(Tokenstream_drop_text(&ctx->toks, "break"));
-    if (ctx->toks.len && ctx->toks.buf[0].kind != TK_Semicolon) {
+    if (Tokenstream_peek(&ctx->toks).kind != TK_Semicolon) {
         expr = serene_alloc(ctx->alloc, struct Expr);
         assert(expr && "OOM");
         *expr = expr_any(ctx);
@@ -704,7 +684,7 @@ static struct Expr statement_return(struct Context *ctx) {
     assert(expr);
 
     assert(Tokenstream_drop_text(&ctx->toks, "return"));
-    if (ctx->toks.len && ctx->toks.buf[0].kind != TK_Semicolon) {
+    if (Tokenstream_peek(&ctx->toks).kind != TK_Semicolon) {
         *expr = expr_any(ctx);
     } else {
         *expr = (struct Expr){0};
@@ -722,7 +702,7 @@ static struct Expr statement_assign(struct Context *ctx) {
     struct ExprAssign* assign = serene_alloc(ctx->alloc, struct ExprAssign);
     assert(assign && "OOM");
 
-    assert(ctx->toks.len), assign->name = ctx->toks.buf[0].spelling;
+	assign->name = Tokenstream_peek(&ctx->toks).spelling;
     assert(Tokenstream_drop_kind(&ctx->toks, TK_Name));
     assert(Tokenstream_drop_text(&ctx->toks, "="));
     assign->expr = expr_any(ctx);
