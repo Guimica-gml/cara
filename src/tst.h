@@ -70,6 +70,7 @@ enum tst_ExprTag {
     TET_StringLit,
     TET_BoolLit,
     TET_Tuple,
+    TET_Cast,
     TET_Builtin,
 
     TST_Let,
@@ -81,6 +82,7 @@ enum tst_ExprTag {
 struct tst_ExprIf;
 struct tst_ExprCall;
 struct tst_ExprTuple;
+struct tst_ExprCast;
 struct tst_ExprLet;
 struct tst_ExprAssign;
 enum tst_ExprBuiltin {
@@ -102,6 +104,7 @@ enum tst_ExprBuiltin {
     EB_bcmpLT,
     EB_bcmpGE,
     EB_bcmpLE,
+    EB_syscall,
 };
 
 struct tst_Expr {
@@ -110,7 +113,8 @@ struct tst_Expr {
     union {
         struct tst_ExprIf *if_expr;
         struct tst_ExprCall* call;
-        struct tst_ExprTuple *tuple;
+        struct tst_ExprTuple* tuple;
+        struct tst_ExprCast* cast;
         struct tst_Expr *loop;
         struct tst_ExprsLL* bareblock;
         enum tst_ExprBuiltin builtin;
@@ -140,6 +144,10 @@ struct tst_ExprCall {
 struct tst_ExprTuple {
     struct tst_ExprTuple *next;
     struct tst_Expr current;
+};
+struct tst_ExprCast {
+    struct tst_Type type;
+    struct tst_Expr expr;
 };
 struct tst_ExprLet {
     struct tst_Binding bind;

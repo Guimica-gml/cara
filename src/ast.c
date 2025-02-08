@@ -137,11 +137,12 @@ static void Binding_print(struct Binding *binding) {
     }
 }
 
-static void print_ET_If(struct ExprIf *expr, int level),
-    print_ET_Loop(struct Expr *body, int level),
-    print_ET_Bareblock(struct ExprsLL *body, int level),
-    print_ET_Call(struct ExprCall *expr, int level),
-    print_ET_Tuple(struct ExprTuple *expr, int level),
+static void print_ET_If(struct ExprIf* expr, int level),
+    print_ET_Loop(struct Expr* body, int level),
+    print_ET_Bareblock(struct ExprsLL* body, int level),
+    print_ET_Call(struct ExprCall* expr, int level),
+    print_ET_Tuple(struct ExprTuple* expr, int level),
+    print_ET_Cast(struct ExprCast* expr, int level),
     print_ST_Let(struct ExprLet *expr, int level),
     print_ST_Mut(struct ExprLet *expr, int level),
     print_ST_Break(struct Expr *expr, int level),
@@ -159,6 +160,7 @@ static void Expr_print(struct Expr *expr, int level) {
         Case(ET_Bareblock, expr->bareblock, level);
         Case(ET_Call, expr->call, level);
         Case(ET_Tuple, expr->tuple, level);
+        Case(ET_Cast, expr->cast, level);
 
         Case(ST_Let, expr->let, level);
         Case(ST_Mut, expr->let, level);
@@ -226,6 +228,12 @@ static void print_ET_Tuple(struct ExprTuple* expr, int level) {
         Expr_print(&head->current, level);
     }
     printf(")");
+}
+
+static void print_ET_Cast(struct ExprCast* expr, int level) {
+    Expr_print(&expr->expr, level);
+    printf(" as ");
+    Type_print(expr->type);
 }
 
 static void print_ST_Let(struct ExprLet *expr, int level) {

@@ -1,7 +1,32 @@
 
-func print(s: string): string = s;
+func print(s: int, l: int): int {
+    __builtin_syscall(1, 1, s, l, 0, 0, 0)
+}
 
-func main() {
-    print("Hello World!");
-    return;
+func read(s: int, l: int): int {
+    __builtin_syscall(0, 0, s, l, 0, 0, 0)
+}
+
+func mmap(addr: int, len: int, prot: int, flags: int, fd: int, off: int): int {
+    __builtin_syscall(9, addr, len, prot, fd, off, flags)
+}
+
+func main(): int {
+    let out = print(
+        "Hello World!
+        as int,
+        14
+    );
+
+    let size = 64;
+    let in = mmap(
+        0,
+        size,
+        __builtin_or(1, 2),
+        __builtin_or(__builtin_or(2, 32), 32768),
+        0,
+        0
+    );
+    read(in, size);
+    print(in, size)
 }

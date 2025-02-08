@@ -67,6 +67,7 @@ static struct tst_Expr convert_ET_If(struct Context* ctx, struct ExprIf* expr, s
     convert_ET_Call(struct Context* ctx, struct ExprCall* expr, struct tst_Type type),
     convert_ET_Recall(struct Context *ctx, const char *lit, struct tst_Type type),
     convert_ET_Tuple(struct Context *ctx, struct ExprTuple *expr, struct tst_Type type),
+    convert_ET_Cast(struct Context *ctx, struct ExprCast *expr, struct tst_Type type),
     convert_ST_Let(struct Context *ctx, struct ExprLet *expr, struct tst_Type type),
     convert_ST_Break(struct Context *ctx, struct Expr *body, struct tst_Type type),
     convert_ST_Return(struct Context *ctx, struct Expr *body, struct tst_Type type),
@@ -86,6 +87,7 @@ static struct tst_Expr convert_expr(struct Context *ctx, struct Expr *expr) {
         Case(ET_Call, expr->call, type);
         Case(ET_Recall, expr->lit, type);
         Case(ET_Tuple, expr->tuple, type);
+        Case(ET_Cast, expr->cast, type);
         Case(ST_Break, expr->break_stmt, type);
         Case(ST_Return, expr->return_stmt, type);
         Case(ST_Assign, expr->assign, type);
@@ -204,6 +206,7 @@ static struct tst_Expr convert_ET_Recall(struct Context* ctx, const char* lit, s
     if builtin (s_bcmpLT) mk_builtin(EB_bcmpLT);
     if builtin (s_bcmpGE) mk_builtin(EB_bcmpGE);
     if builtin (s_bcmpLE) mk_builtin(EB_bcmpLE);
+    if builtin (s_syscall) mk_builtin(EB_syscall);
 
     return (struct tst_Expr){
         .tag = TET_Recall,
@@ -231,6 +234,18 @@ static struct tst_Expr convert_ET_Tuple(struct Context* ctx, struct ExprTuple* e
         .tag = TET_Tuple,
         .type = type,
         .tuple = list,
+    };
+}
+
+static struct tst_Expr convert_ET_Cast(struct Context* ctx, struct ExprCast* expr, struct tst_Type type) {
+    struct tst_ExprCast* cast = serene_alloc(ctx->alloc, struct tst_ExprCast);
+    assert(cast && "OOM");
+    cast->expr = convert_expr(ctx, &expr->expr);
+    cast->type = convert_type(ctx, expr->type, NULL);
+    return (struct tst_Expr) {
+        .tag = TET_Cast,
+        .type = cast->type,
+        .cast = cast,
     };
 }
 

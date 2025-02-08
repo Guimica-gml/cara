@@ -425,7 +425,20 @@ static struct Expr expr_bareblock(struct Context *ctx) {
     return (struct Expr){.tag = ET_Bareblock, .type = type, .bareblock = block};
 }
 
-static struct Expr expr_inline(struct Context *ctx) { return expr_op(ctx, 0); }
+static struct Expr expr_inline(struct Context* ctx) {
+    struct Expr out = expr_op(ctx, 0);
+    if (Tokenstream_peek(&ctx->toks).kind != TK_As) return out;
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_As));
+    struct ExprCast* cast = serene_alloc(ctx->alloc, struct ExprCast);
+    assert(cast && "OOM");
+    cast->type = type(ctx);
+    cast->expr = out;
+    return (struct Expr) {
+        .tag = ET_Cast,
+        .type = cast->type,
+        .cast = cast,
+    };
+}
 
 static struct Expr expr_op(struct Context *ctx, unsigned prec) {
     struct Expr left;

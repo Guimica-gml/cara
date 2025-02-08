@@ -80,6 +80,17 @@ void typecheck(
         );
         Type int2_to_int = Type_func(globals.intern, int2, t_int);
         Type int2_to_bool = Type_func(globals.intern, int2, t_bool);
+        Type int7_to_int;
+        {
+            Type int2 = Type_tuple_extend(globals.intern, t_int, t_int);
+            Type int3 = Type_tuple_extend(globals.intern, int2, t_int);
+            Type int4 = Type_tuple_extend(globals.intern, int3, t_int);
+            Type int5 = Type_tuple_extend(globals.intern, int4, t_int);
+            Type int6 = Type_tuple_extend(globals.intern, int5, t_int);
+            Type int7 = Type_tuple_extend(globals.intern, int6, t_int);
+            Type tint7 = Type_call(globals.intern, globals.intern->tsyms.t_star, int7);
+            int7_to_int = Type_func(globals.intern, tint7, t_int);
+        }
         struct {
             const char* name;
             Type type;
@@ -102,6 +113,7 @@ void typecheck(
             {.name = intern->syms.s_bcmpLT, .type = int2_to_bool},
             {.name = intern->syms.s_bcmpGE, .type = int2_to_bool},
             {.name = intern->syms.s_bcmpLE, .type = int2_to_bool},
+            {.name = intern->syms.s_syscall, .type = int7_to_int},
         };
         for (unsigned int i = 0; i < sizeof(builtins) / sizeof(builtins[0]); i++) {
             struct GlobalsLL* tmp = serene_alloc(alloc, struct GlobalsLL);
@@ -147,13 +159,16 @@ static void typecheck_func(struct Globals globals, struct Function *func) {
     fill_expr(&ctx, &func->body);
 }
 
-static Type typecheck_ET_If(struct Context *ctx, struct ExprIf *expr),
-    typecheck_ET_Loop(struct Context *ctx, struct Expr *body, Type type),
+static Type typecheck_ET_If(struct Context* ctx, struct ExprIf* expr),
+    typecheck_ET_Loop(struct Context* ctx, struct Expr* body, Type type),
     typecheck_ET_Bareblock(
-        struct Context *ctx, struct ExprsLL *body, Type type
+        struct Context* ctx,
+        struct ExprsLL* body,
+        Type type
     ),
-    typecheck_ET_Call(struct Context *ctx, struct ExprCall *expr, Type type),
-    typecheck_ET_Recall(struct Context *ctx, const char *lit, Type type),
+    typecheck_ET_Call(struct Context* ctx, struct ExprCall* expr, Type type),
+    typecheck_ET_Recall(struct Context* ctx, const char* lit, Type type),
+    typecheck_ET_Cast(struct Context *ctx, struct ExprCast *cast, Type type),
     typecheck_ST_Assign(
         struct Context *ctx, struct ExprAssign *expr, Type type
     ),
@@ -176,6 +191,7 @@ static Type typecheck_expr(struct Context *ctx, struct Expr *expr) {
         Case(ET_Call, expr->call, expr->type);
         Case(ET_Recall, expr->lit, expr->type);
         Case(ET_Tuple, expr->tuple, expr->type);
+        Case(ET_Cast, expr->cast, expr->type);
 
         Case(ST_Let, expr->let, expr->type);
         Case(ST_Mut, expr->let, expr->type);
@@ -276,6 +292,11 @@ static Type typecheck_ET_Tuple(
     return type;
 }
 
+static Type typecheck_ET_Cast(struct Context* ctx, struct ExprCast* cast, Type type) {
+    typecheck_expr(ctx, &cast->expr);
+    return type;
+}
+
 static Type typecheck_ST_Let(struct Context* ctx, struct ExprLet* let, Type type) {
     (void) type;
     Type it = typecheck_expr(ctx, &let->init);
@@ -323,10 +344,11 @@ static Type typecheck_ST_Assign(
     assert(false && "no such variable declared!");
 }
 
-static void fill_ET_If(struct Context *ctx, struct ExprIf *expr),
-    fill_ET_Bareblock(struct Context *ctx, struct ExprsLL *body),
-    fill_ET_Call(struct Context *ctx, struct ExprCall *expr),
-    fill_ET_Tuple(struct Context *ctx, struct ExprTuple *expr),
+static void fill_ET_If(struct Context* ctx, struct ExprIf* expr),
+    fill_ET_Bareblock(struct Context* ctx, struct ExprsLL* body),
+    fill_ET_Call(struct Context* ctx, struct ExprCall* expr),
+    fill_ET_Tuple(struct Context* ctx, struct ExprTuple* expr),
+    fill_ET_Cast(struct Context* ctx, struct ExprCast *cast),
     fill_ST_Let(struct Context *ctx, struct ExprLet *let);
 
 static void fill_expr(struct Context *ctx, struct Expr *expr) {
@@ -342,6 +364,7 @@ static void fill_expr(struct Context *ctx, struct Expr *expr) {
         Case(ET_Bareblock, expr->bareblock);
         Case(ET_Call, expr->call);
         Case(ET_Tuple, expr->tuple);
+        Case(ET_Cast, expr->cast);
 
     case ST_Mut:
         Case(ST_Let, expr->let);
@@ -393,6 +416,11 @@ static void fill_ET_Tuple(struct Context* ctx, struct ExprTuple* expr) {
     for (ll_iter(head, expr)) {
         fill_expr(ctx, &head->current);
     }
+}
+
+static void fill_ET_Cast(struct Context* ctx, struct ExprCast* cast) {
+    fill_expr(ctx, &cast->expr);
+    cast->type = fill_type(ctx, cast->type);
 }
 
 static void fill_ST_Let(struct Context *ctx, struct ExprLet *let) {

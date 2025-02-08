@@ -76,6 +76,7 @@ enum ExprTag {
     ET_StringLit,
     ET_BoolLit,
     ET_Tuple,
+    ET_Cast,
 
     ST_Let,
     ST_Mut,
@@ -87,6 +88,7 @@ enum ExprTag {
 struct ExprIf;
 struct ExprCall;
 struct ExprTuple;
+struct ExprCast;
 struct ExprLet;
 struct ExprAssign;
 
@@ -100,6 +102,7 @@ struct Expr {
         struct Expr *loop;
         struct ExprsLL *bareblock;
         const char *lit;
+        struct ExprCast *cast;
 
         struct ExprLet *let;
         struct ExprAssign *assign;
@@ -126,6 +129,10 @@ struct ExprCall {
 struct ExprTuple {
     struct ExprTuple *next;
     struct Expr current;
+};
+struct ExprCast {
+    const struct Type* type;
+    struct Expr expr;
 };
 struct ExprLet {
     struct Binding bind;

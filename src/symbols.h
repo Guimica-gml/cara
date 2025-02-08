@@ -32,6 +32,7 @@ struct Symbols {
     const char* s_bcmpLT;
     const char* s_bcmpGE;
     const char* s_bcmpLE;
+    const char* s_syscall;
 };
 
 struct Symbols populate_interner(struct serene_Allocator, struct Intern *);
