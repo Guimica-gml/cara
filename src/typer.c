@@ -278,6 +278,7 @@ typecheck_ET_Recall(struct Context *ctx, const char *lit, Type type) {
             );
         }
     }
+    printf("%s\n", lit);
     assert(false && "no such name!");
 }
 

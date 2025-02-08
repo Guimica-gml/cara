@@ -288,6 +288,7 @@ static struct Control lower_TET_Loop(struct FCtx* ctx, struct tst_Expr* body, st
     tmp->v_break = v_break;
     tmp->type = t_break;
     tmp->post = b_post;
+    ctx->loops = tmp;
     LLVMBuildBr(ctx->b, b_loop);
     LLVMPositionBuilderAtEnd(ctx->b, b_loop);
     struct Control v = lower_expr(body, ctx);

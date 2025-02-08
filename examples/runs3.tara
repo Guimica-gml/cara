@@ -1,0 +1,3 @@
+func main(): int {
+    __builtin_not 0
+}

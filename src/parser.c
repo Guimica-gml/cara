@@ -724,6 +724,14 @@ static struct Expr statement_break(struct Context *ctx) {
         expr = serene_alloc(ctx->alloc, struct Expr);
         assert(expr && "OOM");
         *expr = expr_any(ctx);
+    } else {
+        expr = serene_alloc(ctx->alloc, struct Expr);
+        assert(expr && "OOM");
+        *expr = (struct Expr) {
+            .tag = ET_Tuple,
+            .type = ctx->intern->tsyms.t_unit,
+            .tuple = NULL,
+        };
     }
 
     return (struct Expr){

@@ -1,0 +1,57 @@
+func print(s: int, l: int): int {
+    __builtin_syscall(1, 1, s, l, 0, 0, 0)
+}
+
+func print_arr(n: int) {
+    mut i = 0;
+    loop {
+        if __builtin_cmp_ge(i, 64) {
+            break;
+        };
+        if __builtin_cmp_eq(__builtin_and(__builtin_shr(n, i), 1), 1) {
+            mut s: int = "*" as int;
+            s = __builtin_add(s, 1);
+            print(s, 1);
+        } else {
+            mut s: int = " " as int;
+            s = __builtin_add(s, 1);
+            print(s, 1);
+        };
+        i = __builtin_add(i, 1);
+    };
+    mut s: int = "
+    as int;
+    s = __builtin_add(s, 1);
+    print(s, 1);
+}
+
+func main() {
+    let trans: int = 110;
+    mut arr: int = 1;
+    print_arr(arr);
+    mut i = 0;
+    loop {
+        if __builtin_cmp_ge(i, 64) {
+            break;
+        };
+        mut j = 2;
+        mut tmp = arr;
+        loop {
+            if __builtin_cmp_ge(j, 64) {
+                break;
+            };
+            let idx = __builtin_and(__builtin_shr(arr, __builtin_sub(j, 2)), 7);
+            let state = __builtin_and(__builtin_shr(trans, idx), 1);
+            let mask = __builtin_shl(1, __builtin_sub(j, 1));
+            if __builtin_cmp_eq(state, 0) {
+                tmp = __builtin_and(tmp, __builtin_not mask);
+            } else {
+                tmp = __builtin_or(tmp, mask);
+            };
+            j = __builtin_add(j, 1);
+        };
+        arr = tmp;
+        i = __builtin_add(i, 1);
+        print_arr(arr);
+    };
+}
