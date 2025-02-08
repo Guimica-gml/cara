@@ -25,7 +25,7 @@ func print_arr(n: int) {
     print(s, 1);
 }
 
-func main() {
+func main(): int {
     let trans: int = 110;
     mut arr: int = 1;
     print_arr(arr);
@@ -54,4 +54,10 @@ func main() {
         i = __builtin_add(i, 1);
         print_arr(arr);
     };
+    0
+}
+
+func _start() {
+    let code = main();
+    __builtin_syscall(60, code, 0, 0, 0, 0, 0);
 }

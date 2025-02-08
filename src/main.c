@@ -84,33 +84,6 @@ int main(int argc, char **argv) {
     serene_Arena_deinit(&codegen_arena);
     serene_Arena_deinit(&tst_arena);
 
-    {
-        LLVMValueRef _start = LLVMAddFunction(
-            mod,
-            "_start",
-            LLVMFunctionType(LLVMVoidType(), NULL, 0, false)
-        );
-        LLVMBasicBlockRef entry = LLVMAppendBasicBlock(_start, "entry");
-        LLVMBuilderRef builder = LLVMCreateBuilder();
-        LLVMPositionBuilderAtEnd(builder, entry);
-
-        LLVMTypeRef i64 = LLVMInt64Type();
-        LLVMTypeRef t_main = LLVMFunctionType(i64, NULL, 0, false);
-        LLVMValueRef v_main = LLVMGetNamedFunction(mod, "main");
-        LLVMValueRef ret = LLVMBuildCall2(builder, t_main, v_main, NULL, 0, "run");
-
-        char syscall[7] = "syscall";
-        char regs[11] = "{rax},{rdi}";
-        LLVMTypeRef params[2] = { i64, i64 };
-        LLVMTypeRef t_asm = LLVMFunctionType(LLVMVoidType(), params, 2, false);
-        LLVMValueRef v_asm = LLVMGetInlineAsm(t_asm, syscall, 7, regs, 11, true, false, LLVMInlineAsmDialectATT, false);
-        LLVMValueRef args[2] = { LLVMConstInt(i64, 60, false), ret };
-        LLVMBuildCall2(builder, t_asm, v_asm, args, 2, "exit");
-        
-        LLVMBuildUnreachable(builder);
-        LLVMDisposeBuilder(builder);
-    }
-
     printf("----module start----\n");
     LLVMDumpModule(mod);
     printf("----module end----\n");
