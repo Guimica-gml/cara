@@ -73,7 +73,11 @@ void typecheck(
         Type t_int = intern->tsyms.t_int;
         Type t_bool = intern->tsyms.t_bool;
         Type int_to_int = Type_func(globals.intern, t_int, t_int);
-        Type int2 = Type_product(globals.intern, t_int, t_int);
+        Type int2 = Type_call(
+            globals.intern,
+            globals.intern->tsyms.t_star,
+            Type_tuple(globals.intern, t_int, t_int)
+        );
         Type int2_to_int = Type_func(globals.intern, int2, t_int);
         Type int2_to_bool = Type_func(globals.intern, int2, t_bool);
         struct {
@@ -99,7 +103,7 @@ void typecheck(
             {.name = intern->syms.s_bcmpGE, .type = int2_to_bool},
             {.name = intern->syms.s_bcmpLE, .type = int2_to_bool},
         };
-        for (int i = 0; i < sizeof(builtins) / sizeof(builtins[0]); i++) {
+        for (unsigned int i = 0; i < sizeof(builtins) / sizeof(builtins[0]); i++) {
             struct GlobalsLL* tmp = serene_alloc(alloc, struct GlobalsLL);
             assert(tmp && "OOM");
             tmp->current.type = builtins[i].type;
@@ -157,12 +161,10 @@ static Type typecheck_ET_If(struct Context *ctx, struct ExprIf *expr),
     typecheck_ST_Break(struct Context *ctx, struct Expr *body, Type type),
     typecheck_ST_Mut(struct Context *ctx, struct ExprLet *let, Type type),
     typecheck_ST_Let(struct Context *ctx, struct ExprLet *let, Type type),
-    typecheck_ET_Comma(struct Context *ctx, struct ExprComma *expr, Type type),
+    typecheck_ET_Tuple(struct Context *ctx, struct ExprTuple *expr, Type type),
     typecheck_ET_Recall(struct Context *ctx, const char *lit, Type type);
 
 static Type typecheck_expr(struct Context *ctx, struct Expr *expr) {
-    struct serene_Allocator alloc = ctx->globals.alloc;
-
 #define Case(Tag, ...)                                                         \
     case Tag:                                                                  \
         return typecheck_##Tag(ctx, __VA_ARGS__);
@@ -173,7 +175,7 @@ static Type typecheck_expr(struct Context *ctx, struct Expr *expr) {
         Case(ET_Bareblock, expr->bareblock, expr->type);
         Case(ET_Call, expr->call, expr->type);
         Case(ET_Recall, expr->lit, expr->type);
-        Case(ET_Comma, expr->comma, expr->type);
+        Case(ET_Tuple, expr->tuple, expr->type);
 
         Case(ST_Let, expr->let, expr->type);
         Case(ST_Mut, expr->let, expr->type);
@@ -183,6 +185,7 @@ static Type typecheck_expr(struct Context *ctx, struct Expr *expr) {
 
     case ST_Const:
         typecheck_expr(ctx, expr->const_stmt);
+        __attribute__((fallthrough));
     case ET_NumberLit:
     case ET_StringLit:
     case ET_BoolLit:
@@ -262,44 +265,50 @@ typecheck_ET_Recall(struct Context *ctx, const char *lit, Type type) {
     assert(false && "no such name!");
 }
 
-static Type
-typecheck_ET_Comma(struct Context *ctx, struct ExprComma *expr, Type type) {
-    typecheck_expr(ctx, &expr->lhs);
-    typecheck_expr(ctx, &expr->rhs);
+static Type typecheck_ET_Tuple(
+    struct Context* ctx,
+    struct ExprTuple* expr,
+    Type type
+) {
+    for (ll_iter(head, expr)) {
+        typecheck_expr(ctx, &head->current);
+    }
     return type;
 }
 
-static Type
-typecheck_ST_Let(struct Context *ctx, struct ExprLet *let, Type type) {
+static Type typecheck_ST_Let(struct Context* ctx, struct ExprLet* let, Type type) {
+    (void) type;
     Type it = typecheck_expr(ctx, &let->init);
     Type bt = destructure_binding(ctx, &let->bind, false);
     return unify(ctx->globals.alloc, &ctx->equivs, it, bt);
 }
 
-static Type
-typecheck_ST_Mut(struct Context *ctx, struct ExprLet *let, Type type) {
+static Type typecheck_ST_Mut(struct Context* ctx, struct ExprLet* let, Type type) {
+    (void) type;
     Type it = typecheck_expr(ctx, &let->init);
     Type bt = destructure_binding(ctx, &let->bind, true);
     return unify(ctx->globals.alloc, &ctx->equivs, it, bt);
 }
 
-static Type
-typecheck_ST_Break(struct Context *ctx, struct Expr *body, Type type) {
+static Type typecheck_ST_Break(struct Context *ctx, struct Expr *body, Type type) {
     Type brk = typecheck_expr(ctx, body);
     assert(ctx->loops);
     unify(ctx->globals.alloc, &ctx->equivs, brk, ctx->loops->current);
     return type;
 }
 
-static Type
-typecheck_ST_Return(struct Context *ctx, struct Expr *body, Type type) {
+static Type typecheck_ST_Return(struct Context *ctx, struct Expr *body, Type type) {
     Type ret = typecheck_expr(ctx, body);
     unify(ctx->globals.alloc, &ctx->equivs, ret, ctx->ret);
     return type;
 }
 
-static Type
-typecheck_ST_Assign(struct Context *ctx, struct ExprAssign *expr, Type type) {
+static Type typecheck_ST_Assign(
+    struct Context* ctx,
+    struct ExprAssign* expr,
+    Type type
+) {
+    (void)type;
     for (ll_iter(head, ctx->lets)) {
         if (head->current.name == expr->name) {
             assert(
@@ -317,7 +326,7 @@ typecheck_ST_Assign(struct Context *ctx, struct ExprAssign *expr, Type type) {
 static void fill_ET_If(struct Context *ctx, struct ExprIf *expr),
     fill_ET_Bareblock(struct Context *ctx, struct ExprsLL *body),
     fill_ET_Call(struct Context *ctx, struct ExprCall *expr),
-    fill_ET_Comma(struct Context *ctx, struct ExprComma *expr),
+    fill_ET_Tuple(struct Context *ctx, struct ExprTuple *expr),
     fill_ST_Let(struct Context *ctx, struct ExprLet *let);
 
 static void fill_expr(struct Context *ctx, struct Expr *expr) {
@@ -332,7 +341,7 @@ static void fill_expr(struct Context *ctx, struct Expr *expr) {
         Case(ET_If, expr->if_expr);
         Case(ET_Bareblock, expr->bareblock);
         Case(ET_Call, expr->call);
-        Case(ET_Comma, expr->comma);
+        Case(ET_Tuple, expr->tuple);
 
     case ST_Mut:
         Case(ST_Let, expr->let);
@@ -380,9 +389,10 @@ static void fill_ET_Call(struct Context *ctx, struct ExprCall *expr) {
     fill_expr(ctx, &expr->args);
 }
 
-static void fill_ET_Comma(struct Context *ctx, struct ExprComma *expr) {
-    fill_expr(ctx, &expr->lhs);
-    fill_expr(ctx, &expr->rhs);
+static void fill_ET_Tuple(struct Context* ctx, struct ExprTuple* expr) {
+    for (ll_iter(head, expr)) {
+        fill_expr(ctx, &head->current);
+    }
 }
 
 static void fill_ST_Let(struct Context *ctx, struct ExprLet *let) {
@@ -398,9 +408,10 @@ static void fill_binding(struct Context *ctx, struct Binding *binding) {
         binding->name.annot = fill_type(ctx, binding->name.annot);
         return;
     }
-    case BT_Comma: {
-        fill_binding(ctx, binding->comma.lhs);
-        fill_binding(ctx, binding->comma.rhs);
+    case BT_Tuple: {
+        for (ll_iter(head, binding->tuple)) {
+            fill_binding(ctx, &head->current);
+        }
         return;
     }
     };
@@ -408,7 +419,7 @@ static void fill_binding(struct Context *ctx, struct Binding *binding) {
 
 static Type fill_TT_Func(struct Context *ctx, struct TypeFunc type),
     fill_TT_Call(struct Context *ctx, struct TypeCall type),
-    fill_TT_Comma(struct Context *ctx, struct TypeComma type),
+    fill_TT_Tuple(struct Context *ctx, const struct TypeTuple *type),
     fill_TT_Var(struct Context *ctx, Type whole);
 
 static Type fill_type(struct Context *ctx, Type type) {
@@ -419,7 +430,7 @@ static Type fill_type(struct Context *ctx, Type type) {
     switch (type->tag) {
         Case(TT_Func, type->func);
         Case(TT_Call, type->call);
-        Case(TT_Comma, type->comma);
+        Case(TT_Tuple, type->tuple);
         Case(TT_Var, type);
 
     case TT_Recall:
@@ -442,10 +453,19 @@ static Type fill_TT_Call(struct Context *ctx, struct TypeCall type) {
     return Type_call(ctx->globals.intern, name, args);
 }
 
-static Type fill_TT_Comma(struct Context *ctx, struct TypeComma type) {
-    Type lhs = fill_type(ctx, type.lhs);
-    Type rhs = fill_type(ctx, type.rhs);
-    return Type_comma(ctx->globals.intern, lhs, rhs);
+static Type fill_TT_Tuple(struct Context* ctx, const struct TypeTuple* type) {
+    struct TypeTuple* list = NULL;
+    struct TypeTuple* last = NULL;
+    for (ll_iter(head, type)) {
+        struct TypeTuple* tmp = serene_alloc(ctx->globals.alloc, struct TypeTuple);
+        assert(tmp && "OOM");
+        *tmp = (struct TypeTuple){0};
+        tmp->current = fill_type(ctx, head->current);
+        if (!last) list = tmp;
+        else last->next = tmp;
+        last = tmp;
+    }
+    return TypeIntern_intern(ctx->globals.intern, &(struct Type){.tag = TT_Tuple, .tuple = list});
 }
 
 static Type fill_TT_Var(struct Context *ctx, Type whole) {
@@ -456,33 +476,43 @@ static Type fill_TT_Var(struct Context *ctx, Type whole) {
     return fill_type(ctx, whole);
 }
 
-static Type
-destructure_binding(struct Context *ctx, struct Binding *binding, bool mut) {
+static Type destructure_binding(
+    struct Context* ctx,
+    struct Binding* binding,
+    bool mut
+) {
     switch (binding->tag) {
-    case BT_Empty:
-        return binding->empty;
-    case BT_Name: {
-        struct LetsLL *tmp = serene_alloc(ctx->globals.alloc, struct LetsLL);
-        assert(tmp);
-        tmp->current.name = binding->name.name;
-        tmp->current.mutable = mut;
-        tmp->current.type = binding->name.annot;
-        tmp->next = ctx->lets;
-        ctx->lets = tmp;
-        return binding->name.annot;
-    }
-    case BT_Comma: {
-        Type lhs = destructure_binding(ctx, binding->comma.lhs, mut);
-        Type rhs = destructure_binding(ctx, binding->comma.rhs, mut);
-        return Type_product(ctx->globals.intern, lhs, rhs);
-    }
+        case BT_Empty:
+            return binding->empty;
+        case BT_Name: {
+            struct LetsLL* tmp = serene_alloc(ctx->globals.alloc, struct LetsLL);
+            assert(tmp);
+            tmp->current.name = binding->name.name;
+            tmp->current.mutable = mut;
+            tmp->current.type = binding->name.annot;
+            tmp->next = ctx->lets;
+            ctx->lets = tmp;
+            return binding->name.annot;
+        }
+        case BT_Tuple: {
+            Type out = ctx->globals.intern->tsyms.t_unit;
+            for (ll_iter(head, binding->tuple)) {
+                Type current = destructure_binding(ctx, &head->current, mut);
+                out = Type_tuple_extend(ctx->globals.intern, out, current);
+            }
+            return Type_call(ctx->globals.intern, ctx->globals.intern->tsyms.t_star, out);
+        }
     }
     assert(false && "shouldn't");
 }
 
-static Type
-unify(struct serene_Allocator alloc, struct DSet *dset, Type lhs, Type rhs) {
-    struct TypeLL *lroot = DSet_root(DSet_insert(alloc, dset, lhs));
+static Type unify(
+    struct serene_Allocator alloc,
+    struct DSet* dset,
+    Type lhs,
+    Type rhs
+) {
+    struct TypeLL* lroot = DSet_root(DSet_insert(alloc, dset, lhs));
     Type ltype = lroot->current.type;
     struct TypeLL *rroot = DSet_root(DSet_insert(alloc, dset, rhs));
     Type rtype = rroot->current.type;
@@ -496,10 +526,17 @@ unify(struct serene_Allocator alloc, struct DSet *dset, Type lhs, Type rhs) {
             unify(alloc, dset, ltype->func.args, rtype->func.args);
             unify(alloc, dset, ltype->func.ret, rtype->func.ret);
             return ltype;
-        case TT_Comma:
-            unify(alloc, dset, ltype->comma.lhs, rtype->comma.lhs);
-            unify(alloc, dset, ltype->comma.rhs, rtype->comma.rhs);
+        case TT_Tuple: {
+            const struct TypeTuple* lhead = ltype->tuple;
+            const struct TypeTuple* rhead = rtype->tuple;
+            while (lhead && rhead) {
+                unify(alloc, dset, lhead->current, rhead->current);
+                lhead = lhead->next;
+                rhead = rhead->next;
+            }
+            assert(lhead == rhead && "type mismatch");
             return ltype;
+        }
         case TT_Recall:
             assert(ltype->recall == rtype->recall && "type mismatch");
             return ltype;

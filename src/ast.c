@@ -3,17 +3,19 @@
 #include <assert.h>
 #include <stdio.h>
 
-const struct Type *
-Binding_to_type(struct TypeIntern *intern, struct Binding this) {
+const struct Type *Binding_to_type(struct TypeIntern *intern, struct Binding this) {
     switch (this.tag) {
     case BT_Empty:
         return intern->tsyms.t_unit;
     case BT_Name:
         return this.name.annot;
-    case BT_Comma: {
-        const struct Type *lhs = Binding_to_type(intern, *this.comma.lhs);
-        const struct Type *rhs = Binding_to_type(intern, *this.comma.rhs);
-        return Type_product(intern, lhs, rhs);
+    case BT_Tuple: {
+        const struct Type *out = intern->tsyms.t_unit;
+        for (ll_iter(head, this.tuple)) {
+            const struct Type* current = Binding_to_type(intern, head->current);
+            out = Type_tuple_extend(intern, out, current);
+        }
+        return Type_call(intern, intern->tsyms.t_star, out);
     }
     }
     assert(false && "gcc complains about control reaching here??");
@@ -21,9 +23,8 @@ Binding_to_type(struct TypeIntern *intern, struct Binding this) {
 
 void TypeIntern_print(struct TypeIntern *this) { Typereg_print(&this->tree); }
 
-struct TypeIntern
-TypeIntern_init(struct serene_Allocator alloc, struct Symbols syms) {
-    struct Type t_unit = {.tag = TT_Recall, .recall = syms.s_unit};
+struct TypeIntern TypeIntern_init(struct serene_Allocator alloc, struct Symbols syms) {
+    struct Type t_unit = {.tag = TT_Tuple, .tuple = NULL};
     struct Type t_bool = {.tag = TT_Recall, .recall = syms.s_bool};
     struct Type t_int = {.tag = TT_Recall, .recall = syms.s_int};
     struct Type t_string = {.tag = TT_Recall, .recall = syms.s_string};
@@ -72,11 +73,38 @@ const struct Type *Type_func(
     return TypeIntern_intern(intern, &func);
 }
 
-const struct Type *Type_comma(
-    struct TypeIntern *intern, const struct Type *lhs, const struct Type *rhs
+const struct Type* Type_tuple(
+    struct TypeIntern* intern,
+    const struct Type* lhs,
+    const struct Type* rhs
 ) {
-    struct Type comma = {.tag = TT_Comma, .comma.lhs = lhs, .comma.rhs = rhs};
-    return TypeIntern_intern(intern, &comma);
+    struct TypeTuple* node_lhs = serene_alloc(intern->alloc, struct TypeTuple);
+    struct TypeTuple* node_rhs = serene_alloc(intern->alloc, struct TypeTuple);
+    assert(node_lhs && node_rhs && "OOM");
+    *node_lhs = (struct TypeTuple){0};
+    *node_rhs = (struct TypeTuple){0};
+    node_lhs->current = lhs;
+    node_rhs->current = rhs;
+    node_rhs->next = node_lhs;
+    return TypeIntern_intern(intern, &(struct Type){.tag = TT_Tuple, .tuple = node_rhs});
+}
+
+const struct Type* Type_tuple_extend(
+    struct TypeIntern* intern,
+    const struct Type* tail,
+    const struct Type* head
+) {
+    if (tail->tag == TT_Tuple) {
+        const struct TypeTuple* bare_tail = tail->tuple;
+        struct TypeTuple* new = serene_alloc(intern->alloc, struct TypeTuple);
+        assert(new && "OOM");
+        *new = (struct TypeTuple){0};
+        new->current = head;
+        new->next = bare_tail;
+        return TypeIntern_intern(intern, &(struct Type){.tag = TT_Tuple, .tuple = new});
+    } else {
+        return Type_tuple(intern, tail, head);
+    }
 }
 
 const struct Type *Type_call(
@@ -84,17 +112,6 @@ const struct Type *Type_call(
 ) {
     struct Type call = {.tag = TT_Call, .call.name = name, .call.args = args};
     return TypeIntern_intern(intern, &call);
-}
-
-const struct Type *Type_product(
-    struct TypeIntern *intern, const struct Type *lhs, const struct Type *rhs
-) {
-    struct Type prod = {
-        .tag = TT_Call,
-        .call.args = Type_comma(intern, lhs, rhs),
-        .call.name = intern->tsyms.t_star,
-    };
-    return TypeIntern_intern(intern, &prod);
 }
 
 static void Binding_print(struct Binding *binding) {
@@ -106,10 +123,17 @@ static void Binding_print(struct Binding *binding) {
         printf("%s: ", binding->name.name);
         Type_print(binding->name.annot);
         break;
-    case BT_Comma:
-        Binding_print(binding->comma.lhs);
-        printf(", ");
-        Binding_print(binding->comma.rhs);
+    case BT_Tuple:
+        printf("(");
+        struct BindingTuple *head;
+        for (head = binding->tuple; head && head->next; head = head->next) {
+            Binding_print(&head->current);
+            printf(", ");
+        }
+        if (head) {
+            Binding_print(&head->current);
+        }
+        printf(")");
     }
 }
 
@@ -117,7 +141,7 @@ static void print_ET_If(struct ExprIf *expr, int level),
     print_ET_Loop(struct Expr *body, int level),
     print_ET_Bareblock(struct ExprsLL *body, int level),
     print_ET_Call(struct ExprCall *expr, int level),
-    print_ET_Comma(struct ExprComma *expr, int level),
+    print_ET_Tuple(struct ExprTuple *expr, int level),
     print_ST_Let(struct ExprLet *expr, int level),
     print_ST_Mut(struct ExprLet *expr, int level),
     print_ST_Break(struct Expr *expr, int level),
@@ -134,7 +158,7 @@ static void Expr_print(struct Expr *expr, int level) {
         Case(ET_Loop, expr->loop, level);
         Case(ET_Bareblock, expr->bareblock, level);
         Case(ET_Call, expr->call, level);
-        Case(ET_Comma, expr->comma, level);
+        Case(ET_Tuple, expr->tuple, level);
 
         Case(ST_Let, expr->let, level);
         Case(ST_Mut, expr->let, level);
@@ -191,10 +215,17 @@ static void print_ET_Call(struct ExprCall *expr, int level) {
     printf(")");
 }
 
-static void print_ET_Comma(struct ExprComma *expr, int level) {
-    Expr_print(&expr->lhs, level);
-    printf(", ");
-    Expr_print(&expr->rhs, level);
+static void print_ET_Tuple(struct ExprTuple* expr, int level) {
+    printf("(");
+    struct ExprTuple *head;
+    for (head = expr; head && head->next; head = head->next) {
+        Expr_print(&head->current, level);
+        printf(", ");
+    }
+    if (head) {
+        Expr_print(&head->current, level);
+    }
+    printf(")");
 }
 
 static void print_ST_Let(struct ExprLet *expr, int level) {

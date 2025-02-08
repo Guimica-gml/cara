@@ -32,15 +32,17 @@ struct tst_TypeFunc {
     struct tst_Type ret;
 };
 struct tst_TypeStar {
-    struct tst_Type lhs;
-    struct tst_Type rhs;
+    struct tst_TypeStar *next;
+    struct tst_Type current;
 };
 
 enum tst_BindingTag {
     TBT_Empty,
     TBT_Name,
-    TBT_Comma,
+    TBT_Tuple,
 };
+struct tst_BindingTuple;
+
 struct tst_Binding {
     enum tst_BindingTag tag;
     union {
@@ -48,11 +50,13 @@ struct tst_Binding {
             const char *name;
             struct tst_Type type;
         } name;
-        struct {
-            struct tst_Binding *lhs;
-            struct tst_Binding *rhs;
-        } comma;
+        struct tst_BindingTuple *tuple;
     };
+};
+
+struct tst_BindingTuple {
+    struct tst_BindingTuple* next;
+    struct tst_Binding current;
 };
 
 enum tst_ExprTag {
@@ -65,7 +69,7 @@ enum tst_ExprTag {
     TET_NumberLit,
     TET_StringLit,
     TET_BoolLit,
-    TET_Comma,
+    TET_Tuple,
     TET_Builtin,
 
     TST_Let,
@@ -76,7 +80,7 @@ enum tst_ExprTag {
 };
 struct tst_ExprIf;
 struct tst_ExprCall;
-struct tst_ExprComma;
+struct tst_ExprTuple;
 struct tst_ExprLet;
 struct tst_ExprAssign;
 enum tst_ExprBuiltin {
@@ -106,7 +110,7 @@ struct tst_Expr {
     union {
         struct tst_ExprIf *if_expr;
         struct tst_ExprCall* call;
-        struct tst_ExprComma *comma;
+        struct tst_ExprTuple *tuple;
         struct tst_Expr *loop;
         struct tst_ExprsLL* bareblock;
         enum tst_ExprBuiltin builtin;
@@ -133,9 +137,9 @@ struct tst_ExprCall {
     struct tst_Expr name;
     struct tst_Expr args;
 };
-struct tst_ExprComma {
-    struct tst_Expr lhs;
-    struct tst_Expr rhs;
+struct tst_ExprTuple {
+    struct tst_ExprTuple *next;
+    struct tst_Expr current;
 };
 struct tst_ExprLet {
     struct tst_Binding bind;

@@ -73,11 +73,17 @@ static LLVMTypeRef lower_type(struct Ctx* ctx, struct tst_Type* type) {
 }
 
 static LLVMTypeRef lower_TTT_Star(struct Ctx* ctx, struct tst_TypeStar* type) {
-    LLVMTypeRef elems[] = {
-        lower_type(ctx, &type->lhs),
-        lower_type(ctx, &type->rhs)
-    };
-    return LLVMStructType(elems, 2, false);
+    int count = 0;
+    for (ll_iter(head, type)) count++;
+
+    LLVMTypeRef* elems = serene_nalloc(ctx->alloc, count, LLVMTypeRef);
+    assert(elems && "OOM");
+    int idx = 0;
+    for (ll_iter(head, type), idx++) {
+        elems[idx] = lower_type(ctx, &head->current);
+    }
+
+    return LLVMStructType(elems, count, false);
 }
 
 static LLVMTypeRef lower_TTT_Func(struct Ctx* ctx, struct tst_TypeFunc* type) {
@@ -168,7 +174,7 @@ static struct Control lower_TET_BoolLit(struct FCtx* ctx, const char* lit),
     lower_TET_Bareblock(struct FCtx* ctx, struct tst_ExprsLL* body),
     lower_TET_Call(struct FCtx* ctx, struct tst_ExprCall* expr),
     lower_TET_Recall(struct FCtx* ctx, const char* lit),
-    lower_TET_Comma(struct FCtx* ctx, struct tst_ExprComma* expr, struct tst_Type* type),
+    lower_TET_Tuple(struct FCtx* ctx, struct tst_ExprTuple* expr, struct tst_Type* type),
     lower_TET_Builtin(struct FCtx* ctx, enum tst_ExprBuiltin built),
     lower_TST_Let(struct FCtx* ctx, struct tst_ExprLet* expr),
     lower_TST_Break(struct FCtx* ctx, struct tst_Expr* body),
@@ -189,7 +195,7 @@ static struct Control lower_expr(struct tst_Expr* expr, struct FCtx* ctx) {
         Case(TET_Bareblock, expr->bareblock);
         Case(TET_Call, expr->call);
         Case(TET_Recall, expr->lit);
-        Case(TET_Comma, expr->comma, &expr->type);
+        Case(TET_Tuple, expr->tuple, &expr->type);
         Case(TET_Builtin, expr->builtin);
         Case(TST_Let, expr->let);
         Case(TST_Break, expr->break_stmt);
@@ -203,17 +209,20 @@ static struct Control lower_expr(struct tst_Expr* expr, struct FCtx* ctx) {
 }
 
 static struct Control lower_TET_BoolLit(struct FCtx* ctx, const char* lit) {
+    (void) ctx;
     int b = 0;
     if (strings_equal(lit, "true")) b = 1;
     return Control_plain(LLVMConstInt(LLVMInt1Type(), b, false));
 }
 
 static struct Control lower_TET_NumberLit(struct FCtx* ctx, const char* lit) {
+    (void) ctx;
     unsigned long long n = atoi(lit);
     return Control_plain(LLVMConstInt(LLVMInt64Type(), n, false));
 }
 
 static struct Control lower_TET_StringLit(struct FCtx* ctx, const char* lit) {
+    (void) ctx;
     return Control_plain(LLVMConstString(lit, strings_strlen(lit), false));
 }
 
@@ -303,10 +312,10 @@ static struct Control lower_builtin_call(
     struct tst_Expr args
 ) {
     LLVMValueRef v_args[2] = {0};
-    if (args.tag == TET_Comma) {
-        struct Control lhs = lower_expr(&args.comma->lhs, ctx);
+    if (args.tag == TET_Tuple) {
+        struct Control lhs = lower_expr(&args.tuple->current, ctx);
         if (lhs.tag == CT_Break || lhs.tag == CT_Return) return lhs;
-        struct Control rhs = lower_expr(&args.comma->rhs, ctx);
+        struct Control rhs = lower_expr(&args.tuple->next->current, ctx);
         if (rhs.tag == CT_Break || rhs.tag == CT_Return) return rhs;
         v_args[0] = lhs.val;
         v_args[1] = rhs.val;
@@ -365,19 +374,21 @@ static struct Control lower_TET_Recall(struct FCtx* ctx, const char* lit) {
     assert(false && "no such name found, something in typer must've gone wrong!");
 }
 
-static struct Control lower_TET_Comma(struct FCtx* ctx, struct tst_ExprComma* expr, struct tst_Type* type) {
+static struct Control lower_TET_Tuple(struct FCtx* ctx, struct tst_ExprTuple* expr, struct tst_Type* type) {
     LLVMTypeRef llvm_type = lower_type(ctx->ctx, type);
     LLVMValueRef comma = LLVMGetUndef(llvm_type);
-    struct Control lhs = lower_expr(&expr->lhs, ctx);
-    if (lhs.tag == CT_Break || lhs.tag == CT_Return) return lhs;
-    struct Control rhs = lower_expr(&expr->rhs, ctx);
-    if (rhs.tag == CT_Break || rhs.tag == CT_Return) return rhs;
-    comma = LLVMBuildInsertValue(ctx->b, comma, lhs.val, 0, "");
-    comma = LLVMBuildInsertValue(ctx->b, comma, rhs.val, 1, "");
+    int idx = 0;
+    for (ll_iter(head, expr), idx++) {
+        struct Control current = lower_expr(&head->current, ctx);
+        if (current.tag == CT_Break || current.tag == CT_Return) return current;
+        comma = LLVMBuildInsertValue(ctx->b, comma, current.val, idx, "");
+    }
     return Control_plain(comma);
 }
 
 static struct Control lower_TET_Builtin(struct FCtx* ctx, enum tst_ExprBuiltin built) {
+    (void) ctx;
+    (void) built;
     assert(false && "should not be called");
 }
 
@@ -443,11 +454,12 @@ static void lower_binding(
             ctx->lets = tmp;
             return;
         }
-        case TBT_Comma: {
-            LLVMValueRef lhs = LLVMBuildExtractValue(ctx->b, val, 0, "");
-            lower_binding(binding->comma.lhs, ctx, lhs);
-            LLVMValueRef rhs = LLVMBuildExtractValue(ctx->b, val, 1, "");
-            lower_binding(binding->comma.rhs, ctx, rhs);
+        case TBT_Tuple: {
+            int idx = 0;
+            for (ll_iter(head, binding->tuple), idx++) {
+                LLVMValueRef current = LLVMBuildExtractValue(ctx->b, val, idx, "");
+                lower_binding(&head->current, ctx, current);
+            }
             return;
         }
     }

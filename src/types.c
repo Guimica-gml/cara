@@ -18,11 +18,17 @@ int Type_cmp(const struct Type *a, const struct Type *b) {
         if (diff)
             return diff;
         return Type_cmp(a->call.args, b->call.args);
-    case TT_Comma:
-        diff = Type_cmp(a->comma.lhs, b->comma.lhs);
-        if (diff)
-            return diff;
-        return Type_cmp(a->comma.rhs, b->comma.rhs);
+    case TT_Tuple: {
+        const struct TypeTuple* ahead = a->tuple;
+        const struct TypeTuple* bhead = b->tuple;
+        while (ahead && bhead) {
+            diff = Type_cmp(ahead->current, bhead->current);
+            if (diff) return diff;
+            ahead = ahead->next;
+            bhead = bhead->next;
+        }
+        return ahead - bhead;
+    }
     case TT_Recall:
         return a->recall - b->recall;
     case TT_Var:
@@ -46,11 +52,19 @@ void Type_print(const struct Type *this) {
         Type_print(this->call.args);
         printf(")");
         return;
-    case TT_Comma:
-        Type_print(this->comma.lhs);
-        printf(", ");
-        Type_print(this->comma.rhs);
+    case TT_Tuple: {
+        printf("(");
+        const struct TypeTuple *head;
+        for (head = this->tuple; head && head->next; head = head->next) {
+            Type_print(head->current);
+            printf(", ");
+        }
+        if (head) {
+            Type_print(head->current);
+        }
+        printf(")");
         return;
+    }
     case TT_Recall:
         printf("%s", this->recall);
         return;

@@ -72,6 +72,8 @@ int main(int argc, char **argv) {
     );
     Tokenvec_deinit(&tokens);
 
+    Ast_print(&ast);
+    
     typecheck(serene_Arena_dyn(&check_arena), &types, &ast);
     serene_Arena_deinit(&check_arena);
 

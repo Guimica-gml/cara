@@ -12,4 +12,4 @@ int Ordstring_cmp(struct Ordstring a, struct Ordstring b) {
     return 0;
 }
 
-void Ordstring_print(struct Ordstring s) { printf("%.*s", s.len, s.str); }
+void Ordstring_print(struct Ordstring s) { printf("%.*s", (int) s.len, s.str); }

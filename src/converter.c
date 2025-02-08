@@ -10,8 +10,11 @@ struct Context {
 static struct tst_Function convert_func(struct Context *, struct Function);
 static struct tst_Expr convert_expr(struct Context *, struct Expr *);
 static struct tst_Binding convert_binding(struct Context *, struct Binding);
-static struct tst_Type
-convert_type(struct Context *, const struct Type *, const struct Type *);
+static struct tst_Type convert_type(
+    struct Context*,
+    const struct Type*,
+    const struct Type*
+);
 
 struct Tst convert_ast(
     struct serene_Allocator alloc, struct TypeIntern *intern, struct Ast ast
@@ -63,7 +66,7 @@ static struct tst_Expr convert_ET_If(struct Context* ctx, struct ExprIf* expr, s
     convert_ET_Bareblock(struct Context* ctx, struct ExprsLL* body, struct tst_Type type),
     convert_ET_Call(struct Context* ctx, struct ExprCall* expr, struct tst_Type type),
     convert_ET_Recall(struct Context *ctx, const char *lit, struct tst_Type type),
-    convert_ET_Comma(struct Context *ctx, struct ExprComma *expr, struct tst_Type type),
+    convert_ET_Tuple(struct Context *ctx, struct ExprTuple *expr, struct tst_Type type),
     convert_ST_Let(struct Context *ctx, struct ExprLet *expr, struct tst_Type type),
     convert_ST_Break(struct Context *ctx, struct Expr *body, struct tst_Type type),
     convert_ST_Return(struct Context *ctx, struct Expr *body, struct tst_Type type),
@@ -82,7 +85,7 @@ static struct tst_Expr convert_expr(struct Context *ctx, struct Expr *expr) {
         Case(ET_Bareblock, expr->bareblock, type);
         Case(ET_Call, expr->call, type);
         Case(ET_Recall, expr->lit, type);
-        Case(ET_Comma, expr->comma, type);
+        Case(ET_Tuple, expr->tuple, type);
         Case(ST_Break, expr->break_stmt, type);
         Case(ST_Return, expr->return_stmt, type);
         Case(ST_Assign, expr->assign, type);
@@ -212,15 +215,22 @@ static struct tst_Expr convert_ET_Recall(struct Context* ctx, const char* lit, s
 #undef builtin
 }
 
-static struct tst_Expr convert_ET_Comma(struct Context* ctx, struct ExprComma* expr, struct tst_Type type) {
-    struct tst_ExprComma *comma = serene_alloc(ctx->alloc, struct tst_ExprComma);
-    assert(comma && "OOM");
-    comma->lhs = convert_expr(ctx, &expr->lhs);
-    comma->rhs = convert_expr(ctx, &expr->rhs);
+static struct tst_Expr convert_ET_Tuple(struct Context* ctx, struct ExprTuple* expr, struct tst_Type type) {
+    struct tst_ExprTuple *list = NULL;
+    struct tst_ExprTuple *last = NULL;
+    for (ll_iter(head, expr)) {
+        struct tst_ExprTuple* tmp = serene_alloc(ctx->alloc, struct tst_ExprTuple);
+        assert(tmp && "OOM");
+        *tmp = (typeof(*tmp)){0};
+        tmp->current = convert_expr(ctx, &head->current);
+        if (!last) list = tmp;
+        else last->next = tmp;
+        last = tmp;
+    }
     return (struct tst_Expr){
-        .tag = TET_Comma,
+        .tag = TET_Tuple,
         .type = type,
-        .comma = comma,
+        .tuple = list,
     };
 }
 
@@ -294,14 +304,19 @@ convert_binding(struct Context *ctx, struct Binding binding) {
             .name.name = binding.name.name,
             .name.type = convert_type(ctx, binding.name.annot, NULL),
         };
-    case BT_Comma: {
-        struct tst_Binding *lhs = serene_alloc(ctx->alloc, struct tst_Binding);
-        struct tst_Binding *rhs = serene_alloc(ctx->alloc, struct tst_Binding);
-        assert(lhs && rhs && "OOM");
-        *lhs = convert_binding(ctx, *binding.comma.lhs);
-        *rhs = convert_binding(ctx, *binding.comma.rhs);
-        return (struct tst_Binding
-        ){.tag = TBT_Comma, .comma.lhs = lhs, .comma.rhs = rhs};
+    case BT_Tuple: {
+        struct tst_BindingTuple *list = NULL;
+        struct tst_BindingTuple *last = NULL;
+        for (ll_iter(head, binding.tuple)) {
+            struct tst_BindingTuple* tmp = serene_alloc(ctx->alloc, struct BindingTuple);
+            assert(tmp && "OOM");
+            *tmp = (typeof(*tmp)){0};
+            tmp->current = convert_binding(ctx, head->current);
+            if (!last) list = tmp;
+            else last->next = tmp;
+            last = tmp;
+        }
+        return (struct tst_Binding){.tag = TBT_Tuple, .tuple = list};
     }
     }
     assert(false && "christ");
@@ -314,15 +329,17 @@ static struct tst_Type convert_type(
     struct Context *ctx, const struct Type *type, const struct Type *params
 ) {
     switch (type->tag) {
-    case TT_Var:
-        assert(false && "should've been eliminated in fill_type");
+    case TT_Var: assert(false && "should've been eliminated in fill_type");
     case TT_Recall: return convert_TT_Recall(ctx, type->recall, params);
     case TT_Func: return convert_TT_Func(ctx, &type->func);
     case TT_Call:
         assert(!params && "should have no parameters");
         return convert_type(ctx, type->call.name, type->call.args);
-    case TT_Comma:
-        assert(false && "shouldn't occur in convert_type on it's own!");
+    case TT_Tuple:
+        assert(type->tuple == NULL && "only units should occur on their own here");
+        return (struct tst_Type) {
+            .tag = TTT_Unit,
+        };
     }
 
     assert(false && "aaaa");
@@ -332,7 +349,7 @@ static struct tst_Type convert_type(
 static struct tst_Type convert_TT_Recall(struct Context* ctx, const char* lit, const struct Type* params) {
     enum tst_TypeTag tag;
     if (ctx->intern->syms.s_unit == lit) {
-        tag = TTT_Unit;
+        assert(false && "this should not be possible anymore");
     } else if (ctx->intern->syms.s_int == lit) {
         tag = TTT_Int;
     } else if (ctx->intern->syms.s_bool == lit) {
@@ -341,15 +358,22 @@ static struct tst_Type convert_TT_Recall(struct Context* ctx, const char* lit, c
         tag = TTT_String;
     } else if (ctx->intern->syms.s_star == lit) {
         assert(
-            params && params->tag == TT_Comma && "expected two parameters"
+            params && params->tag == TT_Tuple && "expected parameters"
         );
-        struct tst_TypeStar* star = serene_alloc(ctx->alloc, struct tst_TypeStar);
-        assert(star && "OOM");
-        star->lhs = convert_type(ctx, params->comma.lhs, NULL);
-        star->rhs = convert_type(ctx, params->comma.rhs, NULL);
+        // deliberately reverses the list
+        // as later on we need the first tuple element to be the head
+        // rather than the last, as we had previously
+        struct tst_TypeStar* list = NULL;
+        for (const struct TypeTuple* head = params->tuple; head; head = head->next) {
+            struct tst_TypeStar* tmp = serene_alloc(ctx->alloc, struct tst_TypeStar);
+            assert(tmp && "OOM");
+            tmp->current = convert_type(ctx, head->current, NULL);
+            tmp->next = list;
+            list = tmp;
+        }
         return (struct tst_Type){
             .tag = TTT_Star,
-            .star = star,
+            .star = list,
         };
     } else {
         assert(false && "TODO");

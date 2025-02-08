@@ -5,7 +5,7 @@ enum TypeTag {
     TT_Func,
     TT_Call,
     TT_Recall,
-    TT_Comma,
+    TT_Tuple,
     TT_Var,
 };
 
@@ -17,9 +17,9 @@ struct TypeCall {
     const struct Type *name;
     const struct Type *args;
 };
-struct TypeComma {
-    const struct Type *lhs;
-    const struct Type *rhs;
+struct TypeTuple {
+    const struct TypeTuple *next;
+    const struct Type *current;
 };
 
 struct Type {
@@ -27,7 +27,7 @@ struct Type {
     union {
         struct TypeFunc func;
         struct TypeCall call;
-        struct TypeComma comma;
+        struct TypeTuple *tuple;
         const char *recall;
         int var;
     };

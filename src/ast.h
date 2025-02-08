@@ -26,12 +26,12 @@ const struct Type *TypeIntern_intern(struct TypeIntern *, struct Type *);
 const struct Type *Type_recall(struct TypeIntern *, const char *);
 const struct Type *
 Type_func(struct TypeIntern *, const struct Type *, const struct Type *);
-const struct Type *
-Type_comma(struct TypeIntern *, const struct Type *, const struct Type *);
+const struct Type*
+Type_tuple(struct TypeIntern*, const struct Type* lhs, const struct Type* rhs);
+const struct Type*
+Type_tuple_extend(struct TypeIntern*, const struct Type* tail, const struct Type* head);
 const struct Type *
 Type_call(struct TypeIntern *, const struct Type *, const struct Type *);
-const struct Type *
-Type_product(struct TypeIntern *, const struct Type *, const struct Type *);
 
 struct Binding;
 struct Expr;
@@ -42,8 +42,10 @@ struct Ast;
 enum BindingTag {
     BT_Empty,
     BT_Name,
-    BT_Comma,
+    BT_Tuple,
 };
+struct BindingTuple;
+
 struct Binding {
     enum BindingTag tag;
     union {
@@ -52,11 +54,13 @@ struct Binding {
             const char *name;
             struct Type const *annot;
         } name;
-        struct {
-            struct Binding *lhs;
-            struct Binding *rhs;
-        } comma;
+        struct BindingTuple *tuple;
     };
+};
+
+struct BindingTuple {
+    struct BindingTuple* next;
+    struct Binding current;
 };
 
 const struct Type *Binding_to_type(struct TypeIntern *, struct Binding);
@@ -71,7 +75,7 @@ enum ExprTag {
     ET_NumberLit,
     ET_StringLit,
     ET_BoolLit,
-    ET_Comma,
+    ET_Tuple,
 
     ST_Let,
     ST_Mut,
@@ -82,17 +86,17 @@ enum ExprTag {
 };
 struct ExprIf;
 struct ExprCall;
-struct ExprComma;
+struct ExprTuple;
 struct ExprLet;
 struct ExprAssign;
 
 struct Expr {
     enum ExprTag tag;
-    struct Type const *type;
+    const struct Type* type;
     union {
         struct ExprIf *if_expr;
         struct ExprCall *call;
-        struct ExprComma *comma;
+        struct ExprTuple *tuple;
         struct Expr *loop;
         struct ExprsLL *bareblock;
         const char *lit;
@@ -119,9 +123,9 @@ struct ExprCall {
     struct Expr name;
     struct Expr args;
 };
-struct ExprComma {
-    struct Expr lhs;
-    struct Expr rhs;
+struct ExprTuple {
+    struct ExprTuple *next;
+    struct Expr current;
 };
 struct ExprLet {
     struct Binding bind;
