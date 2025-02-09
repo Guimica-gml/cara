@@ -396,12 +396,11 @@ static struct Expr expr_bareblock(struct Context *ctx) {
     assert(Tokenstream_drop_text(&ctx->toks, "{"));
     while (Tokenstream_peek(&ctx->toks).kind != TK_CloseBrace) {
         {
-            struct ExprsLL *tmp = serene_alloc(ctx->alloc, struct ExprsLL);
+            struct ExprsLL* tmp = serene_alloc(ctx->alloc, struct ExprsLL);
+            *tmp = (typeof(*tmp)){0};
             assert(tmp && "OOM");
-            if (!last)
-                block = tmp;
-            else
-                last->next = tmp;
+            if (!last) block = tmp;
+            else last->next = tmp;
             last = tmp;
         }
         last->current = statement(ctx);
@@ -426,18 +425,7 @@ static struct Expr expr_bareblock(struct Context *ctx) {
 }
 
 static struct Expr expr_inline(struct Context* ctx) {
-    struct Expr out = expr_op(ctx, 0);
-    if (Tokenstream_peek(&ctx->toks).kind != TK_As) return out;
-    assert(Tokenstream_drop_kind(&ctx->toks, TK_As));
-    struct ExprCast* cast = serene_alloc(ctx->alloc, struct ExprCast);
-    assert(cast && "OOM");
-    cast->type = type(ctx);
-    cast->expr = out;
-    return (struct Expr) {
-        .tag = ET_Cast,
-        .type = cast->type,
-        .cast = cast,
-    };
+    return expr_op(ctx, 0);
 }
 
 static struct Expr expr_op(struct Context *ctx, unsigned prec) {

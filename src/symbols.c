@@ -33,6 +33,8 @@ populate_interner(struct serene_Allocator alloc, struct Intern *intern) {
     out.s_bcmpGE = ins("__builtin_cmp_ge");
     out.s_bcmpLE = ins("__builtin_cmp_le");
     out.s_syscall = ins("__builtin_syscall");
+    out.s_bptr_to_int = ins("__builtin_ptr_to_int");
+    out.s_bint_to_ptr = ins("__builtin_int_to_ptr");
 
     return out;
 #undef ins

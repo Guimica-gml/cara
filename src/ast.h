@@ -23,15 +23,11 @@ void TypeIntern_print(struct TypeIntern *);
 struct TypeIntern TypeIntern_init(struct serene_Allocator, struct Symbols);
 const struct Type *TypeIntern_intern(struct TypeIntern *, struct Type *);
 
-const struct Type *Type_recall(struct TypeIntern *, const char *);
-const struct Type *
-Type_func(struct TypeIntern *, const struct Type *, const struct Type *);
-const struct Type*
-Type_tuple(struct TypeIntern*, const struct Type* lhs, const struct Type* rhs);
-const struct Type*
-Type_tuple_extend(struct TypeIntern*, const struct Type* tail, const struct Type* head);
-const struct Type *
-Type_call(struct TypeIntern *, const struct Type *, const struct Type *);
+const struct Type* Type_recall(struct TypeIntern *, const char *name);
+const struct Type* Type_func(struct TypeIntern *, const struct Type *args, const struct Type *ret);
+const struct Type* Type_tuple(struct TypeIntern*, const struct Type* lhs, const struct Type* rhs);
+const struct Type* Type_tuple_extend(struct TypeIntern*, const struct Type* tail, const struct Type* head);
+const struct Type* Type_call(struct TypeIntern *, const struct Type *name, const struct Type *args);
 
 struct Binding;
 struct Expr;
@@ -76,7 +72,6 @@ enum ExprTag {
     ET_StringLit,
     ET_BoolLit,
     ET_Tuple,
-    ET_Cast,
 
     ST_Let,
     ST_Mut,
@@ -88,7 +83,6 @@ enum ExprTag {
 struct ExprIf;
 struct ExprCall;
 struct ExprTuple;
-struct ExprCast;
 struct ExprLet;
 struct ExprAssign;
 
@@ -102,7 +96,6 @@ struct Expr {
         struct Expr *loop;
         struct ExprsLL *bareblock;
         const char *lit;
-        struct ExprCast *cast;
 
         struct ExprLet *let;
         struct ExprAssign *assign;
@@ -129,10 +122,6 @@ struct ExprCall {
 struct ExprTuple {
     struct ExprTuple *next;
     struct Expr current;
-};
-struct ExprCast {
-    const struct Type* type;
-    struct Expr expr;
 };
 struct ExprLet {
     struct Binding bind;
