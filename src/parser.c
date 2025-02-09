@@ -528,9 +528,7 @@ static struct Expr expr_op_right(
     struct ExprCall* call = serene_alloc(ctx->alloc, struct ExprCall);
     assert(call && "OOM");
 
-    bool name_encountered = false;
     struct Token op = Tokenstream_peek(&ctx->toks);
-    
     switch (op.kind) {
     case TK_Name:
         for (size_t i = 0; i < ctx->ops.len; i++) {
