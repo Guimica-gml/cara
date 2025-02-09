@@ -46,14 +46,14 @@ int main(int argc, char **argv) {
         mmap(NULL, filestat.st_size, PROT_READ, MAP_PRIVATE, filedesc, 0);
 
     struct Intern intern = {0};
-    struct Symbols symbols =
-        populate_interner(serene_Arena_dyn(&strings_arena), &intern);
+    intern.alloc = serene_Arena_dyn(&strings_arena);
+
+    struct Symbols symbols = populate_interner(&intern);
 
     printf("[\n");
     struct Tokenstream stream;
     {
         struct Lexer lexer = {
-            .alloc = serene_Arena_dyn(&strings_arena),
             .rest = file,
             .intern = &intern,
             .token = {0},
@@ -84,7 +84,6 @@ int main(int argc, char **argv) {
 
     {
         struct Lexer lexer = {
-            .alloc = serene_Arena_dyn(&strings_arena),
             .rest = file,
             .intern = &intern,
             .token = {0},

@@ -6,16 +6,6 @@
 
 struct SpellingEntry;
 
-/* struct Out { */
-/*     struct Token token; */
-/*     const char *rest; */
-/* }; */
-
-/* struct Context { */
-/*     struct Intern *intern; */
-/*     struct serene_Allocator alloc; */
-/* }; */
-
 static bool lexer_is_word_break(char);
 static const char *lexer_strip_comments(const char *);
 static bool lexer_expect(const struct SpellingEntry*, bool (*post)(const char*), struct Lexer*, const char*);
@@ -37,25 +27,6 @@ struct Token Lexer_next(struct Lexer* lexer) {
     return (struct Token) {0};
 }
 
-/* struct Tokenvec lex(struct serene_Allocator alloc, struct Intern *intern, const char *input) { */
-/*     struct Tokenvec toks = {0}; */
-/*     struct Out res = {0}; */
-/*     struct Context ctx = { */
-/*         .alloc = alloc, */
-/*         .intern = intern, */
-/*     }; */
-/*     input = lexer_strip_comments(input); */
-/*     while (lexer_immediates(ctx, &res, input) || */
-/*            lexer_keywords(ctx, &res, input) || lexer_bools(ctx, &res, input) || */
-/*            lexer_string(ctx, &res, input) || lexer_number(ctx, &res, input) || */
-/*            lexer_name(ctx, &res, input)) { */
-/*         assert(Tokenvec_push(&toks, res.token)); */
-/*         input = lexer_strip_comments(res.rest); */
-/*     } */
-/*     assert(*input == '\0' && "input should be consumed entirely!"); */
-/*     return toks; */
-/* } */
-
 struct SpellingEntry {
     const char *str;
     enum Tokenkind kind;
@@ -73,7 +44,7 @@ static bool lexer_expect(
         size_t len = strings_strlen(table[i].str);
         if (!postcondition(input + len))
             continue;
-        lexer->token.spelling = Intern_insert(lexer->intern, lexer->alloc, input, len);
+        lexer->token.spelling = Intern_insert(lexer->intern, input, len);
         lexer->token.kind = table[i].kind;
         lexer->token.number = 0;
         lexer->rest = input + len;
@@ -171,7 +142,7 @@ static bool lexer_string(struct Lexer *lexer, const char *in) {
         len++;
     }
 
-    char *string = serene_nalloc(lexer->alloc, len, char);
+    char *string = serene_nalloc(lexer->intern->alloc, len, char);
     assert(string && "OOM");
     size_t string_len = 0;
 
@@ -204,7 +175,7 @@ static bool lexer_string(struct Lexer *lexer, const char *in) {
         i += 1;
     }
 
-    lexer->token.spelling = Intern_insert(lexer->intern, lexer->alloc, string, string_len);
+    lexer->token.spelling = Intern_insert(lexer->intern, string, string_len);
     lexer->token.kind = TK_String;
     lexer->token.number = 0;
     lexer->rest = in + len;
@@ -217,7 +188,7 @@ static bool lexer_number(struct Lexer* lexer, const char *in) {
         len++;
     if (len == 0)
         return false;
-    lexer->token.spelling = Intern_insert(lexer->intern, lexer->alloc, in, len);
+    lexer->token.spelling = Intern_insert(lexer->intern, in, len);
     lexer->token.kind = TK_Number;
     lexer->token.number = atoi(lexer->token.spelling);
     lexer->rest = in + len;
@@ -230,7 +201,7 @@ static bool lexer_name(struct Lexer* lexer, const char *in) {
         len++;
     if (len == 0)
         return false;
-    lexer->token.spelling = Intern_insert(lexer->intern, lexer->alloc, in, len);
+    lexer->token.spelling = Intern_insert(lexer->intern, in, len);
     lexer->token.kind = TK_Name;
     lexer->token.number = 0;
     lexer->rest = in + len;

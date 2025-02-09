@@ -1,6 +1,5 @@
 #include "./strings.h"
 #include <assert.h>
-#include <stdio.h>
 
 bool strings_ascii_whitespace(char c) {
     char ws[5] = {0x09, 0x0A, 0x0C, 0x0D, 0x20};
@@ -36,8 +35,9 @@ bool strings_equal(const char *this, const char *other) {
     return *this == *other;
 }
 
-const char *Intern_insert(
-    struct Intern *this, struct serene_Allocator alloc, const char *s,
+const char* Intern_insert(
+    struct Intern* this,
+    const char* s,
     size_t len
 ) {
     struct Ordstring *entry =
@@ -45,13 +45,13 @@ const char *Intern_insert(
     if (entry)
         return entry->str;
 
-    char *new = serene_nalloc(alloc, 1 + len, char);
+    char *new = serene_nalloc(this->alloc, 1 + len, char);
     assert(new && "OOM");
     for (size_t i = 0; i < len; i++)
         new[i] = s[i];
     new[len] = '\0';
     assert(Btrings_insert(
-        &this->tree, alloc, (struct Ordstring){.str = new, .len = len}
+        &this->tree, this->alloc, (struct Ordstring){.str = new, .len = len}
     ));
     return new;
 }

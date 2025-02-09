@@ -37,6 +37,6 @@ struct Symbols {
     const char* s_bint_to_ptr;
 };
 
-struct Symbols populate_interner(struct serene_Allocator, struct Intern *);
+struct Symbols populate_interner(struct Intern *);
 
 #endif

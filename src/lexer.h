@@ -11,7 +11,6 @@
 struct Lexer {
     const char* rest;
     struct Intern* intern;
-    struct serene_Allocator alloc;
     struct Token token;
 };
 

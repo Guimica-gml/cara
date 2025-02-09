@@ -15,11 +15,11 @@ bool strings_equal(const char *, const char *);
 
 struct Intern {
     struct Btrings tree;
+    struct serene_Allocator alloc;
 };
 
 // copies the contents of the passed in string
 // the returned string is owned by Intern
-const char *
-Intern_insert(struct Intern *, struct serene_Allocator, const char *, size_t);
+const char *Intern_insert(struct Intern *, const char *, size_t);
 
 #endif
