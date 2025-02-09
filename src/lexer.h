@@ -6,11 +6,15 @@
 #include "./tokens.h"
 #include "opdeclvec.h"
 #include "serene.h"
-#include "tokenvec.h"
 #include <stdbool.h>
 
-struct Tokenvec lex(struct serene_Allocator, struct Intern *, const char *);
+struct Lexer {
+    const char* rest;
+    struct Intern* intern;
+    struct serene_Allocator alloc;
+    struct Token token;
+};
 
-struct Tokenstream Tokenvec_stream(struct Tokenvec *);
+struct Token Lexer_next(struct Lexer *);
 
 #endif

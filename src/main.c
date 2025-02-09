@@ -17,6 +17,7 @@
 #include "./strings.h"
 #include "./symbols.h"
 #include "./tokens.h"
+#include "./tokenstream.h"
 #include "./tst.h"
 #include "./codegen.h"
 #include "./typer.h"
@@ -48,14 +49,22 @@ int main(int argc, char **argv) {
     struct Symbols symbols =
         populate_interner(serene_Arena_dyn(&strings_arena), &intern);
 
-    struct Tokenvec tokens =
-        lex(serene_Arena_dyn(&strings_arena), &intern, file);
-
-    munmap(file, filestat.st_size);
-    close(filedesc);
-
     printf("[\n");
-    struct Tokenstream stream = Tokenvec_stream(&tokens);
+    struct Tokenstream stream;
+    {
+        struct Lexer lexer = {
+            .alloc = serene_Arena_dyn(&strings_arena),
+            .rest = file,
+            .intern = &intern,
+            .token = {0},
+        };
+        struct Token next = Lexer_next(&lexer);
+
+        stream = (struct Tokenstream){
+            .lexer = lexer,
+            .next = next,
+        };
+    }
     for (
         struct Token t = Tokenstream_peek(&stream);
         t.kind != TK_EOF;
@@ -73,10 +82,29 @@ int main(int argc, char **argv) {
     struct TypeIntern types =
         TypeIntern_init(serene_Arena_dyn(&type_arena), symbols);
 
+    {
+        struct Lexer lexer = {
+            .alloc = serene_Arena_dyn(&strings_arena),
+            .rest = file,
+            .intern = &intern,
+            .token = {0},
+        };
+        struct Token next = Lexer_next(&lexer);
+
+        stream = (struct Tokenstream){
+            .lexer = lexer,
+            .next = next,
+        };
+    }
     struct Ast ast = parse(
-        serene_Arena_dyn(&ast_arena), ops, &types, Tokenvec_stream(&tokens)
+        serene_Arena_dyn(&ast_arena),
+        ops,
+        &types,
+        stream
     );
-    Tokenvec_deinit(&tokens);
+
+    munmap(file, filestat.st_size);
+    close(filedesc);
 
     Ast_print(&ast);
     

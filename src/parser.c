@@ -1,10 +1,11 @@
 #include "./parser.h"
+#include "./tokenstream.h"
 #include <stdio.h>
 
 struct Context {
     struct serene_Allocator alloc;
     struct Opdecls ops;
-    struct TypeIntern *intern;
+    struct TypeIntern* intern;
     struct Tokenstream toks;
     int var_counter;
 };
@@ -409,23 +410,6 @@ static struct Expr expr_bareblock(struct Context *ctx) {
     struct ExprsLL *last = NULL;
     const struct Type *type = ctx->intern->tsyms.t_unit;
 
-    {
-        printf("[\n");
-        struct Tokenstream stream = ctx->toks;
-        for (
-            struct Token t = Tokenstream_peek(&stream);
-            t.kind != TK_EOF;
-            Tokenstream_drop(&stream), t = Tokenstream_peek(&stream)
-            ) {
-            printf(
-                "\t(%p)\t'%s'\n",
-                t.spelling,
-                t.spelling
-                );
-        }
-        printf("]\n");
-    }
-
     assert(Tokenstream_drop_text(&ctx->toks, "{"));
     while (Tokenstream_peek(&ctx->toks).kind != TK_CloseBrace) {
         {
@@ -451,24 +435,6 @@ static struct Expr expr_bareblock(struct Context *ctx) {
             type = last->current.type;
             break;
         }
-
-        {
-            printf("[\n");
-            struct Tokenstream stream = ctx->toks;
-            for (
-                struct Token t = Tokenstream_peek(&stream);
-                t.kind != TK_EOF;
-                Tokenstream_drop(&stream), t = Tokenstream_peek(&stream)
-                ) {
-                printf(
-                    "\t(%p)\t'%s'\n",
-                    t.spelling,
-                    t.spelling
-                    );
-            }
-            printf("]\n");
-        }
-
     }
     printf("the token is: %s\n", Tokenstream_peek(&ctx->toks).spelling);
     assert(Tokenstream_drop_text(&ctx->toks, "}"));

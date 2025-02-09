@@ -2,13 +2,17 @@ func print(s: int, l: int): int {
     __builtin_syscall(1, 1, s, l, 0, 0, 0)
 }
 
+func as_int(s: string): int = __builtin_ptr_to_int(s);
+
 func main(): int {
-     let a: int = "Test 1\nHello" as int;
-     let b: int = "\n\tSucks to suck
-     as int;
-     let c: int = "
-     as int;
-     let d: int = "*\n" as int;
+     let a: int = as_int("Test 1\nHello");
+     let b: int = as_int(
+         "\n\tSucks to suck
+     );
+     let c: int = as_int(
+         "
+     );
+     let d: int = as_int("*\n");
 
      // Expected output:
      //Test 1
