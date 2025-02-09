@@ -1,0 +1,23 @@
+func print(s: int, l: int): int {
+    __builtin_syscall(1, 1, s, l, 0, 0, 0)
+}
+
+func main(): int {
+     let a: int = "Test 1\nHello" as int;
+     let b: int = "\n\tSucks to suck\n
+     as int;
+     let c: int = "
+     as int;
+     let d: int = "*\n" as int;
+
+     let damn = print(a, 13);
+     print(b, 2);
+     print(c, 1);
+     print(d, 2);
+     damn
+}
+
+func _start() {
+    let code = main();
+    __builtin_syscall(60, code, 0, 0, 0, 0, 0);
+}

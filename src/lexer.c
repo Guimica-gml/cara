@@ -156,7 +156,41 @@ static bool lexer_string(struct Context ctx, struct Out *out, const char *in) {
         }
         len++;
     }
-    out->token.spelling = Intern_insert(ctx.intern, ctx.alloc, in, len);
+
+    char *string = serene_nalloc(ctx.alloc, len, char);
+    assert(string && "OOM");
+    size_t string_len = 0;
+
+    size_t i = 1;
+    while (true) {
+        char ch = in[i];
+        if (ch == '"') {
+            break;
+        } else if (ch == '\n') {
+            string[string_len++] = '\n';
+            break;
+        } else if (ch == '\\') {
+            i += 1;
+            assert(i < len && "expected special character, got end of string literal");
+            ch = in[i];
+            assert(in[i] != '\n' && "expected special character, got end of string literal");
+            switch (ch) {
+            case '\'': string[string_len++] = '\''; break;
+            case '0': string[string_len++] = '\0'; break;
+            case '"': string[string_len++] = '"'; break;
+            case 'n': string[string_len++] = '\n'; break;
+            case 't': string[string_len++] = '\t'; break;
+            default:
+                printf("unknown special character: \\%c\n", ch);
+                assert(0 && "unknown special character");
+            }
+        } else {
+            string[string_len++] = ch;
+        }
+        i += 1;
+    }
+
+    out->token.spelling = Intern_insert(ctx.intern, ctx.alloc, string, string_len);
     out->token.kind = TK_String;
     out->rest = in + len;
     return true;
@@ -175,10 +209,11 @@ static bool lexer_number(struct Context ctx, struct Out *out, const char *in) {
 }
 
 static bool lexer_name(struct Context ctx, struct Out *out, const char *in) {
-    if (lexer_is_word_break(in[0])) return false;
-    size_t len = 1;
-    while (!lexer_is_word_break(in[len]) || strings_ascii_digit(in[len]))
+    size_t len = 0;
+    while (!lexer_is_word_break(in[len]))
         len++;
+    if (len == 0)
+        return false;
     out->token.spelling = Intern_insert(ctx.intern, ctx.alloc, in, len);
     out->token.kind = TK_Name;
     out->rest = in + len;

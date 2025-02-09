@@ -9,19 +9,16 @@ func print_arr(n: int) {
             break;
         };
         if __builtin_cmp_eq(__builtin_and(__builtin_shr(n, i), 1), 1) {
-            mut s: int = "*" as int;
-            s = __builtin_add(s, 1);
+            let s: int = "*" as int;
             print(s, 1);
         } else {
-            mut s: int = " " as int;
-            s = __builtin_add(s, 1);
+            let s: int = " " as int;
             print(s, 1);
         };
         i = __builtin_add(i, 1);
     };
-    mut s: int = "
+    let s: int = "
     as int;
-    s = __builtin_add(s, 1);
     print(s, 1);
 }
 
