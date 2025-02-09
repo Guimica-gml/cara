@@ -78,7 +78,8 @@ struct Ast parse(
         }
     }
 after:
-	assert(Tokenstream_peek(&ctx.toks).kind == TK_EOF);
+    printf("last tokens is: %s\n", Tokenstream_peek(&ctx.toks).spelling);
+    assert(Tokenstream_peek(&ctx.toks).kind == TK_EOF);
 
     return (struct Ast){
         .funcs = funcs,
@@ -495,8 +496,17 @@ static struct Expr expr_op_left(struct Context *ctx) {
     assert(false && "unexpected token");
 }
 
-static bool expr_op_right_first(struct Context *ctx, unsigned prec) {
-    switch (Tokenstream_peek(&ctx->toks).kind) {
+static bool expr_op_right_first(struct Context* ctx, unsigned prec) {
+    struct Token op = Tokenstream_peek(&ctx->toks);
+    for (size_t i = 0; i < ctx->ops.len; i++) {
+        if (op.spelling != ctx->ops.buf[i].token)
+            continue;
+        if (ctx->ops.buf[i].lbp < (int)prec)
+            return false;
+        return true;
+    }
+
+    switch (op.kind) {
     case TK_OpenParen:
     case TK_Name:
     case TK_Number:
@@ -507,13 +517,6 @@ static bool expr_op_right_first(struct Context *ctx, unsigned prec) {
         break;
     }
 
-    for (size_t i = 0; i < ctx->ops.len; i++) {
-        if (ctx->ops.buf[i].lbp < (int)prec)
-            continue;
-        if (Tokenstream_peek(&ctx->toks).spelling != ctx->ops.buf[i].token)
-            continue;
-        return true;
-    }
     return false;
 }
 
@@ -525,25 +528,15 @@ static struct Expr expr_op_right(
     struct ExprCall* call = serene_alloc(ctx->alloc, struct ExprCall);
     assert(call && "OOM");
 
-    switch (Tokenstream_peek(&ctx->toks).kind) {
-    case TK_OpenParen:
+    bool name_encountered = false;
+    struct Token op = Tokenstream_peek(&ctx->toks);
+    
+    switch (op.kind) {
     case TK_Name:
-    case TK_Number:
-    case TK_String:
-    case TK_Bool:
-        call->args = expr_atom(ctx);
-        call->name = left;
-
-        return (struct Expr){
-            .tag = ET_Call,
-            .type = Context_new_typevar(ctx),
-            .call = call,
-        };
-    default:
         for (size_t i = 0; i < ctx->ops.len; i++) {
-            if (ctx->ops.buf[i].lbp < (int)prec)
+            if (op.spelling != ctx->ops.buf[i].token)
                 continue;
-            if (Tokenstream_peek(&ctx->toks).spelling != ctx->ops.buf[i].token)
+            if (ctx->ops.buf[i].lbp < (int)prec)
                 continue;
 
             assert(Tokenstream_drop(&ctx->toks));
@@ -569,6 +562,20 @@ static struct Expr expr_op_right(
                 .call = call,
             };
         }
+        __attribute__((fallthrough));
+    case TK_OpenParen:
+    case TK_Number:
+    case TK_String:
+    case TK_Bool:
+        call->args = expr_atom(ctx);
+        call->name = left;
+
+        return (struct Expr){
+            .tag = ET_Call,
+            .type = Context_new_typevar(ctx),
+            .call = call,
+        };
+    default: break;
     }
 
     assert(false && "unexpected token");

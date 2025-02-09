@@ -1,26 +1,31 @@
 #include "./tokens.h"
 #include "./strings.h"
-#include "./tokenstream.h"
-#include "./lexer.h"
+#include "tokenvec.h"
 
 bool Tokenstream_drop(struct Tokenstream* this) {
-    if (this->next.kind == TK_EOF) return false;
-    this->next = Lexer_next(&this->lexer);
+    if (this->len <= 0) return false;
+    this->buf++;
+    this->len--;
     return true;
 }
 
 bool Tokenstream_drop_text(struct Tokenstream* this, const char* text) {
-    if (this->next.kind == TK_EOF) return false;
-    if (!strings_equal(this->next.spelling, text)) return false;
-    this->next = Lexer_next(&this->lexer);
+    if (this->len <= 0) return false;
+    if (!strings_equal(this->buf[0].spelling, text)) return false;
+    this->buf++;
+    this->len--;
     return true;
 }
 
 bool Tokenstream_drop_kind(struct Tokenstream* this, enum Tokenkind kind) {
-    if (this->next.kind != kind) return false;
-    return Tokenstream_drop(this);
+    if (this->len <= 0) return false;
+    if (this->buf[0].kind != kind) return false;
+    this->buf++;
+    this->len--;
+    return true;
 }
 
 struct Token Tokenstream_peek(struct Tokenstream* this) {
-    return this->next;
+    if (this->len <= 0) return (struct Token) {0};
+    return this->buf[0];
 }

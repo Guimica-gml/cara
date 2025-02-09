@@ -16,15 +16,20 @@ static bool lexer_string(struct Lexer*, const char *);
 static bool lexer_number(struct Lexer*, const char *);
 static bool lexer_name(struct Lexer*, const char *);
 
-struct Token Lexer_next(struct Lexer* lexer) {
+struct LexResult Lexer_next(struct Lexer* lexer) {
     lexer->rest = lexer_strip_comments(lexer->rest);
+    size_t start = (size_t)lexer->rest;
     if (lexer_immediates(lexer, lexer->rest) ||
         lexer_keywords(lexer, lexer->rest) || lexer_bools(lexer, lexer->rest) ||
         lexer_string(lexer, lexer->rest) || lexer_number(lexer, lexer->rest) ||
         lexer_name(lexer, lexer->rest)) {
-        return lexer->token;
+        size_t len = (size_t)lexer->rest - start;
+        return (struct LexResult) {
+            .token = lexer->token,
+            .len = len,
+        };
     }
-    return (struct Token) {0};
+    return (struct LexResult) {0};
 }
 
 struct SpellingEntry {
@@ -39,12 +44,11 @@ static bool lexer_expect(
     const char* input
 ) {
     for (size_t i = 0; table[i].str; i++) {
-        if (!strings_prefix_of(input, table[i].str))
-            continue;
+        if (!strings_prefix_of(input, table[i].str)) continue;
         size_t len = strings_strlen(table[i].str);
-        if (!postcondition(input + len))
-            continue;
-        lexer->token.spelling = Intern_insert(lexer->intern, input, len);
+        if (!postcondition(input + len)) continue;
+        lexer->token.spelling = input;
+        /* lexer->token.spelling = Intern_insert(lexer->intern, input, len); */
         lexer->token.kind = table[i].kind;
         lexer->token.number = 0;
         lexer->rest = input + len;
@@ -120,8 +124,7 @@ static bool lexer_string(struct Lexer *lexer, const char *in) {
     size_t len = 0;
     bool escaped = true;
     bool loop = true;
-    if (in[0] != '"')
-        return false;
+    if (in[0] != '"') return false;
     while (loop) {
         switch (in[len]) {
         case '\\':
@@ -142,40 +145,41 @@ static bool lexer_string(struct Lexer *lexer, const char *in) {
         len++;
     }
 
-    char *string = serene_nalloc(lexer->intern->alloc, len, char);
-    assert(string && "OOM");
-    size_t string_len = 0;
+    /* char *string = serene_nalloc(lexer->intern->alloc, len, char); */
+    /* assert(string && "OOM"); */
+    /* size_t string_len = 0; */
 
-    size_t i = 1;
-    while (true) {
-        char ch = in[i];
-        if (ch == '"') {
-            break;
-        } else if (ch == '\n') {
-            string[string_len++] = '\n';
-            break;
-        } else if (ch == '\\') {
-            i += 1;
-            assert(i < len && "expected special character, got end of string literal");
-            ch = in[i];
-            assert(in[i] != '\n' && "expected special character, got end of string literal");
-            switch (ch) {
-            case '\'': string[string_len++] = '\''; break;
-            case '0': string[string_len++] = '\0'; break;
-            case '"': string[string_len++] = '"'; break;
-            case 'n': string[string_len++] = '\n'; break;
-            case 't': string[string_len++] = '\t'; break;
-            default:
-                printf("unknown special character: \\%c\n", ch);
-                assert(0 && "unknown special character");
-            }
-        } else {
-            string[string_len++] = ch;
-        }
-        i += 1;
-    }
+    /* size_t i = 1; */
+    /* while (true) { */
+    /*     char ch = in[i]; */
+    /*     if (ch == '"') { */
+    /*         break; */
+    /*     } else if (ch == '\n') { */
+    /*         string[string_len++] = '\n'; */
+    /*         break; */
+    /*     } else if (ch == '\\') { */
+    /*         i += 1; */
+    /*         assert(i < len && "expected special character, got end of string literal"); */
+    /*         ch = in[i]; */
+    /*         assert(in[i] != '\n' && "expected special character, got end of string literal"); */
+    /*         switch (ch) { */
+    /*         case '\'': string[string_len++] = '\''; break; */
+    /*         case '0': string[string_len++] = '\0'; break; */
+    /*         case '"': string[string_len++] = '"'; break; */
+    /*         case 'n': string[string_len++] = '\n'; break; */
+    /*         case 't': string[string_len++] = '\t'; break; */
+    /*         default: */
+    /*             printf("unknown special character: \\%c\n", ch); */
+    /*             assert(0 && "unknown special character"); */
+    /*         } */
+    /*     } else { */
+    /*         string[string_len++] = ch; */
+    /*     } */
+    /*     i += 1; */
+    /* } */
 
-    lexer->token.spelling = Intern_insert(lexer->intern, string, string_len);
+    /* lexer->token.spelling = Intern_insert(lexer->intern, string, string_len); */
+    lexer->token.spelling = in;
     lexer->token.kind = TK_String;
     lexer->token.number = 0;
     lexer->rest = in + len;
@@ -184,11 +188,10 @@ static bool lexer_string(struct Lexer *lexer, const char *in) {
 
 static bool lexer_number(struct Lexer* lexer, const char *in) {
     size_t len = 0;
-    while (strings_ascii_digit(in[len]))
-        len++;
-    if (len == 0)
-        return false;
-    lexer->token.spelling = Intern_insert(lexer->intern, in, len);
+    while (strings_ascii_digit(in[len])) len++;
+    if (len == 0) return false;
+    lexer->token.spelling = in;
+    /* lexer->token.spelling = Intern_insert(lexer->intern, in, len); */
     lexer->token.kind = TK_Number;
     lexer->token.number = atoi(lexer->token.spelling);
     lexer->rest = in + len;
@@ -197,11 +200,10 @@ static bool lexer_number(struct Lexer* lexer, const char *in) {
 
 static bool lexer_name(struct Lexer* lexer, const char *in) {
     size_t len = 0;
-    while (!lexer_is_word_break(in[len]))
-        len++;
-    if (len == 0)
-        return false;
-    lexer->token.spelling = Intern_insert(lexer->intern, in, len);
+    while (!lexer_is_word_break(in[len])) len++;
+    if (len == 0) return false;
+    lexer->token.spelling = in;
+    /* lexer->token.spelling = Intern_insert(lexer->intern, in, len); */
     lexer->token.kind = TK_Name;
     lexer->token.number = 0;
     lexer->rest = in + len;

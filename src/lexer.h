@@ -10,10 +10,14 @@
 
 struct Lexer {
     const char* rest;
-    struct Intern* intern;
     struct Token token;
 };
 
-struct Token Lexer_next(struct Lexer *);
+struct LexResult {
+    struct Token token;
+    size_t len;
+};
+
+struct LexResult Lexer_next(struct Lexer *);
 
 #endif

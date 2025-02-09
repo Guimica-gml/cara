@@ -46,4 +46,14 @@ struct Token {
     int number;
 };
 
+struct Tokenstream {
+    struct Token *buf;
+    size_t len;
+};
+
+bool Tokenstream_drop(struct Tokenstream*);
+bool Tokenstream_drop_text(struct Tokenstream*, const char*);
+bool Tokenstream_drop_kind(struct Tokenstream*, enum Tokenkind);
+struct Token Tokenstream_peek(struct Tokenstream*);
+
 #endif

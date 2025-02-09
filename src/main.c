@@ -21,12 +21,13 @@
 #include "./tst.h"
 #include "./codegen.h"
 #include "./typer.h"
+#include "./opscan.h"
 #include "serene.h"
 
 int main(int argc, char **argv) {
-    struct serene_Arena strings_arena, ast_arena, type_arena, check_arena,
+    struct serene_Arena strings_arena, opscan_arena, ast_arena, type_arena, check_arena,
         tst_arena, codegen_arena;
-    strings_arena = ast_arena = type_arena = check_arena = tst_arena =
+    strings_arena = opscan_arena = ast_arena = type_arena = check_arena = tst_arena =
         codegen_arena = (struct serene_Arena){
             .backing = serene_Libc_dyn(),
         };
@@ -51,50 +52,68 @@ int main(int argc, char **argv) {
     struct Symbols symbols = populate_interner(&intern);
 
     printf("[\n");
-    struct Tokenstream stream;
     {
         struct Lexer lexer = {
             .rest = file,
-            .intern = &intern,
             .token = {0},
         };
-        struct Token next = Lexer_next(&lexer);
-
-        stream = (struct Tokenstream){
-            .lexer = lexer,
-            .next = next,
-        };
-    }
-    for (
-        struct Token t = Tokenstream_peek(&stream);
-        t.kind != TK_EOF;
-        Tokenstream_drop(&stream), t = Tokenstream_peek(&stream)
-    ) {
-        printf(
-            "\t(%p)\t'%s'\n",
-            t.spelling,
-            t.spelling
-        );
+        for (
+            struct LexResult t = Lexer_next(&lexer);
+            t.token.kind != TK_EOF;
+            t = Lexer_next(&lexer)
+        ) {
+            printf(
+                "\t(%p)\t'%.*s'\n",
+                t.token.spelling,
+                (int) t.len,
+                t.token.spelling
+            );
+        }
     }
     printf("]\n");
 
     struct Opdecls ops = {0};
-    struct TypeIntern types =
-        TypeIntern_init(serene_Arena_dyn(&type_arena), symbols);
+    struct Tokenvec tokenvec = {0};
 
     {
         struct Lexer lexer = {
             .rest = file,
-            .intern = &intern,
             .token = {0},
         };
-        struct Token next = Lexer_next(&lexer);
-
-        stream = (struct Tokenstream){
-            .lexer = lexer,
-            .next = next,
-        };
+        scan(
+            serene_Arena_dyn(&opscan_arena),
+            &intern,
+            lexer,
+            &tokenvec,
+            &ops
+        );
     }
+
+    struct Tokenstream stream = {
+        .buf = tokenvec.buf,
+        .len = tokenvec.len,
+    };
+
+    printf("[\n");
+    {
+        struct Tokenstream printer = stream;
+        for (
+            struct Token t = Tokenstream_peek(&printer);
+            t.kind != TK_EOF;
+            Tokenstream_drop(&printer), t = Tokenstream_peek(&printer)
+        ) {
+            printf(
+                "\t(%p)\t'%s'\n",
+                t.spelling,
+                t.spelling
+            );
+        }
+    }
+    printf("]\n");
+
+    struct TypeIntern types =
+        TypeIntern_init(serene_Arena_dyn(&type_arena), symbols);
+
     struct Ast ast = parse(
         serene_Arena_dyn(&ast_arena),
         ops,
