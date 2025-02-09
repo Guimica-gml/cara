@@ -182,7 +182,7 @@ static Type typecheck_ET_If(struct Context* ctx, struct ExprIf* expr),
     typecheck_ST_Break(struct Context *ctx, struct Expr *body, Type type),
     typecheck_ST_Mut(struct Context *ctx, struct ExprLet *let, Type type),
     typecheck_ST_Let(struct Context *ctx, struct ExprLet *let, Type type),
-    typecheck_ET_Tuple(struct Context *ctx, struct ExprTuple *expr, Type type),
+    typecheck_ET_Tuple(struct Context *ctx, struct ExprTuple expr, Type type),
     typecheck_ET_Recall(struct Context *ctx, const char *lit, Type type);
 
 static Type typecheck_expr(struct Context *ctx, struct Expr *expr) {
@@ -289,10 +289,10 @@ typecheck_ET_Recall(struct Context *ctx, const char *lit, Type type) {
 
 static Type typecheck_ET_Tuple(
     struct Context* ctx,
-    struct ExprTuple* expr,
+    struct ExprTuple expr,
     Type type
 ) {
-    for (ll_iter(head, expr)) {
+    for (ll_iter(head, expr.list)) {
         typecheck_expr(ctx, &head->current);
     }
     return type;
@@ -363,7 +363,7 @@ static void fill_expr(struct Context *ctx, struct Expr *expr) {
         Case(ET_If, expr->if_expr);
         Case(ET_Bareblock, expr->bareblock);
         Case(ET_Call, expr->call);
-        Case(ET_Tuple, expr->tuple);
+        Case(ET_Tuple, &expr->tuple);
 
     case ST_Mut:
         Case(ST_Let, expr->let);
@@ -412,7 +412,7 @@ static void fill_ET_Call(struct Context *ctx, struct ExprCall *expr) {
 }
 
 static void fill_ET_Tuple(struct Context* ctx, struct ExprTuple* expr) {
-    for (ll_iter(head, expr)) {
+    for (ll_iter(head, expr->list)) {
         fill_expr(ctx, &head->current);
     }
 }
@@ -566,6 +566,10 @@ static Type unify(
             break;
         }
     } else {
+        Type_print(ltype);
+        printf("\n");
+        Type_print(rtype);
+        printf("\n");
         assert(
             (ltype->tag == TT_Var || rtype->tag == TT_Var) && "type mismatch"
         );

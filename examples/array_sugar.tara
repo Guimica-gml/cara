@@ -1,0 +1,11 @@
+func foo(): *(string; 2, int; 2) =
+    ("foobar", "the world", 6, 9);
+
+func _start() {
+    let (a, b, alen, blen) = foo();
+    __builtin_syscall(1, 1, __builtin_ptr_to_int(a), alen, 0, 0, 0);
+    __builtin_syscall(1, 1, __builtin_ptr_to_int("\n"), 1, 0, 0, 0);
+    __builtin_syscall(1, 1, __builtin_ptr_to_int(b), blen, 0, 0, 0);
+    __builtin_syscall(1, 1, __builtin_ptr_to_int("\n"), 1, 0, 0, 0);
+    __builtin_syscall(60, 0, 0, 0, 0, 0, 0);
+}

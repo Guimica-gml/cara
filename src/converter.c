@@ -65,7 +65,7 @@ static struct tst_Expr convert_ET_If(struct Context* ctx, struct ExprIf* expr, s
     convert_ET_Bareblock(struct Context* ctx, struct ExprsLL* body, struct tst_Type type),
     convert_ET_Call(struct Context* ctx, struct ExprCall* expr, struct tst_Type type),
     convert_ET_Recall(struct Context *ctx, const char *lit, struct tst_Type type),
-    convert_ET_Tuple(struct Context *ctx, struct ExprTuple *expr, struct tst_Type type),
+    convert_ET_Tuple(struct Context *ctx, struct ExprTuple expr, struct tst_Type type),
     convert_ST_Let(struct Context *ctx, struct ExprLet *expr, struct tst_Type type),
     convert_ST_Break(struct Context *ctx, struct Expr *body, struct tst_Type type),
     convert_ST_Return(struct Context *ctx, struct Expr *body, struct tst_Type type),
@@ -217,10 +217,10 @@ static struct tst_Expr convert_ET_Recall(struct Context* ctx, const char* lit, s
 #undef builtin
 }
 
-static struct tst_Expr convert_ET_Tuple(struct Context* ctx, struct ExprTuple* expr, struct tst_Type type) {
+static struct tst_Expr convert_ET_Tuple(struct Context* ctx, struct ExprTuple expr, struct tst_Type type) {
     struct tst_ExprTuple *list = NULL;
     struct tst_ExprTuple *last = NULL;
-    for (ll_iter(head, expr)) {
+    for (ll_iter(head, expr.list)) {
         struct tst_ExprTuple* tmp = serene_alloc(ctx->alloc, struct tst_ExprTuple);
         assert(tmp && "OOM");
         *tmp = (typeof(*tmp)){0};

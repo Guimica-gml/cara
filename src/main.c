@@ -56,9 +56,15 @@ int main(int argc, char **argv) {
 
     printf("[\n");
     struct Tokenstream stream = Tokenvec_stream(&tokens);
-    for (size_t i = 0; i < stream.len; i++) {
+    for (
+        struct Token t = Tokenstream_peek(&stream);
+        t.kind != TK_EOF;
+        Tokenstream_drop(&stream), t = Tokenstream_peek(&stream)
+    ) {
         printf(
-            "\t(%p)\t'%s'\n", stream.buf[i].spelling, stream.buf[i].spelling
+            "\t(%p)\t'%s'\n",
+            t.spelling,
+            t.spelling
         );
     }
     printf("]\n");

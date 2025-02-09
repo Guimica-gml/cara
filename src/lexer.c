@@ -1,6 +1,8 @@
 #include "./lexer.h"
 #include "./strings.h"
 #include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 struct SpellingEntry;
 
@@ -25,8 +27,7 @@ static bool lexer_string(struct Context, struct Out *, const char *);
 static bool lexer_number(struct Context, struct Out *, const char *);
 static bool lexer_name(struct Context, struct Out *, const char *);
 
-struct Tokenvec
-lex(struct serene_Allocator alloc, struct Intern *intern, const char *input) {
+struct Tokenvec lex(struct serene_Allocator alloc, struct Intern *intern, const char *input) {
     struct Tokenvec toks = {0};
     struct Out res = {0};
     struct Context ctx = {
@@ -62,6 +63,7 @@ static bool lexer_expect(
             continue;
         out->token.spelling = Intern_insert(ctx.intern, ctx.alloc, input, len);
         out->token.kind = table[i].kind;
+        out->token.number = 0;
         out->rest = input + len;
         return true;
     }
@@ -192,6 +194,7 @@ static bool lexer_string(struct Context ctx, struct Out *out, const char *in) {
 
     out->token.spelling = Intern_insert(ctx.intern, ctx.alloc, string, string_len);
     out->token.kind = TK_String;
+    out->token.number = 0;
     out->rest = in + len;
     return true;
 }
@@ -204,6 +207,7 @@ static bool lexer_number(struct Context ctx, struct Out *out, const char *in) {
         return false;
     out->token.spelling = Intern_insert(ctx.intern, ctx.alloc, in, len);
     out->token.kind = TK_Number;
+    out->token.number = atoi(out->token.spelling);
     out->rest = in + len;
     return true;
 }
@@ -216,6 +220,7 @@ static bool lexer_name(struct Context ctx, struct Out *out, const char *in) {
         return false;
     out->token.spelling = Intern_insert(ctx.intern, ctx.alloc, in, len);
     out->token.kind = TK_Name;
+    out->token.number = 0;
     out->rest = in + len;
     return true;
 }

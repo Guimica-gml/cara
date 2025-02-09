@@ -36,13 +36,6 @@ bool strings_equal(const char *this, const char *other) {
     return *this == *other;
 }
 
-static bool strings_n_equal(const char *this, const char *other, size_t len) {
-    size_t i = 0;
-    while (i < len && this[i] && other[i] && this[i] == other[i])
-        i++;
-    return i == len;
-}
-
 const char *Intern_insert(
     struct Intern *this, struct serene_Allocator alloc, const char *s,
     size_t len

@@ -42,7 +42,8 @@ enum Tokenkind {
 
 struct Token {
     enum Tokenkind kind;
-    const char *spelling;
+    const char* spelling;
+    int number;
 };
 
 struct Tokenstream {

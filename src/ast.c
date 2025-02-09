@@ -141,7 +141,7 @@ static void print_ET_If(struct ExprIf* expr, int level),
     print_ET_Loop(struct Expr* body, int level),
     print_ET_Bareblock(struct ExprsLL* body, int level),
     print_ET_Call(struct ExprCall* expr, int level),
-    print_ET_Tuple(struct ExprTuple* expr, int level),
+    print_ET_Tuple(struct ExprTuple expr, int level),
     print_ST_Let(struct ExprLet *expr, int level),
     print_ST_Mut(struct ExprLet *expr, int level),
     print_ST_Break(struct Expr *expr, int level),
@@ -215,10 +215,10 @@ static void print_ET_Call(struct ExprCall *expr, int level) {
     printf(")");
 }
 
-static void print_ET_Tuple(struct ExprTuple* expr, int level) {
+static void print_ET_Tuple(struct ExprTuple expr, int level) {
     printf("(");
-    struct ExprTuple *head;
-    for (head = expr; head && head->next; head = head->next) {
+    struct ExprsLL *head;
+    for (head = expr.list; head && head->next; head = head->next) {
         Expr_print(&head->current, level);
         printf(", ");
     }
@@ -278,4 +278,51 @@ void Ast_print(struct Ast *ast) {
         Function_print(&f->current, 0);
         printf("\n");
     }
+}
+
+struct Expr expr_tuple(
+    struct serene_Allocator alloc,
+    struct TypeIntern* intern,
+    struct Expr lhs,
+    struct Expr rhs
+) {
+    struct ExprsLL* list = serene_alloc(alloc, struct ExprsLL);
+    struct ExprsLL* last = serene_alloc(alloc, struct ExprsLL);
+    assert(list && last && "OOM");
+    *list = (typeof(*list)){0};
+    *last = (typeof(*last)){0};
+    list->current = lhs;
+    last->current = rhs;
+    list->next = last;
+    const struct Type *type = Type_tuple(intern, lhs.type, rhs.type);
+    return (struct Expr) {
+        .tag = ET_Tuple,
+        .type = Type_call(intern, intern->tsyms.t_star, type),
+        .tuple = (struct ExprTuple) {
+            .list = list,
+            .last = last,
+        },
+    };
+}
+
+struct Expr expr_tuple_extend(
+    struct serene_Allocator alloc,
+    struct TypeIntern* intern,
+    struct Expr tail,
+    struct Expr head
+) {
+    if (tail.tag != ET_Tuple) return expr_tuple(alloc, intern, tail, head);
+    struct ExprsLL* tmp = serene_alloc(alloc, struct ExprsLL);
+    assert(tmp && "OOM");
+    *tmp = (typeof(*tmp)){0};
+    tmp->current = head;
+    if (!tail.tuple.last) tail.tuple.list = tmp;
+    else tail.tuple.last->next = tmp;
+    tail.tuple.last = tmp;
+    tail.type = Type_call(
+        intern,
+        intern->tsyms.t_star,
+        Type_tuple_extend(intern, tail.type->call.args, head.type)
+    );
+    return tail;
 }

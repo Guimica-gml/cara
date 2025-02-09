@@ -40,7 +40,7 @@ static struct Expr expr_op_left(struct Context *);
 static bool expr_op_right_first(struct Context *, unsigned);
 static struct Expr expr_op_right(struct Context *, struct Expr left, unsigned prec);
 static struct Expr expr_parenthesised(struct Context*);
-static struct Expr expr_atom(struct Context *);
+static struct Expr expr_atom(struct Context*);
 
 static struct Expr statement(struct Context *);
 static struct Expr statement_let(struct Context *);
@@ -92,7 +92,7 @@ static struct Function decls_function(struct Context *ctx) {
 
     assert(Tokenstream_drop_text(&ctx->toks, "func"));
 
-	name = Tokenstream_peek(&ctx->toks).spelling;
+    name = Tokenstream_peek(&ctx->toks).spelling;
     assert(Tokenstream_drop_kind(&ctx->toks, TK_Name));
 
     args = binding_parenthesised(ctx);
@@ -240,10 +240,26 @@ static const struct Type *type_atom(struct Context *ctx) {
 static const struct Type *type_parenthesised(struct Context *ctx) {
     assert(Tokenstream_drop_text(&ctx->toks, "("));
     const struct Type* out = type(ctx);
+    if (Tokenstream_peek(&ctx->toks).kind == TK_Semicolon) {
+        assert(Tokenstream_drop(&ctx->toks));
+        int n = Tokenstream_peek(&ctx->toks).number;
+        assert(Tokenstream_drop_kind(&ctx->toks, TK_Number));
+        const struct Type* type = out;
+        for (int i = 1; i < n; i++)
+            out = Type_tuple_extend(ctx->intern, out, type);
+    }
     while (Tokenstream_peek(&ctx->toks).kind == TK_Comma) {
         assert(Tokenstream_drop(&ctx->toks));
         const struct Type* rhs = type(ctx);
-        out = Type_tuple_extend(ctx->intern, out, rhs);
+        if (Tokenstream_peek(&ctx->toks).kind == TK_Semicolon) {
+            assert(Tokenstream_drop(&ctx->toks));
+            int n = Tokenstream_peek(&ctx->toks).number;
+            assert(Tokenstream_drop_kind(&ctx->toks, TK_Number));
+            for (int i = 0; i < n; i++)
+                out = Type_tuple_extend(ctx->intern, out, rhs);
+        } else {
+            out = Type_tuple_extend(ctx->intern, out, rhs);
+        }
     }
     assert(Tokenstream_drop_text(&ctx->toks, ")"));
     return out;
@@ -393,6 +409,23 @@ static struct Expr expr_bareblock(struct Context *ctx) {
     struct ExprsLL *last = NULL;
     const struct Type *type = ctx->intern->tsyms.t_unit;
 
+    {
+        printf("[\n");
+        struct Tokenstream stream = ctx->toks;
+        for (
+            struct Token t = Tokenstream_peek(&stream);
+            t.kind != TK_EOF;
+            Tokenstream_drop(&stream), t = Tokenstream_peek(&stream)
+            ) {
+            printf(
+                "\t(%p)\t'%s'\n",
+                t.spelling,
+                t.spelling
+                );
+        }
+        printf("]\n");
+    }
+
     assert(Tokenstream_drop_text(&ctx->toks, "{"));
     while (Tokenstream_peek(&ctx->toks).kind != TK_CloseBrace) {
         {
@@ -418,7 +451,26 @@ static struct Expr expr_bareblock(struct Context *ctx) {
             type = last->current.type;
             break;
         }
+
+        {
+            printf("[\n");
+            struct Tokenstream stream = ctx->toks;
+            for (
+                struct Token t = Tokenstream_peek(&stream);
+                t.kind != TK_EOF;
+                Tokenstream_drop(&stream), t = Tokenstream_peek(&stream)
+                ) {
+                printf(
+                    "\t(%p)\t'%s'\n",
+                    t.spelling,
+                    t.spelling
+                    );
+            }
+            printf("]\n");
+        }
+
     }
+    printf("the token is: %s\n", Tokenstream_peek(&ctx->toks).spelling);
     assert(Tokenstream_drop_text(&ctx->toks, "}"));
 
     return (struct Expr){.tag = ET_Bareblock, .type = type, .bareblock = block};
@@ -535,27 +587,12 @@ static struct Expr expr_op_right(
                 .lit = ctx->ops.buf[i].token,
             };
             if (ctx->ops.buf[i].rbp >= 0) {
-                struct ExprTuple* lhs_node = serene_alloc(ctx->alloc, struct ExprTuple);
-                struct ExprTuple* rhs_node = serene_alloc(ctx->alloc, struct ExprTuple);
-                assert(lhs_node && rhs_node && "OOM");
-                *lhs_node = (struct ExprTuple) {0};
-                *rhs_node = (struct ExprTuple) {0};
-                lhs_node->current = left;
-                rhs_node->next = lhs_node;
-                rhs_node->current = expr_op(ctx, ctx->ops.buf[i].rbp);
-
-                const struct Type* t_tuple = Type_tuple(
+                call->args = expr_tuple(
+                    ctx->alloc,
                     ctx->intern,
-                    lhs_node->current.type,
-                    rhs_node->current.type
+                    left,
+                    expr_op(ctx, ctx->ops.buf[i].rbp)
                 );
-                const struct Type* type = Type_call(ctx->intern, ctx->intern->tsyms.t_star, t_tuple);
-
-                call->args = (struct Expr){
-                    .tag = ET_Tuple,
-                    .type = type,
-                    .tuple = rhs_node,
-                };
             } else {
                 call->args = left;
             }
@@ -577,35 +614,32 @@ static struct Expr expr_parenthesised(struct Context* ctx) {
     if (Tokenstream_peek(&ctx->toks).kind != TK_CloseParen) {
         out = expr_any(ctx);
 
-        if (Tokenstream_peek(&ctx->toks).kind == TK_Comma) {
-            struct ExprTuple* list = serene_alloc(ctx->alloc, struct ExprTuple);
-            assert(list && "OOM");
-            *list = (struct ExprTuple){0};
-            list->current = out;
-            const struct Type *type = out.type;
+        if (Tokenstream_peek(&ctx->toks).kind == TK_Semicolon) {
+            assert(Tokenstream_drop(&ctx->toks));
+            int n = Tokenstream_peek(&ctx->toks).number;
+            assert(Tokenstream_drop_kind(&ctx->toks, TK_Number));
+            struct Expr expr = out;
+            for (int i = 1; i < n; i++) 
+                out = expr_tuple_extend(ctx->alloc, ctx->intern, out, expr);
+        }
 
-            struct ExprTuple* last = list;
-            while (Tokenstream_peek(&ctx->toks).kind == TK_Comma) {
+        while (Tokenstream_peek(&ctx->toks).kind == TK_Comma) {
+            assert(Tokenstream_drop(&ctx->toks));
+            struct Expr next = expr_any(ctx);
+            if (Tokenstream_peek(&ctx->toks).kind == TK_Semicolon) {
                 assert(Tokenstream_drop(&ctx->toks));
-                struct ExprTuple* tmp = serene_alloc(ctx->alloc, struct ExprTuple);
-                assert(tmp && "OOM");
-                *tmp = (struct ExprTuple) {0};
-                tmp->current = expr_any(ctx);
-                last->next = tmp;
-                last = tmp;
-                type = Type_tuple_extend(ctx->intern, type, tmp->current.type);
+                int n = Tokenstream_peek(&ctx->toks).number;
+                assert(Tokenstream_drop_kind(&ctx->toks, TK_Number));
+                for (int i = 1; i < n; i++)
+                    out = expr_tuple_extend(ctx->alloc, ctx->intern, out, next);
             }
-            out = (struct Expr){
-                .tag = ET_Tuple,
-                .type = Type_call(ctx->intern, ctx->intern->tsyms.t_star, type),
-                .tuple = list
-            };
+            out = expr_tuple_extend(ctx->alloc, ctx->intern, out, next);
         }
     } else {
         out = (struct Expr){
             .tag = ET_Tuple,
             .type = ctx->intern->tsyms.t_unit,
-            .tuple = NULL
+            .tuple = {0},
         };
     }
     assert(Tokenstream_drop_text(&ctx->toks, ")"));
@@ -718,7 +752,7 @@ static struct Expr statement_break(struct Context *ctx) {
         *expr = (struct Expr) {
             .tag = ET_Tuple,
             .type = ctx->intern->tsyms.t_unit,
-            .tuple = NULL,
+            .tuple = {0},
         };
     }
 

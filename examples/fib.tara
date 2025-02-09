@@ -15,3 +15,8 @@ func main(): int {
     let res = fib(6);
     res
 }
+
+func _start() {
+    let code = main();
+    __builtin_syscall(60, code, 0, 0, 0, 0, 0);
+}

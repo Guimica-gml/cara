@@ -82,7 +82,10 @@ enum ExprTag {
 };
 struct ExprIf;
 struct ExprCall;
-struct ExprTuple;
+struct ExprTuple {
+    struct ExprsLL* last;
+    struct ExprsLL* list;
+};
 struct ExprLet;
 struct ExprAssign;
 
@@ -92,7 +95,7 @@ struct Expr {
     union {
         struct ExprIf *if_expr;
         struct ExprCall *call;
-        struct ExprTuple *tuple;
+        struct ExprTuple tuple;
         struct Expr *loop;
         struct ExprsLL *bareblock;
         const char *lit;
@@ -106,8 +109,8 @@ struct Expr {
 };
 
 struct ExprsLL {
+    struct ExprsLL* next;
     struct Expr current;
-    struct ExprsLL *next;
 };
 
 struct ExprIf {
@@ -119,10 +122,6 @@ struct ExprCall {
     struct Expr name;
     struct Expr args;
 };
-struct ExprTuple {
-    struct ExprTuple *next;
-    struct Expr current;
-};
 struct ExprLet {
     struct Binding bind;
     struct Expr init;
@@ -131,6 +130,9 @@ struct ExprAssign {
     const char *name;
     struct Expr expr;
 };
+
+struct Expr expr_tuple(struct serene_Allocator, struct TypeIntern *, struct Expr lhs, struct Expr rhs);
+struct Expr expr_tuple_extend(struct serene_Allocator, struct TypeIntern *, struct Expr tail, struct Expr head);
 
 struct Function {
     const char *name;
