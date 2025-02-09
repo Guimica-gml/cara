@@ -176,7 +176,6 @@ static struct Control lower_TET_BoolLit(struct FCtx* ctx, const char* lit),
     lower_TET_Recall(struct FCtx* ctx, const char* lit),
     lower_TET_Tuple(struct FCtx* ctx, struct tst_ExprTuple* expr, struct tst_Type* type),
     lower_TET_Builtin(struct FCtx* ctx, enum tst_ExprBuiltin built),
-    lower_TET_Cast(struct FCtx *ctx, struct tst_ExprCast* cast),
     lower_TST_Let(struct FCtx* ctx, struct tst_ExprLet* expr),
     lower_TST_Break(struct FCtx* ctx, struct tst_Expr* body),
     lower_TST_Return(struct FCtx* ctx, struct tst_Expr* body),
@@ -198,7 +197,6 @@ static struct Control lower_expr(struct tst_Expr* expr, struct FCtx* ctx) {
         Case(TET_Recall, expr->lit);
         Case(TET_Tuple, expr->tuple, &expr->type);
         Case(TET_Builtin, expr->builtin);
-        Case(TET_Cast, expr->cast);
         Case(TST_Let, expr->let);
         Case(TST_Break, expr->break_stmt);
         Case(TST_Return, expr->return_stmt);
@@ -350,6 +348,10 @@ static struct Control lower_builtin_call(
         case EB_bcmpLE: out = LLVMBuildICmp(ctx->b, LLVMIntULE, v_args[0], v_args[1], ""); break;
         case EB_bneg: out = LLVMBuildNeg(ctx->b, v_args[0], ""); break;
         case EB_bnot: out = LLVMBuildNot(ctx->b, v_args[0], ""); break;
+            // currently only strings are ptrs
+            // this would be more complicated with generic builtins
+        case EB_ptr_to_int: out = LLVMBuildPtrToInt(ctx->b, v_args[0], LLVMInt64Type(), ""); break;
+        case EB_int_to_ptr: out = LLVMBuildIntToPtr(ctx->b, v_args[0], LLVMPointerType(LLVMInt8Type(), 0), ""); break;
         case EB_syscall: {
             char string[7] = "syscall";
             char regs[42] = "=r,{rax},{rdi},{rsi},{rdx},{r8},{r9},{r10}";
@@ -406,13 +408,6 @@ static struct Control lower_TET_Builtin(struct FCtx* ctx, enum tst_ExprBuiltin b
     (void) ctx;
     (void) built;
     assert(false && "should not be called");
-}
-
-static struct Control lower_TET_Cast(struct FCtx* ctx, struct tst_ExprCast* cast) {
-    struct Control v = lower_expr(&cast->expr, ctx);
-    if (v.tag == CT_Break || v.tag == CT_Return) return v;
-    LLVMTypeRef t = lower_type(ctx->ctx, &cast->type);
-    return Control_plain(LLVMBuildPtrToInt(ctx->b, v.val, t, ""));
 }
 
 static struct Control lower_TST_Let(struct FCtx* ctx, struct tst_ExprLet* expr) {
