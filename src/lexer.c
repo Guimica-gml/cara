@@ -175,11 +175,10 @@ static bool lexer_number(struct Context ctx, struct Out *out, const char *in) {
 }
 
 static bool lexer_name(struct Context ctx, struct Out *out, const char *in) {
-    size_t len = 0;
-    while (!lexer_is_word_break(in[len]))
+    if (lexer_is_word_break(in[0])) return false;
+    size_t len = 1;
+    while (!lexer_is_word_break(in[len]) || strings_ascii_digit(in[len]))
         len++;
-    if (len == 0)
-        return false;
     out->token.spelling = Intern_insert(ctx.intern, ctx.alloc, in, len);
     out->token.kind = TK_Name;
     out->rest = in + len;
