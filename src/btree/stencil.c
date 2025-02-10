@@ -1,4 +1,4 @@
-#include "stencil.h"
+#include "@filename@.h"
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
@@ -35,14 +35,9 @@ static struct @treename@_impl *impl_goto(
     return this;
 }
 
-/* static struct Split { */
-/*     struct @treename@_impl *node; */
-/*     @basetype@ elem; */
-/* } impl_input( */
 static bool impl_input(
     struct @treename@_impl *this, struct serene_Allocator alloc,
     @basetype@ *elem, struct @treename@_impl **node
-    /* struct Split data */
 ) {
     bool is_node = this->subs[0] != NULL;
     bool is_full = this->len >= @branching@;
@@ -157,9 +152,11 @@ static @basetype@ *impl_search(struct @treename@_impl *this, @basetype@ elem) {
     while (this) {
         int diff = -1;
         int i = 0;
-        while (
-            i < this->len && (diff = @cmp@(this->keys[i], elem)) < 0
-        ) i++;
+        while (i < this->len) {
+            diff = @cmp@(this->keys[i], elem);
+            if (diff >= 0) break;
+            i++;
+        }
         if (diff == 0) return &this->keys[i];
         this = this->subs[i];
     }
@@ -168,7 +165,7 @@ static @basetype@ *impl_search(struct @treename@_impl *this, @basetype@ elem) {
 
 @basetype@ *@treename@_search(struct @treename@ *this, @basetype@ elem) {
     if (!this->root) return NULL;
-    impl_search(this->root, elem);
+    return impl_search(this->root, elem);
 }
 
 static void impl_print(struct @treename@_impl *this, int level) {
