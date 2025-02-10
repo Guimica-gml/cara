@@ -1,4 +1,4 @@
-#include "stencil.h"
+#include "@filename@.h"
 #include <stdlib.h>
 
 @basetype@ *@vecname@_at(struct @vecname@ *this, size_t idx) {

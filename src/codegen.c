@@ -362,6 +362,7 @@ static struct Control lower_builtin_call(
             out = LLVMBuildCall2(ctx->b, type, v_asm, v_args, 7, "");
             break;
         }
+        default: assert(false && "shouldn't");
     }
     return Control_plain(out);
 }

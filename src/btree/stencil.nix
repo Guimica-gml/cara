@@ -23,7 +23,7 @@ in pkgs.stdenv.mkDerivation {
   dontStrip = true;
   buildInputs = [ serene ];
   buildPhase = ''
-    substituteAll $src/btree/stencil.h ./stencil.h
+    substituteAll $src/btree/stencil.h ./${filename}.h
     substituteAll $src/btree/stencil.c ./stencil.c
     cp $src/${include} ./
     gcc -c -O0 -g -o ./stencil.o ./stencil.c ${serene}/lib/*
@@ -33,7 +33,7 @@ in pkgs.stdenv.mkDerivation {
     mkdir -p $out/include
     mkdir -p $out/lib
     cp ./${include} $out/include/${include}
-    cp ./stencil.h $out/include/${filename}.h
+    cp ./${filename}.h $out/include/${filename}.h
     cp ./stencil.a $out/lib/${filename}.a
   '';
 }

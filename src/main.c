@@ -17,7 +17,6 @@
 #include "./strings.h"
 #include "./symbols.h"
 #include "./tokens.h"
-#include "./tokenstream.h"
 #include "./tst.h"
 #include "./codegen.h"
 #include "./typer.h"

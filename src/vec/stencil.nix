@@ -17,7 +17,7 @@ in pkgs.stdenv.mkDerivation {
     ];
   };
   buildPhase = ''
-    substituteAll $src/vec/stencil.h ./stencil.h
+    substituteAll $src/vec/stencil.h ./${filename}.h
     substituteAll $src/vec/stencil.c ./stencil.c
     cp $src/${include} ./
     gcc -c -O2 -o ./stencil.o ./stencil.c
@@ -27,7 +27,7 @@ in pkgs.stdenv.mkDerivation {
     mkdir -p $out/include
     mkdir -p $out/lib
     cp ./${include} $out/include/${include}
-    cp ./stencil.h $out/include/${filename}.h
+    cp ./${filename}.h $out/include/${filename}.h
     cp ./stencil.a $out/lib/${filename}.a
   '';
 }
