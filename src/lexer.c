@@ -7,9 +7,10 @@
 struct SpellingEntry;
 
 static bool lexer_is_word_break(char);
-static const char *lexer_strip_comments(const char *);
+static const char *lexer_strip_whitespace(const char *);
 static bool lexer_expect(const struct SpellingEntry*, bool (*post)(const char*), struct Lexer*, const char*);
 static bool lexer_immediates(struct Lexer*, const char*);
+static bool lexer_comment(struct Lexer *, const char *);
 static bool lexer_keywords(struct Lexer*, const char *);
 static bool lexer_bools(struct Lexer*, const char *);
 static bool lexer_string(struct Lexer*, const char *);
@@ -17,9 +18,9 @@ static bool lexer_number(struct Lexer*, const char *);
 static bool lexer_name(struct Lexer*, const char *);
 
 struct LexResult Lexer_next(struct Lexer* lexer) {
-    lexer->rest = lexer_strip_comments(lexer->rest);
+    lexer->rest = lexer_strip_whitespace(lexer->rest);
     size_t start = (size_t)lexer->rest;
-    if (lexer_immediates(lexer, lexer->rest) ||
+    if (lexer_immediates(lexer, lexer->rest) || lexer_comment(lexer, lexer->rest) ||
         lexer_keywords(lexer, lexer->rest) || lexer_bools(lexer, lexer->rest) ||
         lexer_string(lexer, lexer->rest) || lexer_number(lexer, lexer->rest) ||
         lexer_name(lexer, lexer->rest)) {
@@ -210,20 +211,30 @@ static bool lexer_name(struct Lexer* lexer, const char *in) {
     return true;
 }
 
-static const char *lexer_strip_comments(const char *input) {
-    while (strings_ascii_whitespace(*input))
-        input++;
-    while (strings_prefix_of(input, "//")) {
-        while (*input != '\n')
-            input++;
-        while (strings_ascii_whitespace(*input))
-            input++;
+static const char *lexer_strip_whitespace(const char *in) {
+    size_t len = 0;
+    while (strings_ascii_whitespace(in[len]))
+        len++;
+    return in + len;
+}
+
+static bool lexer_comment(struct Lexer *lexer, const char *in) {
+    size_t len = 0;
+    if (strings_prefix_of(in, "//")) {
+        while (in[len] != '\n')
+            len++;
+    } else {
+        return false;
     }
-    return input;
+    lexer->token.kind = TK_Comment;
+    lexer->token.spelling = in;
+    lexer->token.number = 0;
+    lexer->rest = in + len;
+    return true;
 }
 
 static bool lexer_is_word_break(char input) {
-    if (input == '\0' || input == '"' || strings_ascii_digit(input) ||
+    if (input == '\0' || input == '"' || input == '/' || strings_ascii_digit(input) ||
         strings_ascii_whitespace(input))
         return true;
     for (int i = TK_ImmediatesStart + 1; spelling_table[i].str; i++) {
