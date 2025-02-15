@@ -114,6 +114,11 @@ const struct Type *Type_call(
     return TypeIntern_intern(intern, &call);
 }
 
+const struct Type* Type_new_typevar(struct TypeIntern* intern) {
+    struct Type var = {.tag = TT_Var, .var = intern->var_counter++};
+    return TypeIntern_intern(intern, &var);
+}
+
 static void Binding_print(struct Binding *binding) {
     switch (binding->tag) {
     case BT_Empty:
@@ -167,9 +172,6 @@ static void Expr_print(struct Expr *expr, int level) {
         Case(ST_Assign, expr->assign, level);
         Case(ST_Const, expr->const_stmt, level);
 
-    case ET_Unit:
-        printf("()");
-        break;
     case ET_NumberLit:
     case ET_StringLit:
     case ET_BoolLit:
@@ -280,7 +282,7 @@ void Ast_print(struct Ast *ast) {
     }
 }
 
-struct Expr expr_tuple(
+struct Expr Expr_tuple(
     struct serene_Allocator alloc,
     struct TypeIntern* intern,
     struct Expr lhs,
@@ -305,13 +307,13 @@ struct Expr expr_tuple(
     };
 }
 
-struct Expr expr_tuple_extend(
+struct Expr Expr_tuple_extend(
     struct serene_Allocator alloc,
     struct TypeIntern* intern,
     struct Expr tail,
     struct Expr head
 ) {
-    if (tail.tag != ET_Tuple) return expr_tuple(alloc, intern, tail, head);
+    if (tail.tag != ET_Tuple) return Expr_tuple(alloc, intern, tail, head);
     struct ExprsLL* tmp = serene_alloc(alloc, struct ExprsLL);
     assert(tmp && "OOM");
     *tmp = (typeof(*tmp)){0};
@@ -325,4 +327,140 @@ struct Expr expr_tuple_extend(
         Type_tuple_extend(intern, tail.type->call.args, head.type)
     );
     return tail;
+}
+
+struct Expr Expr_unit(struct TypeIntern* intern) {
+    return (struct Expr){.tag = ET_Tuple, .type = intern->tsyms.t_unit, .tuple = {0}};
+}
+
+struct Expr Expr_call(
+    struct serene_Allocator alloc,
+    struct TypeIntern* intern,
+    struct Expr name,
+    struct Expr args
+) {
+    const struct Type* type = Type_new_typevar(intern);
+    struct ExprCall* call = serene_alloc(alloc, struct ExprCall);
+    assert(call && "OOM");
+    call->name = name;
+    call->args = args;
+    return (struct Expr) { .tag = ET_Call, .type = type, .call = call };
+}
+
+struct Expr Expr_if(
+    struct serene_Allocator alloc,
+    struct Expr cond,
+    struct Expr smash,
+    struct Expr pass
+) {
+    struct ExprIf* body = serene_alloc(alloc, struct ExprIf);
+    assert(body && "OOM");
+    body->cond = cond;
+    body->smash = smash;
+    body->pass = pass;
+    const struct Type* type = smash.type;
+    return (struct Expr) { .tag = ET_If, .type = type, .if_expr = body };
+}
+
+struct Expr Expr_loop(
+    struct serene_Allocator alloc,
+    struct TypeIntern* intern,
+    struct Expr body
+) {
+    struct Expr* loop = serene_alloc(alloc, struct Expr);
+    assert(loop && "OOM");
+    *loop = body;
+    const struct Type* type = Type_new_typevar(intern);
+    return (struct Expr) { .tag = ET_Loop, .type = type, .loop = loop };
+}
+
+struct Expr Expr_let(
+    struct serene_Allocator alloc,
+    struct TypeIntern* intern,
+    struct Binding binding,
+    struct Expr init
+) {
+    struct ExprLet* let = serene_alloc(alloc, struct ExprLet);
+    assert(let && "OOM");
+    let->bind = binding;
+    let->init = init;
+    const struct Type* type = intern->tsyms.t_unit;
+    return (struct Expr) { .tag = ST_Let, .type = type, .let = let };
+}
+
+struct Expr Expr_mut(
+    struct serene_Allocator alloc,
+    struct TypeIntern* intern,
+    struct Binding binding,
+    struct Expr init
+) {
+    struct ExprLet* mut = serene_alloc(alloc, struct ExprLet);
+    assert(mut && "OOM");
+    mut->bind = binding;
+    mut->init = init;
+    const struct Type* type = intern->tsyms.t_unit;
+    return (struct Expr) { .tag = ST_Mut, .type = type, .let = mut };
+}
+
+struct Expr Expr_recall(struct TypeIntern* intern, const char* name) {
+    const struct Type* type = Type_new_typevar(intern);
+    return (struct Expr){.tag = ET_Recall, .type = type, .lit = name};
+}
+
+struct Expr Expr_number(struct TypeIntern* intern, const char* lit) {
+    return (struct Expr){.tag = ET_NumberLit, .type = intern->tsyms.t_int, .lit = lit};
+}
+
+struct Expr Expr_string(struct TypeIntern* intern, const char* lit) {
+    return (struct Expr){.tag = ET_StringLit, .type = intern->tsyms.t_string, .lit = lit};
+}
+
+struct Expr Expr_bool(struct TypeIntern* intern, const char* lit) {
+    return (struct Expr){.tag = ET_BoolLit, .type = intern->tsyms.t_bool, .lit = lit};
+}
+
+struct Expr Expr_assign(
+    struct serene_Allocator alloc,
+    struct TypeIntern* intern,
+    const char* name,
+    struct Expr value
+) {
+    struct ExprAssign* assign = serene_alloc(alloc, struct ExprAssign);
+    assert(assign && "OOM");
+    assign->name = name;
+    assign->expr = value;
+    return (struct Expr) { .tag = ST_Assign, .type = intern->tsyms.t_unit, .assign = assign };
+}
+
+struct Expr Expr_break(
+    struct serene_Allocator alloc,
+    struct TypeIntern* intern,
+    struct Expr body
+) {
+    struct Expr* expr = serene_alloc(alloc, struct Expr);
+    assert(expr && "OOM");
+    *expr = body;
+    return (struct Expr){.tag = ST_Break, .type = intern->tsyms.t_unit, .break_stmt = expr};
+}
+
+struct Expr Expr_return(
+    struct serene_Allocator alloc,
+    struct TypeIntern* intern,
+    struct Expr body
+) {
+    struct Expr* expr = serene_alloc(alloc, struct Expr);
+    assert(expr && "OOM");
+    *expr = body;
+    return (struct Expr){.tag = ST_Return, .type = intern->tsyms.t_unit, .return_stmt = expr};
+}
+
+struct Expr Expr_const(
+    struct serene_Allocator alloc,
+    struct TypeIntern* intern,
+    struct Expr body
+) {
+    struct Expr* expr = serene_alloc(alloc, struct Expr);
+    assert(expr && "OOM");
+    *expr = body;
+    return (struct Expr){.tag = ST_Const, .type = intern->tsyms.t_unit, .const_stmt = expr};
 }

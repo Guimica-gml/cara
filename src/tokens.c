@@ -1,6 +1,5 @@
 #include "./tokens.h"
 #include "./strings.h"
-#include "tokenvec.h"
 
 bool Tokenstream_drop(struct Tokenstream* this) {
     if (this->len <= 0) return false;

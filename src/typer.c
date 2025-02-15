@@ -210,7 +210,6 @@ static Type typecheck_expr(struct Context *ctx, struct Expr *expr) {
     case ET_NumberLit:
     case ET_StringLit:
     case ET_BoolLit:
-    case ET_Unit:
         return expr->type;
     }
 
@@ -372,7 +371,6 @@ static void fill_expr(struct Context *ctx, struct Expr *expr) {
     case ET_NumberLit:
     case ET_StringLit:
     case ET_BoolLit:
-    case ET_Unit:
         break;
     case ST_Break:
         fill_expr(ctx, expr->break_stmt);

@@ -319,6 +319,7 @@ main() {
     mkdir $BUILD
     serene
     echo compiling the compiler
+    instances
     strings
     symbols
     tokens

@@ -109,10 +109,6 @@ static struct tst_Expr convert_expr(struct Context *ctx, struct Expr *expr) {
         .type = type,
         .lit = expr->lit,
     };
-    case ET_Unit: return (struct tst_Expr){
-        .tag = TET_Unit,
-        .type = type,
-    };
     }
 
 #undef Case
