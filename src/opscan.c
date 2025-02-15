@@ -54,6 +54,11 @@ void scan(
             continue;
         }
 
+        if (r.token.kind == TK_Comment) {
+            SKIP;
+            continue;
+        }
+
         if (r.token.kind == TK_Operator) {
             SKIP;
             assert(r.token.kind == TK_OpenParen), SKIP;
