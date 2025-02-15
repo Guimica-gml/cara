@@ -5,6 +5,6 @@
 #include "serene.h"
 #include <llvm-c/Core.h>
 
-LLVMModuleRef lower(struct Tst *, struct serene_Allocator);
+LLVMModuleRef lower(struct Tst *, struct serene_Trea alloc);
 
 #endif

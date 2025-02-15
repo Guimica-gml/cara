@@ -23,7 +23,7 @@ const struct Type *Binding_to_type(struct TypeIntern *intern, struct Binding thi
 
 void TypeIntern_print(struct TypeIntern *this) { Typereg_print(&this->tree); }
 
-struct TypeIntern TypeIntern_init(struct serene_Allocator alloc, struct Symbols syms) {
+struct TypeIntern TypeIntern_init(struct serene_Trea alloc, struct Symbols syms) {
     struct Type t_unit = {.tag = TT_Tuple, .tuple = NULL};
     struct Type t_bool = {.tag = TT_Recall, .recall = syms.s_bool};
     struct Type t_int = {.tag = TT_Recall, .recall = syms.s_int};
@@ -52,11 +52,10 @@ const struct Type *TypeIntern_intern(struct TypeIntern *this, struct Type *t) {
     }
     printf("found nothing!\ninserting!\n");
 
-    /* struct Type *new = Type_copy(this->alloc, t); */
-    struct Type *new = serene_alloc(this->alloc, struct Type);
+    struct Type *new = serene_trealloc(&this->alloc, struct Type);
     assert(new && "OOM");
     *new = *t;
-    assert(Typereg_insert(&this->tree, this->alloc, new));
+    assert(Typereg_insert(&this->tree, serene_Trea_dyn(&this->alloc), new));
     printf("inserted (%p)\n\n", new);
     return new;
 }
@@ -78,8 +77,8 @@ const struct Type* Type_tuple(
     const struct Type* lhs,
     const struct Type* rhs
 ) {
-    struct TypeTuple* node_lhs = serene_alloc(intern->alloc, struct TypeTuple);
-    struct TypeTuple* node_rhs = serene_alloc(intern->alloc, struct TypeTuple);
+    struct TypeTuple* node_lhs = serene_trealloc(&intern->alloc, struct TypeTuple);
+    struct TypeTuple* node_rhs = serene_trealloc(&intern->alloc, struct TypeTuple);
     assert(node_lhs && node_rhs && "OOM");
     *node_lhs = (struct TypeTuple){0};
     *node_rhs = (struct TypeTuple){0};
@@ -96,7 +95,7 @@ const struct Type* Type_tuple_extend(
 ) {
     if (tail->tag == TT_Tuple) {
         const struct TypeTuple* bare_tail = tail->tuple;
-        struct TypeTuple* new = serene_alloc(intern->alloc, struct TypeTuple);
+        struct TypeTuple* new = serene_trealloc(&intern->alloc, struct TypeTuple);
         assert(new && "OOM");
         *new = (struct TypeTuple){0};
         new->current = head;
@@ -283,13 +282,13 @@ void Ast_print(struct Ast *ast) {
 }
 
 struct Expr Expr_tuple(
-    struct serene_Allocator alloc,
+    struct serene_Trea* alloc,
     struct TypeIntern* intern,
     struct Expr lhs,
     struct Expr rhs
 ) {
-    struct ExprsLL* list = serene_alloc(alloc, struct ExprsLL);
-    struct ExprsLL* last = serene_alloc(alloc, struct ExprsLL);
+    struct ExprsLL* list = serene_trealloc(alloc, struct ExprsLL);
+    struct ExprsLL* last = serene_trealloc(alloc, struct ExprsLL);
     assert(list && last && "OOM");
     *list = (typeof(*list)){0};
     *last = (typeof(*last)){0};
@@ -308,13 +307,13 @@ struct Expr Expr_tuple(
 }
 
 struct Expr Expr_tuple_extend(
-    struct serene_Allocator alloc,
+    struct serene_Trea* alloc,
     struct TypeIntern* intern,
     struct Expr tail,
     struct Expr head
 ) {
     if (tail.tag != ET_Tuple) return Expr_tuple(alloc, intern, tail, head);
-    struct ExprsLL* tmp = serene_alloc(alloc, struct ExprsLL);
+    struct ExprsLL* tmp = serene_trealloc(alloc, struct ExprsLL);
     assert(tmp && "OOM");
     *tmp = (typeof(*tmp)){0};
     tmp->current = head;
@@ -334,13 +333,13 @@ struct Expr Expr_unit(struct TypeIntern* intern) {
 }
 
 struct Expr Expr_call(
-    struct serene_Allocator alloc,
+    struct serene_Trea* alloc,
     struct TypeIntern* intern,
     struct Expr name,
     struct Expr args
 ) {
     const struct Type* type = Type_new_typevar(intern);
-    struct ExprCall* call = serene_alloc(alloc, struct ExprCall);
+    struct ExprCall* call = serene_trealloc(alloc, struct ExprCall);
     assert(call && "OOM");
     call->name = name;
     call->args = args;
@@ -348,12 +347,12 @@ struct Expr Expr_call(
 }
 
 struct Expr Expr_if(
-    struct serene_Allocator alloc,
+    struct serene_Trea* alloc,
     struct Expr cond,
     struct Expr smash,
     struct Expr pass
 ) {
-    struct ExprIf* body = serene_alloc(alloc, struct ExprIf);
+    struct ExprIf* body = serene_trealloc(alloc, struct ExprIf);
     assert(body && "OOM");
     body->cond = cond;
     body->smash = smash;
@@ -363,11 +362,11 @@ struct Expr Expr_if(
 }
 
 struct Expr Expr_loop(
-    struct serene_Allocator alloc,
+    struct serene_Trea* alloc,
     struct TypeIntern* intern,
     struct Expr body
 ) {
-    struct Expr* loop = serene_alloc(alloc, struct Expr);
+    struct Expr* loop = serene_trealloc(alloc, struct Expr);
     assert(loop && "OOM");
     *loop = body;
     const struct Type* type = Type_new_typevar(intern);
@@ -375,12 +374,12 @@ struct Expr Expr_loop(
 }
 
 struct Expr Expr_let(
-    struct serene_Allocator alloc,
+    struct serene_Trea* alloc,
     struct TypeIntern* intern,
     struct Binding binding,
     struct Expr init
 ) {
-    struct ExprLet* let = serene_alloc(alloc, struct ExprLet);
+    struct ExprLet* let = serene_trealloc(alloc, struct ExprLet);
     assert(let && "OOM");
     let->bind = binding;
     let->init = init;
@@ -389,12 +388,12 @@ struct Expr Expr_let(
 }
 
 struct Expr Expr_mut(
-    struct serene_Allocator alloc,
+    struct serene_Trea* alloc,
     struct TypeIntern* intern,
     struct Binding binding,
     struct Expr init
 ) {
-    struct ExprLet* mut = serene_alloc(alloc, struct ExprLet);
+    struct ExprLet* mut = serene_trealloc(alloc, struct ExprLet);
     assert(mut && "OOM");
     mut->bind = binding;
     mut->init = init;
@@ -420,12 +419,12 @@ struct Expr Expr_bool(struct TypeIntern* intern, const char* lit) {
 }
 
 struct Expr Expr_assign(
-    struct serene_Allocator alloc,
+    struct serene_Trea* alloc,
     struct TypeIntern* intern,
     const char* name,
     struct Expr value
 ) {
-    struct ExprAssign* assign = serene_alloc(alloc, struct ExprAssign);
+    struct ExprAssign* assign = serene_trealloc(alloc, struct ExprAssign);
     assert(assign && "OOM");
     assign->name = name;
     assign->expr = value;
@@ -433,33 +432,33 @@ struct Expr Expr_assign(
 }
 
 struct Expr Expr_break(
-    struct serene_Allocator alloc,
+    struct serene_Trea* alloc,
     struct TypeIntern* intern,
     struct Expr body
 ) {
-    struct Expr* expr = serene_alloc(alloc, struct Expr);
+    struct Expr* expr = serene_trealloc(alloc, struct Expr);
     assert(expr && "OOM");
     *expr = body;
     return (struct Expr){.tag = ST_Break, .type = intern->tsyms.t_unit, .break_stmt = expr};
 }
 
 struct Expr Expr_return(
-    struct serene_Allocator alloc,
+    struct serene_Trea* alloc,
     struct TypeIntern* intern,
     struct Expr body
 ) {
-    struct Expr* expr = serene_alloc(alloc, struct Expr);
+    struct Expr* expr = serene_trealloc(alloc, struct Expr);
     assert(expr && "OOM");
     *expr = body;
     return (struct Expr){.tag = ST_Return, .type = intern->tsyms.t_unit, .return_stmt = expr};
 }
 
 struct Expr Expr_const(
-    struct serene_Allocator alloc,
+    struct serene_Trea* alloc,
     struct TypeIntern* intern,
     struct Expr body
 ) {
-    struct Expr* expr = serene_alloc(alloc, struct Expr);
+    struct Expr* expr = serene_trealloc(alloc, struct Expr);
     assert(expr && "OOM");
     *expr = body;
     return (struct Expr){.tag = ST_Const, .type = intern->tsyms.t_unit, .const_stmt = expr};

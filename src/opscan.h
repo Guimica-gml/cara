@@ -7,7 +7,6 @@
 #include "./tokenvec.h"
 
 void scan(
-    struct serene_Allocator scratch,
     struct Intern*,
     struct Lexer,
     struct Tokenvec* tokens_out,

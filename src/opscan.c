@@ -9,24 +9,24 @@ struct StringLL {
 };
 
 static char* cat_strings(
-    struct serene_Allocator scratch,
+    struct serene_Trea* scratch,
     struct StringLL* list,
     size_t cum_len,
     size_t *out_len
 );
 
 void scan(
-    struct serene_Allocator scratch,
     struct Intern* intern,
     struct Lexer lexer,
     struct Tokenvec* tokens_out,
     struct Opdecls* decls_out
 ) {
+    struct serene_Trea scratch = serene_Trea_sub(&intern->alloc);
 #define SKIP r = Lexer_next(&lexer)
     struct LexResult r = Lexer_next(&lexer);
     while (r.token.kind != TK_EOF) {
         if (r.token.kind == TK_String) {
-            struct StringLL* list = serene_alloc(scratch, struct StringLL);
+            struct StringLL* list = serene_trealloc(&scratch, struct StringLL);
             assert(list && "OOM");
             list->next = NULL;
             list->current = r.token.spelling;
@@ -35,7 +35,7 @@ void scan(
             size_t cum_len = r.len;
 
             for (SKIP; r.token.kind == TK_String; SKIP) {
-                struct StringLL* tmp = serene_alloc(scratch, struct StringLL);
+                struct StringLL* tmp = serene_trealloc(&scratch, struct StringLL);
                 assert(tmp && "OOM");
                 *tmp = (typeof(*tmp)){0};
                 tmp->current = r.token.spelling;
@@ -45,7 +45,7 @@ void scan(
                 cum_len += r.len;
             }
 
-            char* whole = cat_strings(scratch, list, cum_len, &cum_len);
+            char* whole = cat_strings(&scratch, list, cum_len, &cum_len);
             const char* spelling = Intern_insert(intern, whole, cum_len);
             assert(Tokenvec_push(
                 tokens_out,
@@ -93,12 +93,12 @@ void scan(
 }
 
 static char* cat_strings(
-    struct serene_Allocator scratch,
+    struct serene_Trea* scratch,
     struct StringLL* list,
     size_t cum_len,
     size_t *out_len
 ) {
-    char *string = serene_nalloc(scratch, cum_len, char);
+    char *string = serene_trenalloc(scratch, cum_len, char);
     assert(string && "OOM");
     size_t string_len = 0;
 

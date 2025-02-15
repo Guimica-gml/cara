@@ -3,7 +3,7 @@
 #include <assert.h>
 
 struct Context {
-    struct serene_Allocator alloc;
+    struct serene_Trea* alloc;
     struct TypeIntern *intern;
 };
 
@@ -17,7 +17,7 @@ static struct tst_Type convert_type(
 );
 
 struct Tst convert_ast(
-    struct serene_Allocator alloc, struct TypeIntern *intern, struct Ast ast
+    struct serene_Trea* alloc, struct TypeIntern *intern, struct Ast ast
 ) {
     struct Context ctx = {
         .alloc = alloc,
@@ -27,8 +27,7 @@ struct Tst convert_ast(
     struct tst_FunctionsLL *funcs_last = NULL;
 
     for (ll_iter(head, ast.funcs)) {
-        struct tst_FunctionsLL *tmp =
-            serene_alloc(alloc, struct tst_FunctionsLL);
+        struct tst_FunctionsLL* tmp = serene_trealloc(alloc, struct tst_FunctionsLL);
         assert(tmp && "OOM");
         *tmp = (struct tst_FunctionsLL){0};
         if (!funcs_last)
@@ -116,7 +115,7 @@ static struct tst_Expr convert_expr(struct Context *ctx, struct Expr *expr) {
 }
 
 static struct tst_Expr convert_ET_If(struct Context *ctx, struct ExprIf *expr, struct tst_Type type) {
-    struct tst_ExprIf *if_expr = serene_alloc(ctx->alloc, struct tst_ExprIf);
+    struct tst_ExprIf *if_expr = serene_trealloc(ctx->alloc, struct tst_ExprIf);
     assert(if_expr && "OOM");
     if_expr->cond = convert_expr(ctx, &expr->cond);
     if_expr->smash = convert_expr(ctx, &expr->smash);
@@ -129,7 +128,7 @@ static struct tst_Expr convert_ET_If(struct Context *ctx, struct ExprIf *expr, s
 }
 
 static struct tst_Expr convert_ET_Loop(struct Context* ctx, struct Expr* body, struct tst_Type type) {
-    struct tst_Expr* new = serene_alloc(ctx->alloc, struct tst_Expr);
+    struct tst_Expr* new = serene_trealloc(ctx->alloc, struct tst_Expr);
     assert(body && "OOM");
     *new = convert_expr(ctx, body);
     return (struct tst_Expr){
@@ -143,8 +142,7 @@ static struct tst_Expr convert_ET_Bareblock(struct Context* ctx, struct ExprsLL*
     struct tst_ExprsLL* new = NULL;
     struct tst_ExprsLL* last = NULL;
     for (ll_iter(head, body)) {
-        struct tst_ExprsLL* tmp =
-            serene_alloc(ctx->alloc, struct tst_ExprsLL);
+        struct tst_ExprsLL* tmp = serene_trealloc(ctx->alloc, struct tst_ExprsLL);
         assert(tmp && "OOM");
         *tmp = (struct tst_ExprsLL){0};
         if (!last)
@@ -163,7 +161,7 @@ static struct tst_Expr convert_ET_Bareblock(struct Context* ctx, struct ExprsLL*
 }
 
 static struct tst_Expr convert_ET_Call(struct Context* ctx, struct ExprCall* expr, struct tst_Type type) {
-    struct tst_ExprCall* call = serene_alloc(ctx->alloc, struct tst_ExprCall);
+    struct tst_ExprCall* call = serene_trealloc(ctx->alloc, struct tst_ExprCall);
     assert(call && "OOM");
     call->name = convert_expr(ctx, &expr->name);
     call->args = convert_expr(ctx, &expr->args);
@@ -217,7 +215,7 @@ static struct tst_Expr convert_ET_Tuple(struct Context* ctx, struct ExprTuple ex
     struct tst_ExprTuple *list = NULL;
     struct tst_ExprTuple *last = NULL;
     for (ll_iter(head, expr.list)) {
-        struct tst_ExprTuple* tmp = serene_alloc(ctx->alloc, struct tst_ExprTuple);
+        struct tst_ExprTuple* tmp = serene_trealloc(ctx->alloc, struct tst_ExprTuple);
         assert(tmp && "OOM");
         *tmp = (typeof(*tmp)){0};
         tmp->current = convert_expr(ctx, &head->current);
@@ -233,7 +231,7 @@ static struct tst_Expr convert_ET_Tuple(struct Context* ctx, struct ExprTuple ex
 }
 
 static struct tst_Expr convert_ST_Let(struct Context* ctx, struct ExprLet* expr, struct tst_Type type) {
-    struct tst_ExprLet *let = serene_alloc(ctx->alloc, struct tst_ExprLet);
+    struct tst_ExprLet *let = serene_trealloc(ctx->alloc, struct tst_ExprLet);
     assert(let && "OOM");
     let->bind = convert_binding(ctx, expr->bind);
     let->init = convert_expr(ctx, &expr->init);
@@ -245,7 +243,7 @@ static struct tst_Expr convert_ST_Let(struct Context* ctx, struct ExprLet* expr,
 }
 
 static struct tst_Expr convert_ST_Break(struct Context* ctx, struct Expr* body, struct tst_Type type) {
-    struct tst_Expr *e = serene_alloc(ctx->alloc, struct tst_Expr);
+    struct tst_Expr *e = serene_trealloc(ctx->alloc, struct tst_Expr);
     assert(e && "OOM");
     *e = convert_expr(ctx, body);
     return (struct tst_Expr){
@@ -256,7 +254,7 @@ static struct tst_Expr convert_ST_Break(struct Context* ctx, struct Expr* body, 
 }
 
 static struct tst_Expr convert_ST_Return(struct Context* ctx, struct Expr* body, struct tst_Type type) {
-    struct tst_Expr *e = serene_alloc(ctx->alloc, struct tst_Expr);
+    struct tst_Expr *e = serene_trealloc(ctx->alloc, struct tst_Expr);
     assert(e && "OOM");
     *e = convert_expr(ctx, body);
     return (struct tst_Expr){
@@ -267,7 +265,7 @@ static struct tst_Expr convert_ST_Return(struct Context* ctx, struct Expr* body,
 }
 
 static struct tst_Expr convert_ST_Assign(struct Context* ctx, struct ExprAssign* expr, struct tst_Type type) {
-    struct tst_ExprAssign *assign = serene_alloc(ctx->alloc, struct tst_ExprAssign);
+    struct tst_ExprAssign *assign = serene_trealloc(ctx->alloc, struct tst_ExprAssign);
     assert(assign && "OOM");
     assign->expr = convert_expr(ctx, &expr->expr);
     assign->name = expr->name;
@@ -279,7 +277,7 @@ static struct tst_Expr convert_ST_Assign(struct Context* ctx, struct ExprAssign*
 }
 
 static struct tst_Expr convert_ST_Const(struct Context* ctx, struct Expr* body, struct tst_Type type) {
-    struct tst_Expr *e = serene_alloc(ctx->alloc, struct tst_Expr);
+    struct tst_Expr *e = serene_trealloc(ctx->alloc, struct tst_Expr);
     assert(e && "OOM");
     *e = convert_expr(ctx, body);
     return (struct tst_Expr){
@@ -306,7 +304,7 @@ convert_binding(struct Context *ctx, struct Binding binding) {
         struct tst_BindingTuple *list = NULL;
         struct tst_BindingTuple *last = NULL;
         for (ll_iter(head, binding.tuple)) {
-            struct tst_BindingTuple* tmp = serene_alloc(ctx->alloc, struct BindingTuple);
+            struct tst_BindingTuple* tmp = serene_trealloc(ctx->alloc, struct tst_BindingTuple);
             assert(tmp && "OOM");
             *tmp = (typeof(*tmp)){0};
             tmp->current = convert_binding(ctx, head->current);
@@ -363,7 +361,7 @@ static struct tst_Type convert_TT_Recall(struct Context* ctx, const char* lit, c
         // rather than the last, as we had previously
         struct tst_TypeStar* list = NULL;
         for (const struct TypeTuple* head = params->tuple; head; head = head->next) {
-            struct tst_TypeStar* tmp = serene_alloc(ctx->alloc, struct tst_TypeStar);
+            struct tst_TypeStar* tmp = serene_trealloc(ctx->alloc, struct tst_TypeStar);
             assert(tmp && "OOM");
             tmp->current = convert_type(ctx, head->current, NULL);
             tmp->next = list;
@@ -383,7 +381,7 @@ static struct tst_Type convert_TT_Recall(struct Context* ctx, const char* lit, c
 }
 
 static struct tst_Type convert_TT_Func(struct Context* ctx, const struct TypeFunc* func) {
-    struct tst_TypeFunc *new = serene_alloc(ctx->alloc, struct tst_TypeFunc);
+    struct tst_TypeFunc *new = serene_trealloc(ctx->alloc, struct tst_TypeFunc);
     assert(func && "OOM");
     new->args = convert_type(ctx, func->args, NULL);
     new->ret = convert_type(ctx, func->ret, NULL);

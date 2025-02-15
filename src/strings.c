@@ -35,6 +35,13 @@ bool strings_equal(const char *this, const char *other) {
     return *this == *other;
 }
 
+struct Intern Intern_init(struct serene_Trea alloc) {
+    return (struct Intern) {
+        .alloc = alloc,
+        .tree = {0},
+    };
+}
+
 const char* Intern_insert(
     struct Intern* this,
     const char* s,
@@ -45,13 +52,15 @@ const char* Intern_insert(
     if (entry)
         return entry->str;
 
-    char *new = serene_nalloc(this->alloc, 1 + len, char);
+    char *new = serene_trenalloc(&this->alloc, 1 + len, char);
     assert(new && "OOM");
     for (size_t i = 0; i < len; i++)
         new[i] = s[i];
     new[len] = '\0';
     assert(Btrings_insert(
-        &this->tree, this->alloc, (struct Ordstring){.str = new, .len = len}
+        &this->tree,
+        serene_Trea_dyn(&this->alloc),
+        (struct Ordstring){.str = new, .len = len}
     ));
     return new;
 }

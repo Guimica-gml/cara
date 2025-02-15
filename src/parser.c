@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 struct Context {
-    struct serene_Allocator alloc;
+    struct serene_Trea* alloc;
     struct Opdecls ops;
     struct TypeIntern* intern;
     struct Tokenstream toks;
@@ -47,7 +47,7 @@ static struct Expr statement_return(struct Context *);
 static struct Expr statement_assign(struct Context *);
 
 struct Ast parse(
-    struct serene_Allocator alloc, struct Opdecls ops,
+    struct serene_Trea* alloc, struct Opdecls ops,
     struct TypeIntern *intern, struct Tokenstream toks
 ) {
     struct Context ctx = {
@@ -61,7 +61,7 @@ struct Ast parse(
     while (true) {
         switch (Tokenstream_peek(&ctx.toks).kind) {
         case TK_Func: {
-            struct FunctionsLL *tmp = serene_alloc(alloc, struct FunctionsLL);
+            struct FunctionsLL *tmp = serene_trealloc(alloc, struct FunctionsLL);
             assert(tmp && "OOM");
             tmp->current = decls_function(&ctx);
             tmp->next = funcs;
@@ -277,7 +277,7 @@ static struct Binding binding_parenthesised(struct Context* ctx) {
     if (Tokenstream_peek(&ctx->toks).kind != TK_CloseParen) {
         out = binding(ctx);
         if (Tokenstream_peek(&ctx->toks).kind == TK_Comma) {
-            struct BindingTuple* node = serene_alloc(ctx->alloc, struct BindingTuple);
+            struct BindingTuple* node = serene_trealloc(ctx->alloc, struct BindingTuple);
             assert(node && "OOM");
             *node = (struct BindingTuple){0};
             node->current = out;
@@ -286,7 +286,7 @@ static struct Binding binding_parenthesised(struct Context* ctx) {
             struct BindingTuple* last = node;
             while (Tokenstream_peek(&ctx->toks).kind == TK_Comma) {
                 assert(Tokenstream_drop(&ctx->toks));
-                struct BindingTuple* tmp = serene_alloc(ctx->alloc, struct BindingTuple);
+                struct BindingTuple* tmp = serene_trealloc(ctx->alloc, struct BindingTuple);
                 assert(tmp && "OOM");
                 *tmp = (struct BindingTuple) {0};
                 tmp->current = binding(ctx);
@@ -395,7 +395,7 @@ static struct Expr expr_bareblock(struct Context *ctx) {
     assert(Tokenstream_drop_text(&ctx->toks, "{"));
     while (Tokenstream_peek(&ctx->toks).kind != TK_CloseBrace) {
         {
-            struct ExprsLL* tmp = serene_alloc(ctx->alloc, struct ExprsLL);
+            struct ExprsLL* tmp = serene_trealloc(ctx->alloc, struct ExprsLL);
             *tmp = (typeof(*tmp)){0};
             assert(tmp && "OOM");
             if (!last) block = tmp;
@@ -405,14 +405,7 @@ static struct Expr expr_bareblock(struct Context *ctx) {
         last->current = statement(ctx);
 
         if (Tokenstream_drop_text(&ctx->toks, ";")) {
-            struct Expr *e = serene_alloc(ctx->alloc, struct Expr);
-            assert(e && "OOM");
-            *e = last->current;
-            last->current = (struct Expr){
-                .tag = ST_Const,
-                .type = ctx->intern->tsyms.t_unit,
-                .const_stmt = e,
-            };
+            last->current = Expr_const(ctx->alloc, ctx->intern, last->current);
         } else {
             type = last->current.type;
             break;
@@ -451,7 +444,7 @@ static struct Expr expr_op(struct Context *ctx, unsigned prec) {
 }
 
 static struct Expr expr_op_left(struct Context *ctx) {
-    struct ExprCall* call = serene_alloc(ctx->alloc, struct ExprCall);
+    struct ExprCall* call = serene_trealloc(ctx->alloc, struct ExprCall);
     assert(call && "OOM");
 
     for (size_t i = 0; i < ctx->ops.len; i++) {

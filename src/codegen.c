@@ -11,7 +11,7 @@
 #include <stdlib.h>
 
 struct Ctx {
-    struct serene_Allocator alloc;
+    struct serene_Trea* alloc;
     LLVMModuleRef mod;
     struct FuncsLL {
         struct FuncsLL* next;
@@ -26,9 +26,9 @@ struct Ctx {
 static LLVMTypeRef lower_type(struct Ctx* ctx, struct tst_Type* type);
 static void lower_function(struct Ctx* ctx, struct tst_Function* func, LLVMValueRef fvar, LLVMTypeRef ftype);
 
-LLVMModuleRef lower(struct Tst* tst, struct serene_Allocator alloc) {
+LLVMModuleRef lower(struct Tst* tst, struct serene_Trea alloc) {
     struct Ctx ctx = {
-        .alloc = alloc,
+        .alloc = &alloc,
         .mod = LLVMModuleCreateWithName("mod"),
         .funcs = NULL,
         .t_unit = LLVMStructType(NULL, 0, false),
@@ -37,7 +37,7 @@ LLVMModuleRef lower(struct Tst* tst, struct serene_Allocator alloc) {
     for (ll_iter(f, tst->funcs)) {
         LLVMTypeRef type = lower_type(&ctx, &f->current.type);
         LLVMValueRef val = LLVMAddFunction(ctx.mod, f->current.name, type);
-        struct FuncsLL* tmp = serene_alloc(ctx.alloc, struct FuncsLL);
+        struct FuncsLL* tmp = serene_trealloc(ctx.alloc, struct FuncsLL);
         assert(tmp && "OOM");
         tmp->next = ctx.funcs;
         tmp->f = &f->current;
@@ -54,6 +54,8 @@ LLVMModuleRef lower(struct Tst* tst, struct serene_Allocator alloc) {
         printf("error arose:\n%s\n", error);
         assert(false);
     }
+
+    serene_Trea_deinit(alloc);
     return ctx.mod;
 }
 
@@ -76,7 +78,7 @@ static LLVMTypeRef lower_TTT_Star(struct Ctx* ctx, struct tst_TypeStar* type) {
     int count = 0;
     for (ll_iter(head, type)) count++;
 
-    LLVMTypeRef* elems = serene_nalloc(ctx->alloc, count, LLVMTypeRef);
+    LLVMTypeRef* elems = serene_trenalloc(ctx->alloc, count, LLVMTypeRef);
     assert(elems && "OOM");
     int idx = 0;
     for (ll_iter(head, type), idx++) {
@@ -280,7 +282,7 @@ static struct Control lower_TET_Loop(struct FCtx* ctx, struct tst_Expr* body, st
     LLVMValueRef v_break = LLVMBuildAlloca(ctx->b, t_break, "");
     LLVMBasicBlockRef b_loop = LLVMAppendBasicBlock(ctx->f, "");
     LLVMBasicBlockRef b_post = LLVMAppendBasicBlock(ctx->f, "");
-    struct LoopsLL* tmp = serene_alloc(ctx->ctx->alloc, struct LoopsLL);
+    struct LoopsLL* tmp = serene_trealloc(ctx->ctx->alloc, struct LoopsLL);
     assert(tmp && "OOM");
     tmp->next = ctx->loops;
     tmp->v_break = v_break;
@@ -464,7 +466,7 @@ static void lower_binding(
             LLVMTypeRef type = lower_type(ctx->ctx, &binding->name.type);
             LLVMValueRef loc = LLVMBuildAlloca(ctx->b, type, "");
             LLVMBuildStore(ctx->b, val, loc);
-            struct LetsLL* tmp = serene_alloc(ctx->ctx->alloc, struct LetsLL);
+            struct LetsLL* tmp = serene_trealloc(ctx->ctx->alloc, struct LetsLL);
             assert(tmp && "OOM");
             tmp->next = ctx->lets;
             tmp->name = binding->name.name;

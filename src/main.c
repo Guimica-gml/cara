@@ -64,10 +64,12 @@ void ModuleNode_unmap(struct ModuleNode tree) {
         ModuleNode_unmap(head->current);
 }
 
-struct ModuleNode populate(
-    struct serene_Allocator alloc,
-    struct serene_Allocator scratch,
-    char *dir_name, char *dir_path, int dir_pathlen
+struct ModuleNode populate_internal(
+    struct serene_Trea* alloc,
+    struct serene_Trea* scratch,
+    char* dir_name,
+    char* dir_path,
+    int dir_pathlen
 ) {
     struct ModuleNode out = {0};
     out.name = dir_name;
@@ -79,7 +81,7 @@ struct ModuleNode populate(
     ) {
         if (entry->d_name[0] == '.') continue;
         int namelen = strlen(entry->d_name);
-        char* full_path = serene_nalloc(scratch, namelen + dir_pathlen + 2, char);
+        char* full_path = serene_trenalloc(scratch, namelen + dir_pathlen + 2, char);
         assert(full_path && "OOM");
         snprintf(full_path, namelen + dir_pathlen + 2, "%s/%s", dir_path, entry->d_name);
 
@@ -92,7 +94,7 @@ struct ModuleNode populate(
             struct stat stat = {0};
             assert(fstat(fd, &stat) == 0);
             struct ModuleNode child = {0};
-            child.name = serene_nalloc(alloc, namelen - 4, char);
+            child.name = serene_trenalloc(alloc, namelen - 4, char);
             snprintf(child.name, namelen - 4, "%s", entry->d_name);
             child.self.contents_len = stat.st_size;
             child.self.contents = mmap(
@@ -104,13 +106,13 @@ struct ModuleNode populate(
                 0
             );
 
-            struct ModuleNodesLL* tmp = serene_alloc(alloc, struct ModuleNodesLL);
+            struct ModuleNodesLL* tmp = serene_trealloc(alloc, struct ModuleNodesLL);
             assert(tmp && "OOM");
             tmp->current = child;
             tmp->next = out.children;
             out.children = tmp;
         } else {
-            struct ModuleNode child = populate(
+            struct ModuleNode child = populate_internal(
                 alloc,
                 scratch,
                 entry->d_name,
@@ -126,7 +128,7 @@ struct ModuleNode populate(
                 }
             }
             if (head == NULL) {
-                struct ModuleNodesLL* tmp = serene_alloc(alloc, struct ModuleNodesLL);
+                struct ModuleNodesLL* tmp = serene_trealloc(alloc, struct ModuleNodesLL);
                 assert(tmp && "OOM");
                 tmp->current = child;
                 tmp->next = out.children;
@@ -137,18 +139,31 @@ struct ModuleNode populate(
     return out;
 }
 
-int main(int argc, char **argv) {
-    struct serene_Arena module_arena, strings_arena, opscan_arena, ast_arena, type_arena, check_arena,
-        tst_arena, codegen_arena;
-    module_arena = strings_arena = opscan_arena = ast_arena = type_arena = check_arena = tst_arena =
-        codegen_arena = (struct serene_Arena){
-            .backing = serene_Libc_dyn(),
-        };
+struct ModuleNode populate(
+    struct serene_Trea* alloc,
+    char* dir_name,
+    char* dir_path,
+    int dir_pathlen
+) {
+    struct serene_Trea scratch = serene_Trea_sub(alloc);
+    struct ModuleNode out = populate_internal(alloc, &scratch, dir_name, dir_path, dir_pathlen);
+    serene_Trea_deinit(scratch);
+    return out;
+}
+
+int main(int argc, char** argv) {
+    struct serene_Trea
+        alloc = serene_Trea_init(serene_Libc_dyn()),
+        module_alloc = serene_Trea_sub(&alloc),
+        strings_alloc = serene_Trea_sub(&alloc),
+        type_alloc = serene_Trea_sub(&strings_alloc),
+        ast_alloc = serene_Trea_sub(&type_alloc);
 
     if (argc != 2) {
         printf("Please provide a single filename!\n");
         return 1;
     }
+
     char* main_file;
     {
         int len = strlen(argv[1]);
@@ -156,7 +171,7 @@ int main(int argc, char **argv) {
             printf("Please provide a file with a '.tara' extension!\n");
             return 1;
         }
-        main_file = serene_nalloc(serene_Arena_dyn(&module_arena), len - 4, char);
+        main_file = serene_trenalloc(&alloc, len - 4, char);
         assert(main_file && "OOM");
         snprintf(main_file, len - 4, "%s", argv[1]);
         main_file = basename(main_file);
@@ -170,18 +185,11 @@ int main(int argc, char **argv) {
         break;
     }
     struct ModuleNode modules = populate(
-        serene_Arena_dyn(&module_arena),
-        serene_Arena_dyn(&opscan_arena),
+        &module_alloc,
         dir_name,
         dir_path,
         dir_len
     );
-    serene_Arena_deinit(&opscan_arena);
-    opscan_arena = (struct serene_Arena){
-        .backing = serene_Libc_dyn(),
-        .bump = NULL,
-        .segments = NULL,
-    };
 
     ModuleNode_print(modules, 0);
 
@@ -196,9 +204,7 @@ int main(int argc, char **argv) {
     }
     assert(file != NULL);
 
-    struct Intern intern = {0};
-    intern.alloc = serene_Arena_dyn(&strings_arena);
-
+    struct Intern intern = Intern_init(strings_alloc);
     struct Symbols symbols = populate_interner(&intern);
 
     printf("[\n");
@@ -231,7 +237,6 @@ int main(int argc, char **argv) {
             .token = {0},
         };
         scan(
-            serene_Arena_dyn(&opscan_arena),
             &intern,
             lexer,
             &tokenvec,
@@ -261,27 +266,23 @@ int main(int argc, char **argv) {
     }
     printf("]\n");
 
-    struct TypeIntern types =
-        TypeIntern_init(serene_Arena_dyn(&type_arena), symbols);
+    struct TypeIntern types = TypeIntern_init(type_alloc, symbols);
 
     struct Ast ast = parse(
-        serene_Arena_dyn(&ast_arena),
+        &ast_alloc,
         ops,
         &types,
         stream
     );
-
     Ast_print(&ast);
     
-    typecheck(serene_Arena_dyn(&check_arena), &types, &ast);
-    serene_Arena_deinit(&check_arena);
-
+    typecheck(&types, &ast);
     Ast_print(&ast);
 
-    struct Tst tst = convert_ast(serene_Arena_dyn(&tst_arena), &types, ast);
-    LLVMModuleRef mod = lower(&tst, serene_Arena_dyn(&codegen_arena));
-    serene_Arena_deinit(&codegen_arena);
-    serene_Arena_deinit(&tst_arena);
+    struct serene_Trea tst_alloc = serene_Trea_sub(&alloc);
+    struct Tst tst = convert_ast(&tst_alloc, &types, ast);
+    LLVMModuleRef mod = lower(&tst, serene_Trea_sub(&tst_alloc));
+    serene_Trea_deinit(tst_alloc);
 
     printf("----module start----\n");
     LLVMDumpModule(mod);
@@ -316,18 +317,13 @@ int main(int argc, char **argv) {
         assert(false);
     }
     LLVMDisposeMessage(error);
-
     LLVMDisposeTargetMachine(machine);
-
     LLVMDisposeModule(mod);
 
     system("ld.lld -o out out.o");
 
-    serene_Arena_deinit(&ast_arena);
-    serene_Arena_deinit(&type_arena);
-    serene_Arena_deinit(&strings_arena);
     ModuleNode_unmap(modules);
-    serene_Arena_deinit(&module_arena);
+    serene_Trea_deinit(alloc);
     printf("\n");
     return 0;
 }

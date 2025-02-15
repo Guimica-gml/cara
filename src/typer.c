@@ -17,15 +17,15 @@ struct DSet {
     } *types;
 };
 
-static struct TypeLL *DSet_insert(struct serene_Allocator, struct DSet *, Type);
+static struct TypeLL *DSet_insert(struct serene_Trea*, struct DSet *, Type);
 static struct TypeLL *DSet_root(struct TypeLL *);
 static struct TypeLL *DSet_find_root(struct DSet *, Type);
 static struct TypeLL *DSet_join(struct TypeLL *, struct TypeLL *);
 static void DSet_print(struct DSet *);
 
 struct Globals {
-    struct TypeIntern *intern;
-    struct serene_Allocator alloc;
+    struct TypeIntern* intern;
+    struct serene_Trea* alloc;
     struct GlobalsLL {
         struct {
             const char *name;
@@ -35,7 +35,7 @@ struct Globals {
     } *globals;
 };
 
-static Type unify(struct serene_Allocator, struct DSet *, Type, Type);
+static Type unify(struct serene_Trea*, struct DSet *, Type, Type);
 static void typecheck_func(struct Globals, struct Function *);
 
 struct Context {
@@ -63,11 +63,13 @@ static Type fill_type(struct Context *, Type);
 static Type destructure_binding(struct Context *, struct Binding *, bool);
 
 void typecheck(
-    struct serene_Allocator alloc, struct TypeIntern *intern, struct Ast *ast
+    struct TypeIntern* intern,
+    struct Ast* ast
 ) {
+    struct serene_Trea alloc = serene_Trea_sub(&intern->alloc);
     struct Globals globals = {0};
     globals.intern = intern;
-    globals.alloc = alloc;
+    globals.alloc = &alloc;
 
     {
         Type t_int = intern->tsyms.t_int;
@@ -123,7 +125,7 @@ void typecheck(
             {.name = intern->syms.s_bint_to_ptr, .type = int_to_string},
         };
         for (unsigned int i = 0; i < sizeof(builtins) / sizeof(builtins[0]); i++) {
-            struct GlobalsLL* tmp = serene_alloc(alloc, struct GlobalsLL);
+            struct GlobalsLL* tmp = serene_trealloc(&alloc, struct GlobalsLL);
             assert(tmp && "OOM");
             tmp->current.type = builtins[i].type;
             tmp->current.name = builtins[i].name;
@@ -133,7 +135,7 @@ void typecheck(
     }
 
     for (ll_iter(f, ast->funcs)) {
-        struct GlobalsLL *tmp = serene_alloc(alloc, struct GlobalsLL);
+        struct GlobalsLL *tmp = serene_trealloc(&alloc, struct GlobalsLL);
         assert(tmp);
 
         Type ret = f->current.ret;
@@ -147,6 +149,8 @@ void typecheck(
     for (ll_iter(f, ast->funcs)) {
         typecheck_func(globals, &f->current);
     }
+
+    serene_Trea_deinit(alloc);
 }
 
 static void typecheck_func(struct Globals globals, struct Function *func) {
@@ -229,9 +233,8 @@ static Type typecheck_ET_If(struct Context *ctx, struct ExprIf *expr) {
     return unify(ctx->globals.alloc, &ctx->equivs, smash, pass);
 }
 
-static Type
-typecheck_ET_Loop(struct Context *ctx, struct Expr *body, Type type) {
-    struct LoopsLL *head = serene_alloc(ctx->globals.alloc, struct LoopsLL);
+static Type typecheck_ET_Loop(struct Context *ctx, struct Expr *body, Type type) {
+    struct LoopsLL *head = serene_trealloc(ctx->globals.alloc, struct LoopsLL);
     head->current = type;
     head->next = ctx->loops;
     ctx->loops = head;
@@ -477,7 +480,7 @@ static Type fill_TT_Tuple(struct Context* ctx, const struct TypeTuple* type) {
     struct TypeTuple* list = NULL;
     struct TypeTuple* last = NULL;
     for (ll_iter(head, type)) {
-        struct TypeTuple* tmp = serene_alloc(ctx->globals.alloc, struct TypeTuple);
+        struct TypeTuple* tmp = serene_trealloc(ctx->globals.alloc, struct TypeTuple);
         assert(tmp && "OOM");
         *tmp = (struct TypeTuple){0};
         tmp->current = fill_type(ctx, head->current);
@@ -505,7 +508,7 @@ static Type destructure_binding(
         case BT_Empty:
             return binding->empty;
         case BT_Name: {
-            struct LetsLL* tmp = serene_alloc(ctx->globals.alloc, struct LetsLL);
+            struct LetsLL* tmp = serene_trealloc(ctx->globals.alloc, struct LetsLL);
             assert(tmp);
             tmp->current.name = binding->name.name;
             tmp->current.mutable = mut;
@@ -527,7 +530,7 @@ static Type destructure_binding(
 }
 
 static Type unify(
-    struct serene_Allocator alloc,
+    struct serene_Trea* alloc,
     struct DSet* dset,
     Type lhs,
     Type rhs
@@ -575,8 +578,7 @@ static Type unify(
     return DSet_join(lroot, rroot)->current.type;
 }
 
-static struct TypeLL *
-DSet_insert(struct serene_Allocator alloc, struct DSet *this, Type type) {
+static struct TypeLL* DSet_insert(struct serene_Trea* alloc, struct DSet *this, Type type) {
     for (ll_iter(head, this->types)) {
         if (head->current.type == type)
             return head;
@@ -586,7 +588,7 @@ DSet_insert(struct serene_Allocator alloc, struct DSet *this, Type type) {
     Type_print(type);
     printf("\n");
 
-    struct TypeLL *tmp = serene_alloc(alloc, struct TypeLL);
+    struct TypeLL *tmp = serene_trealloc(alloc, struct TypeLL);
     assert(tmp && "OOM");
     tmp->next = this->types;
     tmp->current.parent = tmp;
