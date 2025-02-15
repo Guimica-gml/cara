@@ -335,7 +335,7 @@ main() {
     toBuild main.c
     $CC $LLVM_CFLAGS $OPTS -o $BUILD/main.o -c $BUILD/main.c
     echo linking it all
-    $CXX $SANITIZER $LLVM_CXXFLAGS -o $BUILD/main $BUILD/*.o
+    $CXX $SANITIZER -o $BUILD/main $BUILD/*.o $LLVM_CXXFLAGS
 }
 
 echo compiling with $CC
