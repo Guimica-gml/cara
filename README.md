@@ -1,5 +1,5 @@
 # cara
-Cara is a compiler my language "Tara".
+Cara is a compiler for my language "Tara".
 The language is primarily an experiment.
 
 The aim is a rust-level (if not lower) language, that incorporates an even richer type system a la Haskell.

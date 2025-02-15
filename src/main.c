@@ -31,6 +31,7 @@
 
 struct Module {
     char* contents;
+    size_t contents_len;
     struct Tokenvec tokens;
     struct Opdecls ops;
 };
@@ -46,12 +47,21 @@ struct ModuleNodesLL {
     struct ModuleNode current;
 };
 
-void ModuleNode_print(struct ModuleNode* this, int level) {
+void ModuleNode_print(struct ModuleNode this, int level) {
     for (int i = 0; i < level; i++) printf("  ");
-    printf("%s (%p)\n", this->name, this->self.contents);
-    for (struct ModuleNodesLL* head = this->children; head; head = head->next) {
-        ModuleNode_print(&head->current, level + 1);
+    printf("%s (%p)\n", this.name, this.self.contents);
+    for (struct ModuleNodesLL* head = this.children; head; head = head->next) {
+        ModuleNode_print(head->current, level + 1);
     }
+}
+
+void ModuleNode_unmap(struct ModuleNode tree) {
+    if (tree.self.contents) munmap(
+        tree.self.contents,
+        tree.self.contents_len
+    );
+    for (struct ModuleNodesLL* head = tree.children; head; head = head->next)
+        ModuleNode_unmap(head->current);
 }
 
 struct ModuleNode populate(
@@ -84,6 +94,7 @@ struct ModuleNode populate(
             struct ModuleNode child = {0};
             child.name = serene_nalloc(alloc, namelen - 4, char);
             snprintf(child.name, namelen - 4, "%s", entry->d_name);
+            child.self.contents_len = stat.st_size;
             child.self.contents = mmap(
                 NULL,
                 stat.st_size,
@@ -138,6 +149,18 @@ int main(int argc, char **argv) {
         printf("Please provide a single filename!\n");
         return 1;
     }
+    char* main_file;
+    {
+        int len = strlen(argv[1]);
+        if (len < 5 || strcmp(&argv[1][len - 5], ".tara") != 0) {
+            printf("Please provide a file with a '.tara' extension!\n");
+            return 1;
+        }
+        main_file = serene_nalloc(serene_Arena_dyn(&module_arena), len - 4, char);
+        assert(main_file && "OOM");
+        snprintf(main_file, len - 4, "%s", argv[1]);
+        main_file = basename(main_file);
+    }
     char* dir_path = dirname(argv[1]);
     int dir_len = strlen(dir_path);
     char* dir_name = dir_path;
@@ -160,9 +183,18 @@ int main(int argc, char **argv) {
         .segments = NULL,
     };
 
-    ModuleNode_print(&modules, 0);
+    ModuleNode_print(modules, 0);
 
-    assert(false && "TODO");
+    char* file = NULL;
+    printf("searching: %s\n", main_file);
+    for (struct ModuleNodesLL* head = modules.children; head; head = head->next) {
+        printf("scanning: %s\n", head->current.name);
+        if (strcmp(head->current.name, main_file) == 0) {
+            file = head->current.self.contents;
+            break;
+        }
+    }
+    assert(file != NULL);
 
     struct Intern intern = {0};
     intern.alloc = serene_Arena_dyn(&strings_arena);
@@ -239,9 +271,6 @@ int main(int argc, char **argv) {
         stream
     );
 
-    munmap(file, filestat.st_size);
-    close(filedesc);
-
     Ast_print(&ast);
     
     typecheck(serene_Arena_dyn(&check_arena), &types, &ast);
@@ -297,6 +326,8 @@ int main(int argc, char **argv) {
     serene_Arena_deinit(&ast_arena);
     serene_Arena_deinit(&type_arena);
     serene_Arena_deinit(&strings_arena);
+    ModuleNode_unmap(modules);
+    serene_Arena_deinit(&module_arena);
     printf("\n");
     return 0;
 }
