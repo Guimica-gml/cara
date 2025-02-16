@@ -319,11 +319,10 @@ int main(int argc, char** argv) {
     LLVMDisposeTargetMachine(machine);
     LLVMDisposeModule(mod);
 
-    system("ld.lld -o out out.o");
+    system("ld -o out out.o");
 
     ModuleNode_unmap(modules);
     serene_Trea_deinit(alloc);
     printf("\n");
     return 0;
 }
-
