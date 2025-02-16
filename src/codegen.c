@@ -36,7 +36,7 @@ LLVMModuleRef lower(struct Tst* tst, struct serene_Trea alloc) {
     ctx.v_unit = LLVMConstNamedStruct(ctx.t_unit, NULL, 0);
     for (ll_iter(f, tst->funcs)) {
         LLVMTypeRef type = lower_type(&ctx, &f->current.type);
-        LLVMValueRef val = LLVMAddFunction(ctx.mod, f->current.name, type);
+        LLVMValueRef val = LLVMAddFunction(ctx.mod, f->current.name.str, type);
         struct FuncsLL* tmp = serene_trealloc(ctx.alloc, struct FuncsLL);
         assert(tmp && "OOM");
         tmp->next = ctx.funcs;
@@ -102,7 +102,7 @@ struct FCtx {
     LLVMBasicBlockRef b_ret;
     struct LetsLL {
         struct LetsLL* next;
-        const char* name;
+        struct String name;
         LLVMValueRef slot;
         LLVMTypeRef type;
     }* lets;
@@ -168,14 +168,14 @@ static void lower_function(
     LLVMDisposeBuilder(fctx.b);
 }
 
-static struct Control lower_TET_BoolLit(struct FCtx* ctx, const char* lit),
-    lower_TET_NumberLit(struct FCtx* ctx, const char* lit),
-    lower_TET_StringLit(struct FCtx* ctx, const char* lit),
+static struct Control lower_TET_BoolLit(struct FCtx* ctx, struct String lit),
+    lower_TET_NumberLit(struct FCtx* ctx, struct String lit),
+    lower_TET_StringLit(struct FCtx* ctx, struct String lit),
     lower_TET_If(struct FCtx* ctx, struct tst_ExprIf* expr),
     lower_TET_Loop(struct FCtx* ctx, struct tst_Expr* body, struct tst_Type* type),
     lower_TET_Bareblock(struct FCtx* ctx, struct tst_ExprsLL* body),
     lower_TET_Call(struct FCtx* ctx, struct tst_ExprCall* expr),
-    lower_TET_Recall(struct FCtx* ctx, const char* lit),
+    lower_TET_Recall(struct FCtx* ctx, struct String lit),
     lower_TET_Tuple(struct FCtx* ctx, struct tst_ExprTuple* expr, struct tst_Type* type),
     lower_TET_Builtin(struct FCtx* ctx, enum tst_ExprBuiltin built),
     lower_TST_Let(struct FCtx* ctx, struct tst_ExprLet* expr),
@@ -210,24 +210,24 @@ static struct Control lower_expr(struct tst_Expr* expr, struct FCtx* ctx) {
     assert(false && "shouldn't");
 }
 
-static struct Control lower_TET_BoolLit(struct FCtx* ctx, const char* lit) {
+static struct Control lower_TET_BoolLit(struct FCtx* ctx, struct String lit) {
     (void) ctx;
     int b = 0;
-    if (strings_equal(lit, "true")) b = 1;
+    if (strings_equal(lit, (struct String){"true", 4})) b = 1;
     return Control_plain(LLVMConstInt(LLVMInt1Type(), b, false));
 }
 
-static struct Control lower_TET_NumberLit(struct FCtx* ctx, const char* lit) {
+static struct Control lower_TET_NumberLit(struct FCtx* ctx, struct String lit) {
     (void) ctx;
-    unsigned long long n = atoi(lit);
+    unsigned long long n = atoi(lit.str);
     return Control_plain(LLVMConstInt(LLVMInt64Type(), n, false));
 }
 
-static struct Control lower_TET_StringLit(struct FCtx* ctx, const char* lit) {
+static struct Control lower_TET_StringLit(struct FCtx* ctx, struct String lit) {
     // creates a local string array
     /* (void) ctx; */
     /* return Control_plain(LLVMConstString(lit, strings_strlen(lit), false)); */
-    return Control_plain(LLVMBuildGlobalString(ctx->b, lit, ""));
+    return Control_plain(LLVMBuildGlobalString(ctx->b, lit.str, ""));
 }
 
 static struct Control lower_TET_If(struct FCtx* ctx, struct tst_ExprIf* expr) {
@@ -381,14 +381,14 @@ static struct Control lower_TET_Call(struct FCtx* ctx, struct tst_ExprCall* expr
     return Control_plain(res);
 }
 
-static struct Control lower_TET_Recall(struct FCtx* ctx, const char* lit) {
+static struct Control lower_TET_Recall(struct FCtx* ctx, struct String lit) {
     for (ll_iter(head, ctx->lets)) {
-        if (head->name == lit) {
-            return Control_plain(LLVMBuildLoad2(ctx->b, head->type, head->slot, head->name));
+        if (head->name.str == lit.str) {
+            return Control_plain(LLVMBuildLoad2(ctx->b, head->type, head->slot, head->name.str));
         }
     }
     for (ll_iter(head, ctx->ctx->funcs)) {
-        if (head->f->name == lit) {
+        if (head->f->name.str == lit.str) {
             return Control_plain(head->fval);
         }
     }
@@ -439,7 +439,7 @@ static struct Control lower_TST_Return(struct FCtx* ctx, struct tst_Expr* body) 
 
 static struct Control lower_TST_Assign(struct FCtx* ctx, struct tst_ExprAssign* expr) {
     for (ll_iter(head, ctx->lets)) {
-        if (head->name == expr->name) {
+        if (head->name.str == expr->name.str) {
             struct Control val = lower_expr(&expr->expr, ctx);
             if (val.tag == CT_Break || val.tag == CT_Return) return val;
             LLVMBuildStore(ctx->b, val.val, head->slot);

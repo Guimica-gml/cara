@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "strings.h"
+
 enum Tokenkind {
     // used as placeholder primarily
     TK_EOF = 0,
@@ -21,7 +23,6 @@ enum Tokenkind {
     TK_As = 11,
     TK_Equals = 12,
     // Immediates
-    TK_ImmediatesStart = 13,
     TK_OpenParen = 14,
     TK_CloseParen = 15,
     TK_OpenBrace = 16,
@@ -33,7 +34,6 @@ enum Tokenkind {
     TK_Semicolon = 22,
     TK_Colon = 23,
     // Literals
-    TK_LiteralsStart = 24,
     TK_String = 25,
     TK_Number = 26,
     TK_Name = 27,
@@ -44,7 +44,7 @@ enum Tokenkind {
 
 struct Token {
     enum Tokenkind kind;
-    const char* spelling;
+    struct String spelling;
     int number;
 };
 
@@ -54,7 +54,7 @@ struct Tokenstream {
 };
 
 bool Tokenstream_drop(struct Tokenstream*);
-bool Tokenstream_drop_text(struct Tokenstream*, const char*);
+bool Tokenstream_drop_text(struct Tokenstream*, struct String);
 bool Tokenstream_drop_kind(struct Tokenstream*, enum Tokenkind);
 struct Token Tokenstream_peek(struct Tokenstream*);
 

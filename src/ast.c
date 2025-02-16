@@ -60,7 +60,7 @@ const struct Type *TypeIntern_intern(struct TypeIntern *this, struct Type *t) {
     return new;
 }
 
-const struct Type *Type_recall(struct TypeIntern *intern, const char *name) {
+const struct Type *Type_recall(struct TypeIntern *intern, struct String name) {
     struct Type recall = {.tag = TT_Recall, .recall = name};
     return TypeIntern_intern(intern, &recall);
 }
@@ -124,7 +124,7 @@ static void Binding_print(struct Binding *binding) {
         printf("()");
         break;
     case BT_Name:
-        printf("%s: ", binding->name.name);
+        printf("%s: ", binding->name.name.str);
         Type_print(binding->name.annot);
         break;
     case BT_Tuple:
@@ -175,7 +175,7 @@ static void Expr_print(struct Expr *expr, int level) {
     case ET_StringLit:
     case ET_BoolLit:
     case ET_Recall:
-        printf("%s", expr->lit);
+        printf("%s", expr->lit.str);
         break;
     }
 
@@ -254,7 +254,7 @@ static void print_ST_Return(struct Expr *expr, int level) {
 }
 
 static void print_ST_Assign(struct ExprAssign *expr, int level) {
-    printf("%s = ", expr->name);
+    printf("%s = ", expr->name.str);
     Expr_print(&expr->expr, level);
 }
 
@@ -266,7 +266,7 @@ static void print_ST_Const(struct Expr *expr, int level) {
 static void Function_print(struct Function *func, int level) {
     for (int i = 0; i < level; i++)
         printf("  ");
-    printf("func %s(", func->name);
+    printf("func %s(", func->name.str);
     Binding_print(&func->args);
     printf("): ");
     Type_print(func->ret);
@@ -401,27 +401,27 @@ struct Expr Expr_mut(
     return (struct Expr) { .tag = ST_Mut, .type = type, .let = mut };
 }
 
-struct Expr Expr_recall(struct TypeIntern* intern, const char* name) {
+struct Expr Expr_recall(struct TypeIntern* intern, struct String name) {
     const struct Type* type = Type_new_typevar(intern);
     return (struct Expr){.tag = ET_Recall, .type = type, .lit = name};
 }
 
-struct Expr Expr_number(struct TypeIntern* intern, const char* lit) {
+struct Expr Expr_number(struct TypeIntern* intern, struct String lit) {
     return (struct Expr){.tag = ET_NumberLit, .type = intern->tsyms.t_int, .lit = lit};
 }
 
-struct Expr Expr_string(struct TypeIntern* intern, const char* lit) {
+struct Expr Expr_string(struct TypeIntern* intern, struct String lit) {
     return (struct Expr){.tag = ET_StringLit, .type = intern->tsyms.t_string, .lit = lit};
 }
 
-struct Expr Expr_bool(struct TypeIntern* intern, const char* lit) {
+struct Expr Expr_bool(struct TypeIntern* intern, struct String lit) {
     return (struct Expr){.tag = ET_BoolLit, .type = intern->tsyms.t_bool, .lit = lit};
 }
 
 struct Expr Expr_assign(
     struct serene_Trea* alloc,
     struct TypeIntern* intern,
-    const char* name,
+    struct String name,
     struct Expr value
 ) {
     struct ExprAssign* assign = serene_trealloc(alloc, struct ExprAssign);

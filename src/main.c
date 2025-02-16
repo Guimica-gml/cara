@@ -30,8 +30,7 @@
 #include "serene.h"
 
 struct Module {
-    char* contents;
-    size_t contents_len;
+    struct String contents;
     struct Tokenvec tokens;
     struct Opdecls ops;
 };
@@ -49,16 +48,16 @@ struct ModuleNodesLL {
 
 void ModuleNode_print(struct ModuleNode this, int level) {
     for (int i = 0; i < level; i++) printf("  ");
-    printf("%s (%p)\n", this.name, this.self.contents);
+    printf("%s (%p)\n", this.name, this.self.contents.str);
     for (struct ModuleNodesLL* head = this.children; head; head = head->next) {
         ModuleNode_print(head->current, level + 1);
     }
 }
 
 void ModuleNode_unmap(struct ModuleNode tree) {
-    if (tree.self.contents) munmap(
-        tree.self.contents,
-        tree.self.contents_len
+    if (tree.self.contents.str) munmap(
+        (void*) tree.self.contents.str,
+        tree.self.contents.len
     );
     for (struct ModuleNodesLL* head = tree.children; head; head = head->next)
         ModuleNode_unmap(head->current);
@@ -96,8 +95,8 @@ struct ModuleNode populate_internal(
             struct ModuleNode child = {0};
             child.name = serene_trenalloc(alloc, namelen - 4, char);
             snprintf(child.name, namelen - 4, "%s", entry->d_name);
-            child.self.contents_len = stat.st_size;
-            child.self.contents = mmap(
+            child.self.contents.len = stat.st_size;
+            child.self.contents.str = mmap(
                 NULL,
                 stat.st_size,
                 PROT_READ,
@@ -193,7 +192,7 @@ int main(int argc, char** argv) {
 
     ModuleNode_print(modules, 0);
 
-    char* file = NULL;
+    struct String file = {0};
     printf("searching: %s\n", main_file);
     for (struct ModuleNodesLL* head = modules.children; head; head = head->next) {
         printf("scanning: %s\n", head->current.name);
@@ -202,7 +201,7 @@ int main(int argc, char** argv) {
             break;
         }
     }
-    assert(file != NULL);
+    assert(file.str != NULL);
 
     struct Intern intern = Intern_init(strings_alloc);
     struct Symbols symbols = populate_interner(&intern);
@@ -214,15 +213,15 @@ int main(int argc, char** argv) {
             .token = {0},
         };
         for (
-            struct LexResult t = Lexer_next(&lexer);
-            t.token.kind != TK_EOF;
+            struct Token t = Lexer_next(&lexer);
+            t.kind != TK_EOF;
             t = Lexer_next(&lexer)
         ) {
             printf(
                 "\t(%p)\t'%.*s'\n",
-                t.token.spelling,
-                (int) t.len,
-                t.token.spelling
+                t.spelling.str,
+                (int) t.spelling.len,
+                t.spelling.str
             );
         }
     }
@@ -259,8 +258,8 @@ int main(int argc, char** argv) {
         ) {
             printf(
                 "\t(%p)\t'%s'\n",
-                t.spelling,
-                t.spelling
+                t.spelling.str,
+                t.spelling.str
             );
         }
     }

@@ -63,7 +63,7 @@ static struct tst_Expr convert_ET_If(struct Context* ctx, struct ExprIf* expr, s
     convert_ET_Loop(struct Context* ctx, struct Expr* body, struct tst_Type type),
     convert_ET_Bareblock(struct Context* ctx, struct ExprsLL* body, struct tst_Type type),
     convert_ET_Call(struct Context* ctx, struct ExprCall* expr, struct tst_Type type),
-    convert_ET_Recall(struct Context *ctx, const char *lit, struct tst_Type type),
+    convert_ET_Recall(struct Context *ctx, struct String lit, struct tst_Type type),
     convert_ET_Tuple(struct Context *ctx, struct ExprTuple expr, struct tst_Type type),
     convert_ST_Let(struct Context *ctx, struct ExprLet *expr, struct tst_Type type),
     convert_ST_Break(struct Context *ctx, struct Expr *body, struct tst_Type type),
@@ -173,9 +173,9 @@ static struct tst_Expr convert_ET_Call(struct Context* ctx, struct ExprCall* exp
 }
 
 
-static struct tst_Expr convert_ET_Recall(struct Context* ctx, const char* lit, struct tst_Type type) {
+static struct tst_Expr convert_ET_Recall(struct Context* ctx, struct String lit, struct tst_Type type) {
 #define builtin(sym) \
-    (lit == ctx->intern->syms.sym)
+    (lit.str == ctx->intern->syms.sym.str)
 #define mk_builtin(def) \
     { return (struct tst_Expr){.tag = TET_Builtin, .builtin = def}; }
 
@@ -318,7 +318,7 @@ convert_binding(struct Context *ctx, struct Binding binding) {
     assert(false && "christ");
 }
 
-static struct tst_Type convert_TT_Recall(struct Context* ctx, const char* lit, const struct Type* params),
+static struct tst_Type convert_TT_Recall(struct Context* ctx, struct String lit, const struct Type* params),
     convert_TT_Func(struct Context* ctx, const struct TypeFunc* func);
 
 static struct tst_Type convert_type(
@@ -342,17 +342,17 @@ static struct tst_Type convert_type(
 }
 
 
-static struct tst_Type convert_TT_Recall(struct Context* ctx, const char* lit, const struct Type* params) {
+static struct tst_Type convert_TT_Recall(struct Context* ctx, struct String lit, const struct Type* params) {
     enum tst_TypeTag tag;
-    if (ctx->intern->syms.s_unit == lit) {
+    if (ctx->intern->syms.s_unit.str == lit.str) {
         assert(false && "this should not be possible anymore");
-    } else if (ctx->intern->syms.s_int == lit) {
+    } else if (ctx->intern->syms.s_int.str == lit.str) {
         tag = TTT_Int;
-    } else if (ctx->intern->syms.s_bool == lit) {
+    } else if (ctx->intern->syms.s_bool.str == lit.str) {
         tag = TTT_Bool;
-    } else if (ctx->intern->syms.s_string == lit) {
+    } else if (ctx->intern->syms.s_string.str == lit.str) {
         tag = TTT_String;
-    } else if (ctx->intern->syms.s_star == lit) {
+    } else if (ctx->intern->syms.s_star.str == lit.str) {
         assert(
             params && params->tag == TT_Tuple && "expected parameters"
         );

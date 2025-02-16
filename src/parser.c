@@ -73,7 +73,7 @@ struct Ast parse(
         }
     }
 after:
-    printf("last tokens is: %s\n", Tokenstream_peek(&ctx.toks).spelling);
+    printf("last tokens is: %s\n", Tokenstream_peek(&ctx.toks).spelling.str);
     assert(Tokenstream_peek(&ctx.toks).kind == TK_EOF);
 
     return (struct Ast){
@@ -82,28 +82,28 @@ after:
 }
 
 static struct Function decls_function(struct Context *ctx) {
-    const char *name;
+    struct String name;
     struct Binding args;
     struct Type const *ret;
     struct Expr body;
 
-    assert(Tokenstream_drop_text(&ctx->toks, "func"));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_Func));
 
     name = Tokenstream_peek(&ctx->toks).spelling;
     assert(Tokenstream_drop_kind(&ctx->toks, TK_Name));
 
     args = binding_parenthesised(ctx);
-    if (Tokenstream_drop_text(&ctx->toks, ":")) {
+    if (Tokenstream_drop_kind(&ctx->toks, TK_Colon)) {
         ret = type(ctx);
     } else {
         ret = ctx->intern->tsyms.t_unit;
     }
 
-    if (Tokenstream_drop_text(&ctx->toks, "=")) {
+    if (Tokenstream_drop_kind(&ctx->toks, TK_Equals)) {
         body = expr_delimited(ctx);
     } else {
         body = expr_bareblock(ctx);
-        Tokenstream_drop_text(&ctx->toks, ";");
+        Tokenstream_drop_kind(&ctx->toks, TK_Semicolon);
     };
 
     return (struct Function){.name = name, .args = args, .ret = ret, .body = body};
@@ -116,9 +116,9 @@ static struct Type const *type(struct Context *ctx) {
 }
 
 static struct Type const *type_func(struct Context *ctx) {
-    assert(Tokenstream_drop_text(&ctx->toks, "func"));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_Func));
     struct Type const *args = type_parenthesised(ctx);
-    assert(Tokenstream_drop_text(&ctx->toks, ":"));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_Colon));
     struct Type const *ret = type(ctx);
     return Type_func(ctx->intern, args, ret);
 }
@@ -148,7 +148,7 @@ static struct Type const *type_op_left(struct Context *ctx) {
     for (size_t i = 0; i < ctx->ops.len; i++) {
         if (ctx->ops.buf[i].lbp >= 0 || ctx->ops.buf[i].rbp < 0)
             continue;
-        if (Tokenstream_peek(&ctx->toks).spelling != ctx->ops.buf[i].token)
+        if (Tokenstream_peek(&ctx->toks).spelling.str != ctx->ops.buf[i].token.str)
             continue;
 
         name = Type_recall(ctx->intern, Tokenstream_peek(&ctx->toks).spelling);
@@ -175,7 +175,7 @@ static bool type_op_right_first(struct Context *ctx, unsigned prec) {
         if (ctx->ops.buf[i].lbp < (int)prec)
             continue;
         // same as for type_op_left()
-        if (Tokenstream_peek(&ctx->toks).spelling != ctx->ops.buf[i].token)
+        if (Tokenstream_peek(&ctx->toks).spelling.str != ctx->ops.buf[i].token.str)
             continue;
         return true;
     }
@@ -200,7 +200,7 @@ static struct Type const* type_op_right(
         for (size_t i = 0; i < ctx->ops.len; i++) {
             if (ctx->ops.buf[i].lbp < (int)prec)
                 continue;
-            if (Tokenstream_peek(&ctx->toks).spelling != ctx->ops.buf[i].token)
+            if (Tokenstream_peek(&ctx->toks).spelling.str != ctx->ops.buf[i].token.str)
                 continue;
 
             name = Type_recall(ctx->intern, Tokenstream_peek(&ctx->toks).spelling);
@@ -224,7 +224,7 @@ static const struct Type *type_atom(struct Context *ctx) {
     case TK_OpenParen:
         return type_parenthesised(ctx);
     case TK_Name: {
-        const char *name = Tokenstream_peek(&ctx->toks).spelling;
+        struct String name = Tokenstream_peek(&ctx->toks).spelling;
         Tokenstream_drop(&ctx->toks);
 
         return Type_recall(ctx->intern, name);
@@ -235,7 +235,7 @@ static const struct Type *type_atom(struct Context *ctx) {
 }
 
 static const struct Type *type_parenthesised(struct Context *ctx) {
-    assert(Tokenstream_drop_text(&ctx->toks, "("));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_OpenParen));
     const struct Type* out = type(ctx);
     if (Tokenstream_peek(&ctx->toks).kind == TK_Semicolon) {
         assert(Tokenstream_drop(&ctx->toks));
@@ -258,7 +258,7 @@ static const struct Type *type_parenthesised(struct Context *ctx) {
             out = Type_tuple_extend(ctx->intern, out, rhs);
         }
     }
-    assert(Tokenstream_drop_text(&ctx->toks, ")"));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_CloseParen));
     return out;
 }
 
@@ -273,7 +273,7 @@ static struct Binding binding_atom(struct Context *ctx) {
 
 static struct Binding binding_parenthesised(struct Context* ctx) {
     struct Binding out = {0};
-    assert(Tokenstream_drop_text(&ctx->toks, "("));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_OpenParen));
     if (Tokenstream_peek(&ctx->toks).kind != TK_CloseParen) {
         out = binding(ctx);
         if (Tokenstream_peek(&ctx->toks).kind == TK_Comma) {
@@ -298,16 +298,14 @@ static struct Binding binding_parenthesised(struct Context* ctx) {
         out.tag = BT_Empty;
         out.empty = Type_new_typevar(ctx->intern);
     }
-    assert(Tokenstream_drop_text(&ctx->toks, ")"));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_CloseParen));
     return out;
 }
 
 static struct Binding binding_name(struct Context *ctx) {
-    const struct Type *annot;
-    const char *name;
-
-    name = Tokenstream_peek(&ctx->toks).spelling;
+    struct String name = Tokenstream_peek(&ctx->toks).spelling;
     assert(Tokenstream_drop_kind(&ctx->toks, TK_Name));
+    const struct Type *annot;
     if (Tokenstream_peek(&ctx->toks).kind == TK_Colon) {
         assert(Tokenstream_drop(&ctx->toks));
         annot = type(ctx);
@@ -328,13 +326,13 @@ static struct Expr expr_delimited(struct Context *ctx) {
     case TK_Loop:
     case TK_OpenBrace: {
         struct Expr tmp = expr_block(ctx);
-        Tokenstream_drop_text(&ctx->toks, ";");
+        Tokenstream_drop_kind(&ctx->toks, TK_Semicolon);
 
         return tmp;
     }
     default: {
         struct Expr out = expr_inline(ctx);
-        assert(Tokenstream_drop_text(&ctx->toks, ";"));
+        assert(Tokenstream_drop_kind(&ctx->toks, TK_Semicolon));
         return out;
     }
     }
@@ -369,10 +367,10 @@ static struct Expr expr_if(struct Context* ctx) {
     struct Expr smash;
     struct Expr pass;
 
-    assert(Tokenstream_drop_text(&ctx->toks, "if"));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_If));
     cond = expr_any(ctx);
     smash = expr_block(ctx);
-    if (Tokenstream_drop_text(&ctx->toks, "else")) {
+    if (Tokenstream_drop_kind(&ctx->toks, TK_Else)) {
         pass = expr_block(ctx);
     } else {
         pass = Expr_unit(ctx->intern);
@@ -382,7 +380,7 @@ static struct Expr expr_if(struct Context* ctx) {
 }
 
 static struct Expr expr_loop(struct Context* ctx) {
-    assert(Tokenstream_drop_text(&ctx->toks, "loop"));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_Loop));
     struct Expr block = expr_block(ctx);
     return Expr_loop(ctx->alloc, ctx->intern, block);
 }
@@ -392,7 +390,7 @@ static struct Expr expr_bareblock(struct Context *ctx) {
     struct ExprsLL *last = NULL;
     const struct Type *type = ctx->intern->tsyms.t_unit;
 
-    assert(Tokenstream_drop_text(&ctx->toks, "{"));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_OpenBrace));
     while (Tokenstream_peek(&ctx->toks).kind != TK_CloseBrace) {
         {
             struct ExprsLL* tmp = serene_trealloc(ctx->alloc, struct ExprsLL);
@@ -404,15 +402,14 @@ static struct Expr expr_bareblock(struct Context *ctx) {
         }
         last->current = statement(ctx);
 
-        if (Tokenstream_drop_text(&ctx->toks, ";")) {
+        if (Tokenstream_drop_kind(&ctx->toks, TK_Semicolon)) {
             last->current = Expr_const(ctx->alloc, ctx->intern, last->current);
         } else {
             type = last->current.type;
             break;
         }
     }
-    printf("the token is: %s\n", Tokenstream_peek(&ctx->toks).spelling);
-    assert(Tokenstream_drop_text(&ctx->toks, "}"));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_CloseBrace));
 
     return (struct Expr){.tag = ET_Bareblock, .type = type, .bareblock = block};
 }
@@ -450,7 +447,7 @@ static struct Expr expr_op_left(struct Context *ctx) {
     for (size_t i = 0; i < ctx->ops.len; i++) {
         if (ctx->ops.buf[i].lbp >= 0 || ctx->ops.buf[i].rbp < 0)
             continue;
-        if (Tokenstream_peek(&ctx->toks).spelling != ctx->ops.buf[i].token)
+        if (Tokenstream_peek(&ctx->toks).spelling.str != ctx->ops.buf[i].token.str)
             continue;
 
         assert(Tokenstream_drop(&ctx->toks));
@@ -465,7 +462,7 @@ static struct Expr expr_op_left(struct Context *ctx) {
 static bool expr_op_right_first(struct Context* ctx, unsigned prec) {
     struct Token op = Tokenstream_peek(&ctx->toks);
     for (size_t i = 0; i < ctx->ops.len; i++) {
-        if (op.spelling != ctx->ops.buf[i].token)
+        if (op.spelling.str != ctx->ops.buf[i].token.str)
             continue;
         if (ctx->ops.buf[i].lbp < (int)prec)
             return false;
@@ -495,7 +492,7 @@ static struct Expr expr_op_right(
     switch (op.kind) {
     case TK_Name:
         for (size_t i = 0; i < ctx->ops.len; i++) {
-            if (op.spelling != ctx->ops.buf[i].token)
+            if (op.spelling.str != ctx->ops.buf[i].token.str)
                 continue;
             if (ctx->ops.buf[i].lbp < (int)prec)
                 continue;
@@ -532,7 +529,7 @@ static struct Expr expr_op_right(
 }
 
 static struct Expr expr_parenthesised(struct Context* ctx) {
-    assert(Tokenstream_drop_text(&ctx->toks, "("));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_OpenParen));
     struct Expr out;
     if (Tokenstream_peek(&ctx->toks).kind != TK_CloseParen) {
         out = expr_any(ctx);
@@ -561,7 +558,7 @@ static struct Expr expr_parenthesised(struct Context* ctx) {
     } else {
         out = Expr_unit(ctx->intern);
     }
-    assert(Tokenstream_drop_text(&ctx->toks, ")"));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_CloseParen));
     return out;
 }
 
@@ -606,24 +603,24 @@ static struct Expr statement(struct Context *ctx) {
 }
 
 static struct Expr statement_let(struct Context *ctx) {
-    assert(Tokenstream_drop_text(&ctx->toks, "let"));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_Let));
     struct Binding bind = binding(ctx);
-    assert(Tokenstream_drop_text(&ctx->toks, "="));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_Equals));
     struct Expr init = expr_any(ctx);
     return Expr_let(ctx->alloc, ctx->intern, bind, init);
 }
 
 static struct Expr statement_mut(struct Context *ctx) {
-    assert(Tokenstream_drop_text(&ctx->toks, "mut"));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_Mut));
     struct Binding bind = binding(ctx);
-    assert(Tokenstream_drop_text(&ctx->toks, "="));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_Equals));
     struct Expr init = expr_any(ctx);
     return Expr_mut(ctx->alloc, ctx->intern, bind, init);
 }
 
 static struct Expr statement_break(struct Context *ctx) {
     struct Expr expr;
-    assert(Tokenstream_drop_text(&ctx->toks, "break"));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_Break));
     if (Tokenstream_peek(&ctx->toks).kind != TK_Semicolon) {
         expr = expr_any(ctx);
     } else {
@@ -634,7 +631,7 @@ static struct Expr statement_break(struct Context *ctx) {
 
 static struct Expr statement_return(struct Context *ctx) {
     struct Expr expr;
-    assert(Tokenstream_drop_text(&ctx->toks, "return"));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_Return));
     if (Tokenstream_peek(&ctx->toks).kind != TK_Semicolon) {
         expr = expr_any(ctx);
     } else {
@@ -644,9 +641,9 @@ static struct Expr statement_return(struct Context *ctx) {
 }
 
 static struct Expr statement_assign(struct Context *ctx) {
-    const char* name = Tokenstream_peek(&ctx->toks).spelling;
+    struct String name = Tokenstream_peek(&ctx->toks).spelling;
     assert(Tokenstream_drop_kind(&ctx->toks, TK_Name));
-    assert(Tokenstream_drop_text(&ctx->toks, "="));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_Equals));
     struct Expr expr = expr_any(ctx);
     return Expr_assign(ctx->alloc, ctx->intern, name, expr);
 }

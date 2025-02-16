@@ -6,12 +6,18 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+struct String {
+    const char* str;
+    size_t len;
+};
+
 // cstr helpers
 bool strings_ascii_whitespace(char);
 bool strings_ascii_digit(char);
-size_t strings_strlen(const char *);
-bool strings_prefix_of(const char *, const char *);
-bool strings_equal(const char *, const char *);
+size_t cstrings_strlen(const char *);
+bool strings_prefix_of(struct String, struct String prefix);
+bool strings_equal(struct String, struct String);
+struct String strings_drop(struct String, unsigned int num);
 
 struct Intern {
     struct Btrings tree;
@@ -21,6 +27,6 @@ struct Intern {
 struct Intern Intern_init(struct serene_Trea alloc);
 // copies the contents of the passed in string
 // the returned string is owned by Intern
-const char *Intern_insert(struct Intern *, const char *, size_t);
+struct String Intern_insert(struct Intern *, struct String);
 
 #endif
