@@ -1,4 +1,4 @@
-#include "./lib.h"
+#include "./serene.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
