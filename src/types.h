@@ -1,6 +1,8 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#include "strings.h"
+
 enum TypeTag {
     TT_Func,
     TT_Call,
@@ -28,7 +30,7 @@ struct Type {
         struct TypeFunc func;
         struct TypeCall call;
         struct TypeTuple *tuple;
-        const char *recall;
+        struct String recall;
         int var;
     };
 };

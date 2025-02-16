@@ -4,19 +4,16 @@
 
 int Type_cmp(const struct Type *a, const struct Type *b) {
     int diff = a->tag - b->tag;
-    if (diff)
-        return diff;
+    if (diff) return diff;
 
     switch (a->tag) {
     case TT_Func:
         diff = Type_cmp(a->func.args, b->func.args);
-        if (diff)
-            return diff;
+        if (diff) return diff;
         return Type_cmp(a->func.ret, b->func.ret);
     case TT_Call:
         diff = Type_cmp(a->call.name, b->call.name);
-        if (diff)
-            return diff;
+        if (diff) return diff;
         return Type_cmp(a->call.args, b->call.args);
     case TT_Tuple: {
         const struct TypeTuple* ahead = a->tuple;
@@ -30,7 +27,9 @@ int Type_cmp(const struct Type *a, const struct Type *b) {
         return ahead - bhead;
     }
     case TT_Recall:
-        return a->recall - b->recall;
+        diff = a->recall.len - b->recall.len;
+        if (diff) return diff;
+        return a->recall.str - b->recall.str;
     case TT_Var:
         return a->var - b->var;
     }
@@ -66,7 +65,7 @@ void Type_print(const struct Type *this) {
         return;
     }
     case TT_Recall:
-        printf("%s", this->recall);
+        printf("%s", this->recall.str);
         return;
     case TT_Var:
         printf("var(%d)", this->var);

@@ -28,7 +28,7 @@ struct Globals {
     struct serene_Trea* alloc;
     struct GlobalsLL {
         struct {
-            const char *name;
+            struct String name;
             Type type;
         } current;
         struct GlobalsLL *next;
@@ -41,7 +41,7 @@ static void typecheck_func(struct Globals, struct Function *);
 struct Context {
     struct LetsLL {
         struct {
-            const char *name;
+            struct String name;
             bool mutable;
             Type type;
         } current;
@@ -97,7 +97,7 @@ void typecheck(
             int7_to_int = Type_func(globals.intern, tint7, t_int);
         }
         struct {
-            const char* name;
+            struct String name;
             Type type;
         } builtins[] = {
             {.name = intern->syms.s_badd, .type = int2_to_int},
@@ -178,7 +178,7 @@ static Type typecheck_ET_If(struct Context* ctx, struct ExprIf* expr),
         Type type
     ),
     typecheck_ET_Call(struct Context* ctx, struct ExprCall* expr, Type type),
-    typecheck_ET_Recall(struct Context* ctx, const char* lit, Type type),
+    typecheck_ET_Recall(struct Context* ctx, struct String lit, Type type),
     typecheck_ST_Assign(
         struct Context *ctx, struct ExprAssign *expr, Type type
     ),
@@ -187,7 +187,7 @@ static Type typecheck_ET_If(struct Context* ctx, struct ExprIf* expr),
     typecheck_ST_Mut(struct Context *ctx, struct ExprLet *let, Type type),
     typecheck_ST_Let(struct Context *ctx, struct ExprLet *let, Type type),
     typecheck_ET_Tuple(struct Context *ctx, struct ExprTuple expr, Type type),
-    typecheck_ET_Recall(struct Context *ctx, const char *lit, Type type);
+    typecheck_ET_Recall(struct Context *ctx, struct String lit, Type type);
 
 static Type typecheck_expr(struct Context *ctx, struct Expr *expr) {
 #define Case(Tag, ...)                                                         \
@@ -270,22 +270,22 @@ typecheck_ET_Call(struct Context *ctx, struct ExprCall *expr, Type type) {
 }
 
 static Type
-typecheck_ET_Recall(struct Context *ctx, const char *lit, Type type) {
+typecheck_ET_Recall(struct Context *ctx, struct String lit, Type type) {
     for (ll_iter(head, ctx->lets)) {
-        if (head->current.name == lit) {
+        if (head->current.name.str == lit.str) {
             return unify(
                 ctx->globals.alloc, &ctx->equivs, type, head->current.type
             );
         }
     }
     for (ll_iter(head, ctx->globals.globals)) {
-        if (head->current.name == lit) {
+        if (head->current.name.str == lit.str) {
             return unify(
                 ctx->globals.alloc, &ctx->equivs, type, head->current.type
             );
         }
     }
-    printf("%s\n", lit);
+    printf("%s\n", lit.str);
     assert(false && "no such name!");
 }
 
@@ -334,7 +334,7 @@ static Type typecheck_ST_Assign(
 ) {
     (void)type;
     for (ll_iter(head, ctx->lets)) {
-        if (head->current.name == expr->name) {
+        if (head->current.name.str == expr->name.str) {
             assert(
                 head->current.mutable && "tried modifying an immutable var!"
             );
@@ -561,7 +561,7 @@ static Type unify(
             return ltype;
         }
         case TT_Recall:
-            assert(ltype->recall == rtype->recall && "type mismatch");
+            assert(ltype->recall.str == rtype->recall.str && "type mismatch");
             return ltype;
         case TT_Var:
             break;

@@ -45,17 +45,19 @@ BTRINGS=0
 btrings() {
     if [ "$BTRINGS" -eq "0" ]; then
         ordstrings
-        echo generating btrings
-        $SRC/btree/stencil.sh  \
-            $SRC               \
-            $BUILD             \
-            ordstrings.h       \
-            "struct Ordstring" \
-            32                 \
-            Ordstring_cmp      \
-            Ordstring_print    \
-            Btrings            \
-            btrings
+        toBuild btrings.h
+        toBuild btrings.c
+        # echo generating btrings
+        # $SRC/btree/stencil.sh  \
+        #     $SRC               \
+        #     $BUILD             \
+        #     ordstrings.h       \
+        #     "struct Ordstring" \
+        #     32                 \
+        #     Ordstring_cmp      \
+        #     Ordstring_print    \
+        #     Btrings            \
+        #     btrings
         echo compiling btrings
         $CC $OPTS -o $BUILD/btrings.o -c $BUILD/btrings.c
         BTRINGS=1
@@ -93,14 +95,16 @@ TOKENVEC=0
 tokenvec() {
     if [ "$TOKENVEC" -eq "0" ]; then
         tokens
-        echo generating tokenvec
-        $SRC/vec/stencil.sh \
-            $SRC            \
-            $BUILD          \
-            tokens.h        \
-            "struct Token"  \
-            Tokenvec        \
-            tokenvec
+        toBuild tokenvec.h
+        toBuild tokenvec.c
+        # echo generating tokenvec
+        # $SRC/vec/stencil.sh \
+        #     $SRC            \
+        #     $BUILD          \
+        #     tokens.h        \
+        #     "struct Token"  \
+        #     Tokenvec        \
+        #     tokenvec
         echo compiling tokenvec
         $CC $OPTS -o $BUILD/tokenvec.o -c $BUILD/tokenvec.c
         TOKENVEC=1
@@ -122,14 +126,16 @@ OPDECLVEC=0
 opdeclvec() {
     if [ "$OPDECLVEC" -eq "0" ]; then
         opdecl
-        echo generating opdeclvec
-        $SRC/vec/stencil.sh \
-            $SRC            \
-            $BUILD          \
-            opdecl.h        \
-            "struct Opdecl" \
-            Opdecls         \
-            opdeclvec
+        # echo generating opdeclvec
+        # $SRC/vec/stencil.sh \
+        #     $SRC            \
+        #     $BUILD          \
+        #     opdecl.h        \
+        #     "struct Opdecl" \
+        #     Opdecls         \
+        #     opdeclvec
+        toBuild opdeclvec.h
+        toBuild opdeclvec.c
         echo compiling opdeclvec
         $CC $OPTS -o $BUILD/opdeclvec.o -c $BUILD/opdeclvec.c
         OPDECLVEC=1
@@ -153,17 +159,19 @@ TYPEREG=0
 typereg() {
     if [ "$TYPEREG" -eq "0" ]; then
         types
-        echo generating typereg
-        $SRC/btree/stencil.sh \
-            $SRC              \
-            $BUILD            \
-            types.h           \
-            "struct Type *"   \
-            32                \
-            Type_cmp          \
-            Type_print        \
-            Typereg           \
-            typereg
+        # echo generating typereg
+        # $SRC/btree/stencil.sh \
+        #     $SRC              \
+        #     $BUILD            \
+        #     types.h           \
+        #     "struct Type *"   \
+        #     32                \
+        #     Type_cmp          \
+        #     Type_print        \
+        #     Typereg           \
+        #     typereg
+        toBuild typereg.h
+        toBuild typereg.c
         echo compiling typereg
         $CC $OPTS -o $BUILD/typereg.o -c $BUILD/typereg.c
         TYPEREG=1

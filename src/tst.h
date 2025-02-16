@@ -1,6 +1,8 @@
 #ifndef TST_H
 #define TST_H
 
+#include "strings.h"
+
 struct tst_Binding;
 struct tst_Expr;
 struct tst_ExprsLL;
@@ -47,7 +49,7 @@ struct tst_Binding {
     enum tst_BindingTag tag;
     union {
         struct {
-            const char *name;
+            struct String name;
             struct tst_Type type;
         } name;
         struct tst_BindingTuple *tuple;
@@ -117,7 +119,7 @@ struct tst_Expr {
         struct tst_Expr *loop;
         struct tst_ExprsLL* bareblock;
         enum tst_ExprBuiltin builtin;
-        const char *lit;
+        struct String lit;
 
         struct tst_ExprLet* let;
         struct tst_ExprAssign *assign;
@@ -149,12 +151,12 @@ struct tst_ExprLet {
     struct tst_Expr init;
 };
 struct tst_ExprAssign {
-    const char *name;
+    struct String name;
     struct tst_Expr expr;
 };
 
 struct tst_Function {
-    const char *name;
+    struct String name;
     struct tst_Type type;
     struct tst_Binding args;
     struct tst_Expr body;

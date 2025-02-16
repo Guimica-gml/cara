@@ -2,7 +2,7 @@
 
 struct Symbols
 populate_interner(struct Intern *intern) {
-#define ins(s) Intern_insert(intern, s, sizeof(s) / sizeof(char) - 1)
+#define ins(s) Intern_insert(intern, (struct String){s, sizeof(s) / sizeof(char) - 1})
     struct Symbols out = {0};
 
     out.s_main = ins("main");
