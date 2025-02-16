@@ -41,7 +41,6 @@ const struct SpellingEntry immediates[] = {
     {.str = mkString("}"), .kind = TK_CloseBrace},
     {.str = mkString("["), .kind = TK_OpenBracket},
     {.str = mkString("]"), .kind = TK_CloseBracket},
-    {.str = mkString("::"), .kind = TK_DoubleColon},
     {.str = mkString(","), .kind = TK_Comma},
     {.str = mkString(";"), .kind = TK_Semicolon},
     {.str = mkString(":"), .kind = TK_Colon},
@@ -187,12 +186,10 @@ static struct String lexer_strip_whitespace(struct String in) {
 
 static bool lexer_comment(struct Lexer *lexer, struct String in) {
     size_t len = 0;
-    if (strings_prefix_of(in, (struct String){"//", 2})) {
-        while (len < in.len && in.str[len] != '\n')
-            len++;
-    } else {
-        return false;
-    }
+    if (!strings_prefix_of(in, (struct String){"//", 2})) return false;
+    if (!lexer_starts_word_break(strings_drop(in, 2))) return false;
+    while (len < in.len && in.str[len] != '\n')
+        len++;
     lexer->token.kind = TK_Comment;
     lexer->token.spelling = in;
     lexer->token.number = 0;
@@ -201,7 +198,7 @@ static bool lexer_comment(struct Lexer *lexer, struct String in) {
 }
 
 static bool lexer_is_word_break(char input) {
-    if (input == '\0' || input == '"' || input == '/' || strings_ascii_digit(input) ||
+    if (input == '\0' || input == '"' || strings_ascii_digit(input) ||
         strings_ascii_whitespace(input))
         return true;
     for (unsigned int i = 0; i < sizeof(immediates)/sizeof(immediates[0]); i++) {

@@ -14,14 +14,14 @@ func main(): int {
      let c: int = as_int(
          "
      );
-     let d: int = as_int("*\n");//this comment should be fine
+     let d: int = as_int("*\n");// this comment should be fine
 
      // Expected output:
-     //Test 1
-     //Hello
-     //	Sucks to suck
+     // Test 1
+     // Hello
+     // 	Sucks to suck
      //
-     //*
+     // *
 
      let damn = print(a, 12);
      print(b, 16);
