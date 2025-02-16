@@ -21,7 +21,7 @@ size_t cstrings_strlen(const char *str) {
 
 bool strings_prefix_of(struct String str, struct String prefix) {
     if (prefix.len > str.len) return false;
-    for (int i = 0; i < prefix.len; i++)
+    for (unsigned int i = 0; i < prefix.len; i++)
         if (str.str[i] != prefix.str[i]) return false;
     return true;
 }

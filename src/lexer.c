@@ -178,7 +178,7 @@ static bool lexer_name(struct Lexer* lexer, struct String in) {
     return true;
 }
 
-static const char *lexer_strip_whitespace(struct String in) {
+static struct String lexer_strip_whitespace(struct String in) {
     size_t len = 0;
     while (len < in.len && strings_ascii_whitespace(in.str[len]))
         len++;
