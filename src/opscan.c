@@ -1,4 +1,5 @@
 #include "./opscan.h"
+
 #include <assert.h>
 #include <stdio.h>
 
@@ -13,17 +14,28 @@ static struct String cat_strings(
     size_t cum_len
 );
 
+static void handle_import(
+    struct Intern* intern,
+    struct ModuleNode* mod,
+    struct ModuleNode* parent,
+    struct String path
+);
+
 void scan(
     struct Intern* intern,
-    struct Lexer lexer,
-    struct Tokenvec* tokens_out,
-    struct Opdecls* decls_out
+    struct ModuleNode* mod,
+    struct ModuleNode* parent
 ) {
     struct serene_Trea scratch = serene_Trea_sub(&intern->alloc);
+    struct Lexer lexer = {
+        .rest = mod->self.contents,
+        .token = {0},
+    };
 #define SKIP t = Lexer_next(&lexer)
     struct Token t = Lexer_next(&lexer);
     while (t.kind != TK_EOF) {
-        if (t.kind == TK_String) {
+        switch (t.kind) {
+        case TK_String: {
             struct StringLL* list = serene_trealloc(&scratch, struct StringLL);
             assert(list && "OOM");
             list->next = NULL;
@@ -44,18 +56,17 @@ void scan(
             struct String whole = cat_strings(&scratch, list, cum_len);
             struct String spelling = Intern_insert(intern, whole);
             assert(Tokenvec_push(
-                tokens_out,
+                &mod->self.tokens,
                 (struct Token){.kind = TK_String, .spelling = spelling, .number = 0}
             ));
-            continue;
+            break;
         }
-
-        if (t.kind == TK_Comment) {
+        case TK_Comment: {
             SKIP;
-            continue;
+            break;
         }
 
-        if (t.kind == TK_Operator) {
+        case TK_Operator: {
             SKIP;
             assert(t.kind == TK_OpenParen), SKIP;
             int lbp;
@@ -82,15 +93,55 @@ void scan(
             SKIP;
             assert(t.kind == TK_CloseParen), SKIP;
 
-            Opdecls_push(decls_out, (struct Opdecl){.token = name, .lbp = lbp, .rbp = rbp});
-            continue;
+            assert(Opdecls_push(&mod->self.ops, (struct Opdecl){.token = name, .lbp = lbp, .rbp = rbp}));
+            break;
         }
 
-        t.spelling = Intern_insert(intern, t.spelling);
-        assert(Tokenvec_push(tokens_out, t));
-        SKIP;
+        case TK_Import: {
+            t.spelling = Intern_insert(intern, t.spelling);
+            SKIP;
+
+            assert(t.kind == TK_Name);
+            t.spelling = Intern_insert(intern, t.spelling);
+            handle_import(intern, mod, parent, t.spelling);
+            SKIP;
+
+            assert(t.kind == TK_Semicolon);
+            t.spelling = Intern_insert(intern, t.spelling);
+            SKIP;
+            break;
+        }
+
+        default: {
+            t.spelling = Intern_insert(intern, t.spelling);
+            assert(Tokenvec_push(&mod->self.tokens, t));
+            SKIP;
+            break;
+        }
+        }
     }
 #undef SKIP
+}
+
+static void handle_import(
+    struct Intern* intern,
+    struct ModuleNode* mod,
+    struct ModuleNode* parent,
+    struct String path
+) {
+    struct ModuleNode* imp_parent = parent;
+    for (
+        struct String part = strings_split_first(&path, '/');
+        part.len > 0;
+        part = strings_split_first(&path, '/')
+        ) {
+        imp_parent = ModuleNode_get(imp_parent, part);
+    }
+    struct ModuleNode* imp = ModuleNode_get(imp_parent, path);
+    scan(intern, imp, imp_parent);
+    for (size_t i = 0; i < imp->self.ops.len; i++) {
+        assert(Opdecls_push(&mod->self.ops, imp->self.ops.buf[i]));
+    }
 }
 
 static struct String cat_strings(
@@ -98,7 +149,7 @@ static struct String cat_strings(
     struct StringLL* list,
     size_t cum_len
 ) {
-    char *string = serene_trenalloc(scratch, cum_len, char);
+    char* string = serene_trenalloc(scratch, cum_len, char);
     assert(string && "OOM");
     size_t string_len = 0;
 

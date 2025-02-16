@@ -274,7 +274,15 @@ static void Function_print(struct Function *func, int level) {
     Expr_print(&func->body, level);
 }
 
-void Ast_print(struct Ast *ast) {
+static void Import_print(struct Import* imp) {
+    printf("import %.*s;", (int)imp->path.len, imp->path.str);
+}
+
+void Ast_print(struct Ast* ast) {
+    for (ll_iter(i, ast->imports)) {
+        Import_print(&i->current);
+        printf("\n");
+    }
     for (ll_iter(f, ast->funcs)) {
         Function_print(&f->current, 0);
         printf("\n");

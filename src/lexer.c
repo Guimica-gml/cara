@@ -18,7 +18,6 @@ static bool lexer_name(struct Lexer*, struct String);
 struct Token Lexer_next(struct Lexer* lexer) {
     if (lexer->rest.len == 0) return (struct Token) {0};
     lexer->rest = lexer_strip_whitespace(lexer->rest);
-    size_t start = lexer->rest.len;
     if (lexer_immediates(lexer, lexer->rest) || lexer_comment(lexer, lexer->rest) ||
         lexer_keywords(lexer, lexer->rest) || lexer_bools(lexer, lexer->rest) ||
         lexer_string(lexer, lexer->rest) || lexer_number(lexer, lexer->rest) ||
@@ -68,7 +67,7 @@ static bool lexer_starts_word_break(struct String input) {
 
 static bool lexer_keywords(struct Lexer* lexer, struct String input) {
     const struct SpellingEntry table[] = {
-#define mkString(s) {.str = s, .len = sizeof(s)-1}
+#define mkString(s) {.str = s, .len = sizeof(s) - 1}
         {.str = mkString("func"), .kind = TK_Func},
         {.str = mkString("return"), .kind = TK_Return},
         {.str = mkString("loop"), .kind = TK_Loop},
@@ -81,6 +80,7 @@ static bool lexer_keywords(struct Lexer* lexer, struct String input) {
         {.str = mkString("as"), .kind = TK_As},
         {.str = mkString("operator"), .kind = TK_Operator},
         {.str = mkString("="), .kind = TK_Equals},
+        {.str = mkString("import"), .kind = TK_Import},
 #undef mkString
     };
 

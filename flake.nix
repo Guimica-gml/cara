@@ -19,6 +19,7 @@
     packages."${system}" = let
       # expects a .c file of same name in $src/
       modules = [
+        "modules"
         "main"
         "tokens"
         "tokenvec"

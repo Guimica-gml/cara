@@ -5,12 +5,12 @@
 #include "./strings.h"
 #include "./opdeclvec.h"
 #include "./tokenvec.h"
+#include "modules.h"
 
 void scan(
     struct Intern*,
-    struct Lexer,
-    struct Tokenvec* tokens_out,
-    struct Opdecls* decls_out
+    struct ModuleNode* mod,
+    struct ModuleNode* parent
 );
 
 #endif

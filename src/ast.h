@@ -156,11 +156,19 @@ struct Function {
     struct Expr body;
 };
 
+struct Import {
+    struct String path;
+};
+
 struct Ast {
     struct FunctionsLL {
-        struct Function current;
         struct FunctionsLL *next;
-    } *funcs;
+        struct Function current;
+    }* funcs;
+    struct ImportsLL {
+        struct ImportsLL* next;
+        struct Import current;
+    }* imports;
 };
 
 void Ast_print(struct Ast *);

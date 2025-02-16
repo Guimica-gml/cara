@@ -8,6 +8,7 @@ struct Context {
     struct Tokenstream toks;
 };
 
+static struct Import decls_import(struct Context *);
 static struct Function decls_function(struct Context *);
 
 static struct Type const *type(struct Context *);
@@ -56,7 +57,8 @@ struct Ast parse(
         .intern = intern,
         .toks = toks,
     };
-    struct FunctionsLL *funcs = NULL;
+    struct FunctionsLL* funcs = NULL;
+    struct ImportsLL* imports = NULL;
 
     while (true) {
         switch (Tokenstream_peek(&ctx.toks).kind) {
@@ -66,6 +68,14 @@ struct Ast parse(
             tmp->current = decls_function(&ctx);
             tmp->next = funcs;
             funcs = tmp;
+            break;
+        }
+        case TK_Import: {
+            struct ImportsLL* tmp = serene_trealloc(alloc, struct ImportsLL);
+            assert(tmp && "OOM");
+            tmp->current = decls_import(&ctx);
+            tmp->next = imports;
+            imports = tmp;
             break;
         }
         default:
@@ -78,7 +88,16 @@ after:
 
     return (struct Ast){
         .funcs = funcs,
+        .imports = imports,
     };
+}
+
+static struct Import decls_import(struct Context* ctx) {
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_Import));
+    struct String name = Tokenstream_peek(&ctx->toks).spelling;
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_Name));
+    assert(Tokenstream_drop_kind(&ctx->toks, TK_Semicolon));
+    return (struct Import) { .path = name };
 }
 
 static struct Function decls_function(struct Context *ctx) {

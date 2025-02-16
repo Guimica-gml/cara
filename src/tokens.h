@@ -22,6 +22,7 @@ enum Tokenkind {
     TK_Type,
     TK_As,
     TK_Equals,
+    TK_Import,
     // Immediates
     TK_OpenParen,
     TK_CloseParen,
