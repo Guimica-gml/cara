@@ -50,6 +50,11 @@ void scan(
             continue;
         }
 
+        if (t.kind == TK_Comment) {
+            SKIP;
+            continue;
+        }
+
         if (t.kind == TK_Operator) {
             SKIP;
             assert(t.kind == TK_OpenParen), SKIP;

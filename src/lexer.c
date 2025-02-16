@@ -6,8 +6,9 @@
 struct SpellingEntry;
 
 static bool lexer_is_word_break(char);
-static struct String lexer_strip_comments(struct String);
+static struct String lexer_strip_whitespace(struct String);
 static bool lexer_immediates(struct Lexer*, struct String);
+static bool lexer_comment(struct Lexer *, struct String);
 static bool lexer_keywords(struct Lexer*, struct String);
 static bool lexer_bools(struct Lexer*, struct String);
 static bool lexer_string(struct Lexer*, struct String);
@@ -16,9 +17,9 @@ static bool lexer_name(struct Lexer*, struct String);
 
 struct Token Lexer_next(struct Lexer* lexer) {
     if (lexer->rest.len == 0) return (struct Token) {0};
-    lexer->rest = lexer_strip_comments(lexer->rest);
+    lexer->rest = lexer_strip_whitespace(lexer->rest);
     size_t start = lexer->rest.len;
-    if (lexer_immediates(lexer, lexer->rest) ||
+    if (lexer_immediates(lexer, lexer->rest) || lexer_comment(lexer, lexer->rest) ||
         lexer_keywords(lexer, lexer->rest) || lexer_bools(lexer, lexer->rest) ||
         lexer_string(lexer, lexer->rest) || lexer_number(lexer, lexer->rest) ||
         lexer_name(lexer, lexer->rest)) {
@@ -177,20 +178,30 @@ static bool lexer_name(struct Lexer* lexer, struct String in) {
     return true;
 }
 
-static struct String lexer_strip_comments(struct String input) {
-    while (input.len > 0 && strings_ascii_whitespace(input.str[0]))
-        input = strings_drop(input, 1);
-    while (strings_prefix_of(input, (struct String) {"//", 2})) {
-        while (input.len > 0 && input.str[0] != '\n')
-            input = strings_drop(input, 1);
-        while (input.len > 0 && strings_ascii_whitespace(input.str[0]))
-            input = strings_drop(input, 1);
+static const char *lexer_strip_whitespace(struct String in) {
+    size_t len = 0;
+    while (len < in.len && strings_ascii_whitespace(in.str[len]))
+        len++;
+    return strings_drop(in, len);
+}
+
+static bool lexer_comment(struct Lexer *lexer, struct String in) {
+    size_t len = 0;
+    if (strings_prefix_of(in, (struct String){"//", 2})) {
+        while (len < in.len && in.str[len] != '\n')
+            len++;
+    } else {
+        return false;
     }
-    return input;
+    lexer->token.kind = TK_Comment;
+    lexer->token.spelling = in;
+    lexer->token.number = 0;
+    lexer->rest = strings_drop(in, len);
+    return true;
 }
 
 static bool lexer_is_word_break(char input) {
-    if (input == '\0' || input == '"' || strings_ascii_digit(input) ||
+    if (input == '\0' || input == '"' || input == '/' || strings_ascii_digit(input) ||
         strings_ascii_whitespace(input))
         return true;
     for (unsigned int i = 0; i < sizeof(immediates)/sizeof(immediates[0]); i++) {

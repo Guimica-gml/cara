@@ -38,6 +38,8 @@ enum Tokenkind {
     TK_Number = 26,
     TK_Name = 27,
     TK_Bool = 28,
+    // Comments...
+    TK_Comment = 29,
 };
 
 struct Token {
