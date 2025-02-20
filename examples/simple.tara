@@ -13,8 +13,7 @@ func mmap(addr: int, len: int, prot: int, flags: int, fd: int, off: int): int {
 
 func main(): int {
     let out = print(
-        "Hello World!
-        as int,
+        __builtin_ptr_to_int("Hello World!\n"),
         14
     );
 

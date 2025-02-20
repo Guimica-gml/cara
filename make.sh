@@ -2,28 +2,22 @@
 
 BUILD=./build
 SRC=./src
-OPTS="-O2"
+OPTS="$SANITIZER -Werror=return-type -Wall -Wextra -g -O0"
 LLVM_LIBS="core analysis target"
 LLVM_CFLAGS=$(llvm-config --cflags)
 LLVM_CXXFLAGS=$(llvm-config --cxxflags --ldflags --libs $LLVM_LIBS)
 # SANITIZER="-fsanitize=address -fno-sanitize-recover"
 SANITIZER=""
 
-if [ "$1" = "debug" ]; then
-    OPTS="$SANITIZER -Wall -Wextra -g -O0"
+if [ "$1" = "release" ]; then
+    OPTS="-O2"
 fi
 
-toBuild() {
-    cp $SRC/$1 $BUILD/$1
-}
-
 SERENE=0
-SERENE_SRC=./serene
 serene() {
     if [ "$SERENE" -eq "0" ]; then
         echo compiling serene
-        cp $SERENE_SRC/lib.h $BUILD/serene.h
-        $CC $OPTS -o $BUILD/serene.o -c $SERENE_SRC/lib.c
+        $CC $OPTS -o $BUILD/serene.o -c $SRC/serene.c
         SERENE=1
     fi
 }
@@ -33,9 +27,7 @@ ORDSTRINGS=0
 ordstrings() {
     if [ "$ORDSTRINGS" -eq "0" ]; then
         echo compiling ordstrings
-        toBuild ordstrings.h
-        toBuild ordstrings.c
-        $CC $OPTS -o $BUILD/ordstrings.o -c $BUILD/ordstrings.c
+        $CC $OPTS -o $BUILD/ordstrings.o -c $SRC/ordstrings.c
         ORDSTRINGS=1
     fi
 }
@@ -45,21 +37,8 @@ BTRINGS=0
 btrings() {
     if [ "$BTRINGS" -eq "0" ]; then
         ordstrings
-        toBuild btrings.h
-        toBuild btrings.c
-        # echo generating btrings
-        # $SRC/btree/stencil.sh  \
-        #     $SRC               \
-        #     $BUILD             \
-        #     ordstrings.h       \
-        #     "struct Ordstring" \
-        #     32                 \
-        #     Ordstring_cmp      \
-        #     Ordstring_print    \
-        #     Btrings            \
-        #     btrings
         echo compiling btrings
-        $CC $OPTS -o $BUILD/btrings.o -c $BUILD/btrings.c
+        $CC $OPTS -o $BUILD/btrings.o -c $SRC/btrings.c
         BTRINGS=1
     fi
 }
@@ -70,9 +49,7 @@ strings() {
     if [ "$STRINGS" -eq "0" ]; then
         btrings
         echo compiling strings
-        toBuild strings.h
-        toBuild strings.c
-        $CC $OPTS -o $BUILD/strings.o -c $BUILD/strings.c
+        $CC $OPTS -o $BUILD/strings.o -c $SRC/strings.c
         STRINGS=1
     fi
 }
@@ -83,9 +60,7 @@ tokens() {
     if [ "$TOKENS" -eq "0" ]; then
         strings
         echo compiling tokens
-        toBuild tokens.h
-        toBuild tokens.c
-        $CC $OPTS -o $BUILD/tokens.o -c $BUILD/tokens.c
+        $CC $OPTS -o $BUILD/tokens.o -c $SRC/tokens.c
         TOKENS=1
     fi
 }
@@ -95,8 +70,6 @@ TOKENVEC=0
 tokenvec() {
     if [ "$TOKENVEC" -eq "0" ]; then
         tokens
-        toBuild tokenvec.h
-        toBuild tokenvec.c
         # echo generating tokenvec
         # $SRC/vec/stencil.sh \
         #     $SRC            \
@@ -106,26 +79,15 @@ tokenvec() {
         #     Tokenvec        \
         #     tokenvec
         echo compiling tokenvec
-        $CC $OPTS -o $BUILD/tokenvec.o -c $BUILD/tokenvec.c
+        $CC $OPTS -o $BUILD/tokenvec.o -c $SRC/tokenvec.c
         TOKENVEC=1
     fi
 }
 
 # refs: NONE
-OPDECL=0
-opdecl() {
-    if [ "$OPDECL" -eq "0" ]; then
-        echo compiling opdecl
-        toBuild opdecl.h
-        OPDECL=1
-    fi
-}
-
-# refs: opdecl
 OPDECLVEC=0
 opdeclvec() {
     if [ "$OPDECLVEC" -eq "0" ]; then
-        opdecl
         # echo generating opdeclvec
         # $SRC/vec/stencil.sh \
         #     $SRC            \
@@ -134,10 +96,8 @@ opdeclvec() {
         #     "struct Opdecl" \
         #     Opdecls         \
         #     opdeclvec
-        toBuild opdeclvec.h
-        toBuild opdeclvec.c
         echo compiling opdeclvec
-        $CC $OPTS -o $BUILD/opdeclvec.o -c $BUILD/opdeclvec.c
+        $CC $OPTS -o $BUILD/opdeclvec.o -c $SRC/opdeclvec.c
         OPDECLVEC=1
     fi
 }
@@ -147,9 +107,7 @@ TYPES=0
 types() {
     if [ "$TYPES" -eq "0" ]; then
         echo compiling types
-        toBuild types.h
-        toBuild types.c
-        $CC $OPTS -o $BUILD/types.o -c $BUILD/types.c
+        $CC $OPTS -o $BUILD/types.o -c $SRC/types.c
         TYPES=1
     fi
 }
@@ -170,10 +128,8 @@ typereg() {
         #     Type_print        \
         #     Typereg           \
         #     typereg
-        toBuild typereg.h
-        toBuild typereg.c
         echo compiling typereg
-        $CC $OPTS -o $BUILD/typereg.o -c $BUILD/typereg.c
+        $CC $OPTS -o $BUILD/typereg.o -c $SRC/typereg.c
         TYPEREG=1
     fi
 }
@@ -196,9 +152,7 @@ lexer() {
         strings
         tokens
         echo compiling lexer
-        toBuild lexer.h
-        toBuild lexer.c
-        $CC $OPTS -o $BUILD/lexer.o -c $BUILD/lexer.c
+        $CC $OPTS -o $BUILD/lexer.o -c $SRC/lexer.c
         LEXER=1
     fi
 }
@@ -211,9 +165,7 @@ opscan() {
         opdeclvec
         tokenvec
         echo compiling opscan
-        toBuild opscan.h
-        toBuild opscan.c
-        $CC $OPTS -o $BUILD/opscan.o -c $BUILD/opscan.c
+        $CC $OPTS -o $BUILD/opscan.o -c $SRC/opscan.c
         OPSCAN=1
     fi
 }
@@ -223,19 +175,8 @@ symbols() {
     if [ "$SYMBOLS" -eq "0" ]; then
         strings
         echo compiling symbols
-        toBuild symbols.h
-        toBuild symbols.c
-        $CC $OPTS -o $BUILD/symbols.o -c $BUILD/symbols.c
+        $CC $OPTS -o $BUILD/symbols.o -c $SRC/symbols.c
         SYMBOLS=1
-    fi
-}
-
-COMMON_LL=0
-common_ll() {
-    if [ "$COMMON_LL" -eq "0" ]; then
-        echo compiling common_ll
-        toBuild common_ll.h
-        COMMON_LL=1
     fi
 }
 
@@ -245,11 +186,8 @@ ast() {
         symbols
         types
         typereg
-        common_ll
         echo compiling ast
-        toBuild ast.h
-        toBuild ast.c
-        $CC $OPTS -o $BUILD/ast.o -c $BUILD/ast.c
+        $CC $OPTS -o $BUILD/ast.o -c $SRC/ast.c
         AST=1
     fi
 }
@@ -262,19 +200,8 @@ parser() {
         ast
         symbols
         echo compiling parser
-        toBuild parser.h
-        toBuild parser.c
-        $CC $OPTS -o $BUILD/parser.o -c $BUILD/parser.c
+        $CC $OPTS -o $BUILD/parser.o -c $SRC/parser.c
         PARSER=1
-    fi
-}
-
-TST=0
-tst() {
-    if [ "$TST" -eq "0" ]; then
-        echo compiling tst
-        toBuild tst.h
-        TST=1
     fi
 }
 
@@ -283,12 +210,8 @@ typer() {
     if [ "$TYPER" -eq "0" ]; then
         ast
         symbols
-        tst
-        common_ll
         echo compiling typer
-        toBuild typer.h
-        toBuild typer.c
-        $CC $OPTS -o $BUILD/typer.o -c $BUILD/typer.c
+        $CC $OPTS -o $BUILD/typer.o -c $SRC/typer.c
         TYPER=1
     fi
 }
@@ -298,12 +221,8 @@ converter() {
     if [ "$CONVERTER" -eq "0" ]; then
         ast
         symbols
-        tst
-        common_ll
         echo compiling converter
-        toBuild converter.h
-        toBuild converter.c
-        $CC $OPTS -o $BUILD/converter.o -c $BUILD/converter.c
+        $CC $OPTS -o $BUILD/converter.o -c $SRC/converter.c
         CONVERTER=1
     fi
 }
@@ -311,14 +230,32 @@ converter() {
 CODEGEN=0
 codegen() {
     if [ "$CODEGEN" -eq "0" ]; then
-        tst
         strings
-        common_ll
         echo compiling codegen
-        toBuild codegen.h
-        toBuild codegen.c
-        $CC $LLVM_CFLAGS $OPTS -o $BUILD/codegen.o -c $BUILD/codegen.c
+        $CC $LLVM_CFLAGS $OPTS -o $BUILD/codegen.o -c $SRC/codegen.c
         CODEGEN=1
+    fi
+}
+
+MTREE=0
+mtree() {
+    if [ "$MTREE" -eq "0" ]; then
+        serene
+        echo compiling mtree
+        $CC $OPTS -o $BUILD/mtree.o -c $SRC/mtree.c
+        MTREE=1
+    fi
+}
+
+PREIMPORT=0
+preimport() {
+    if [ "$PREIMPORT" -eq "0" ]; then
+        opscan
+        mtree
+        strings
+        echo compiling preimport
+        $CC $OPTS -o $BUILD/preimport.o -c $SRC/preimport.c
+        PREIMPORT=1
     fi
 }
 
@@ -330,18 +267,18 @@ main() {
     instances
     strings
     symbols
+    mtree
     tokens
     lexer
     opscan
+    preimport
     ast
     parser
     typer
-    tst
-    converter
+    # converter
     codegen
     echo compiling main
-    toBuild main.c
-    $CC $LLVM_CFLAGS $OPTS -o $BUILD/main.o -c $BUILD/main.c
+    $CC $LLVM_CFLAGS $OPTS -o $BUILD/main.o -c $SRC/main.c
     echo linking it all
     $CXX $SANITIZER -o $BUILD/main $BUILD/*.o $LLVM_CXXFLAGS
 }

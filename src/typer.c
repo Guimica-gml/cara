@@ -1,5 +1,7 @@
 #include "./typer.h"
 #include "./common_ll.h"
+#include "commons.h"
+#include "parser.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -62,11 +64,27 @@ static void fill_binding(struct Context *, struct Binding *);
 static Type fill_type(struct Context *, Type);
 static Type destructure_binding(struct Context *, struct Binding *, bool);
 
-void typecheck(
+static void typecheck_top(struct TypeIntern*, struct Ast*, struct PPImports*);
+
+static void* typecheck_ptr(void* _ctx, void* _data) {
+    struct PTData* data = _data;
+    if (!data) return data;
+    typecheck_top(&data->types, &data->ast, data->imports);
+    return data;
+}
+
+static void cleanup(void* _data) {}
+
+void typecheck(struct MTree* mods) {
+    MTree_map(mods, cleanup, typecheck_ptr, NULL);
+}
+
+static void typecheck_top(
     struct TypeIntern* intern,
-    struct Ast* ast
+    struct Ast* ast,
+    struct PPImports* imports
 ) {
-    struct serene_Trea alloc = serene_Trea_sub(&intern->alloc);
+    struct serene_Trea alloc = serene_Trea_sub(intern->alloc);
     struct Globals globals = {0};
     globals.intern = intern;
     globals.alloc = &alloc;
@@ -119,7 +137,7 @@ void typecheck(
             {.name = intern->syms.s_bcmpGE, .type = int2_to_bool},
             {.name = intern->syms.s_bcmpLE, .type = int2_to_bool},
             {.name = intern->syms.s_syscall, .type = int7_to_int},
-            // currently only are ptrs
+            // currently only strings are ptrs
             // in the future this should become a generic builtin
             {.name = intern->syms.s_bptr_to_int, .type = string_to_int},
             {.name = intern->syms.s_bint_to_ptr, .type = int_to_string},
@@ -131,6 +149,41 @@ void typecheck(
             tmp->current.name = builtins[i].name;
             tmp->next = globals.globals;
             globals.globals = tmp;
+        }
+    }
+
+    for (ll_iter(i, imports)) {
+        struct PTData* data = i->current.mod->data;
+        if (i->current.decl.len == 0) {
+            assert(false && "TODO: import module symbol");
+            continue;
+        }
+        if (strings_equal(i->current.decl, (struct String){"...", 3})) {
+            for (ll_iter(f, data->ast.funcs)) {
+                struct GlobalsLL *tmp = serene_trealloc(&alloc, struct GlobalsLL);
+                assert(tmp);
+
+                Type ret = f->current.ret;
+                Type args = Binding_to_type(globals.intern, f->current.args);
+                tmp->current.type = Type_func(globals.intern, args, ret);
+                tmp->current.name = f->current.name;
+                tmp->next = globals.globals;
+                globals.globals = tmp;
+            }
+            continue;
+        }
+        for (ll_iter(f, data->ast.funcs)) {
+            if (f->current.name.str != i->current.decl.str) continue;
+
+            struct GlobalsLL *tmp = serene_trealloc(&alloc, struct GlobalsLL);
+            assert(tmp && "OOM"), ZERO(*tmp);
+            Type ret = f->current.ret;
+            Type args = Binding_to_type(globals.intern, f->current.args);
+            tmp->current.type = Type_func(globals.intern, args, ret);
+            tmp->current.name = f->current.name;
+            tmp->next = globals.globals;
+            globals.globals = tmp;
+            break;
         }
     }
 
@@ -269,8 +322,7 @@ typecheck_ET_Call(struct Context *ctx, struct ExprCall *expr, Type type) {
     return p->func.ret;
 }
 
-static Type
-typecheck_ET_Recall(struct Context *ctx, struct String lit, Type type) {
+static Type typecheck_ET_Recall(struct Context *ctx, struct String lit, Type type) {
     for (ll_iter(head, ctx->lets)) {
         if (head->current.name.str == lit.str) {
             return unify(
@@ -285,8 +337,8 @@ typecheck_ET_Recall(struct Context *ctx, struct String lit, Type type) {
             );
         }
     }
-    printf("%s\n", lit.str);
-    assert(false && "no such name!");
+    printf("\nno name such as '%.*s'!\n", (int) lit.len, lit.str);
+    assert(false);
 }
 
 static Type typecheck_ET_Tuple(

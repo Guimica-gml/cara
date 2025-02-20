@@ -1,5 +1,11 @@
 #include "./parser.h"
 #include <stdio.h>
+#include "commons.h"
+
+void PTData_print(void* _data) {
+    struct PTData* data = _data;
+    printf("PTD{ ast(%p) }", &data->ast);
+}
 
 struct Context {
     struct serene_Trea* alloc;
@@ -8,18 +14,23 @@ struct Context {
     struct Tokenstream toks;
 };
 
-static struct Import decls_import(struct Context *);
+static struct Ast parse_top(
+    struct serene_Trea* alloc,
+    struct Opdecls ops,
+    struct TypeIntern* intern,
+    struct Tokenstream toks
+);
+
 static struct Function decls_function(struct Context *);
 
-static struct Type const *type(struct Context *);
-static struct Type const *type_func(struct Context *);
-static struct Type const *type_op(struct Context *, unsigned);
-static struct Type const *type_op_left(struct Context *);
+static const struct Type* type(struct Context *);
+static const struct Type* type_func(struct Context *);
+static const struct Type* type_op(struct Context *, unsigned);
+static const struct Type* type_op_left(struct Context *);
 static bool type_op_right_first(struct Context *, unsigned);
-static struct Type const *
-type_op_right(struct Context *, struct Type const *, unsigned);
-static struct Type const *type_atom(struct Context *);
-static struct Type const *type_parenthesised(struct Context *);
+static const struct Type* type_op_right(struct Context *, struct Type const *, unsigned);
+static const struct Type* type_atom(struct Context *);
+static const struct Type* type_parenthesised(struct Context *);
 
 static struct Binding binding(struct Context *);
 static struct Binding binding_atom(struct Context *);
@@ -47,7 +58,50 @@ static struct Expr statement_break(struct Context *);
 static struct Expr statement_return(struct Context *);
 static struct Expr statement_assign(struct Context *);
 
-struct Ast parse(
+struct Ctx {
+    struct serene_Trea* alloc;
+    struct Symbols* symbols;
+};
+
+static void* parse_ptr(void* _ctx, void* _data) {
+    struct Ctx* ctx = _ctx;
+    struct PPData* data = _data;
+    if (!data) return data;
+    struct Tokenstream toks = {
+        data->toks.buf,
+        data->toks.len
+    };
+    struct PTData* new = serene_trealloc(ctx->alloc, struct PTData);
+    assert(new && "OOM"), ZERO(*new);
+    new->imports = data->imports;
+    new->types = TypeIntern_init(ctx->alloc, *ctx->symbols);
+    new->ast = parse_top(
+        ctx->alloc,
+        data->ops,
+        &new->types,
+        toks
+    );
+    return new;
+}
+
+static void cleanup(void* _data) {
+    struct PPData* data = _data;
+    if (!data) return;
+    Opdecls_deinit(&data->ops);
+    Tokenvec_deinit(&data->toks);
+}
+
+struct MTree* parse(
+    struct serene_Trea* alloc,
+    struct Symbols* symbols,
+    struct MTree* mod
+) {
+    struct Ctx ctx = {alloc, symbols};
+    MTree_map(mod, cleanup, parse_ptr, &ctx);
+    return mod;
+}
+
+static struct Ast parse_top(
     struct serene_Trea* alloc, struct Opdecls ops,
     struct TypeIntern *intern, struct Tokenstream toks
 ) {
@@ -58,7 +112,6 @@ struct Ast parse(
         .toks = toks,
     };
     struct FunctionsLL* funcs = NULL;
-    struct ImportsLL* imports = NULL;
 
     while (true) {
         switch (Tokenstream_peek(&ctx.toks).kind) {
@@ -68,14 +121,6 @@ struct Ast parse(
             tmp->current = decls_function(&ctx);
             tmp->next = funcs;
             funcs = tmp;
-            break;
-        }
-        case TK_Import: {
-            struct ImportsLL* tmp = serene_trealloc(alloc, struct ImportsLL);
-            assert(tmp && "OOM");
-            tmp->current = decls_import(&ctx);
-            tmp->next = imports;
-            imports = tmp;
             break;
         }
         default:
@@ -88,16 +133,7 @@ after:
 
     return (struct Ast){
         .funcs = funcs,
-        .imports = imports,
     };
-}
-
-static struct Import decls_import(struct Context* ctx) {
-    assert(Tokenstream_drop_kind(&ctx->toks, TK_Import));
-    struct String name = Tokenstream_peek(&ctx->toks).spelling;
-    assert(Tokenstream_drop_kind(&ctx->toks, TK_Name));
-    assert(Tokenstream_drop_kind(&ctx->toks, TK_Semicolon));
-    return (struct Import) { .path = name };
 }
 
 static struct Function decls_function(struct Context *ctx) {

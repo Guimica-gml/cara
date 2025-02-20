@@ -8,13 +8,23 @@
 #include "./strings.h"
 #include "./tokens.h"
 #include "serene.h"
-// ↑ cuz of opdecls
 #include "./ast.h"
 #include "./symbols.h"
+#include "mtree.h"
+#include "preimport.h"
 
-struct Ast parse(
-    struct serene_Trea*, struct Opdecls, struct TypeIntern *,
-    struct Tokenstream
+struct PTData {
+    struct PPImports* imports;
+    struct TypeIntern types;
+    struct Ast ast;
+};
+
+void PTData_print(void*);
+
+struct MTree* parse(
+    struct serene_Trea*,
+    struct Symbols*,
+    struct MTree*
 );
 
 #endif

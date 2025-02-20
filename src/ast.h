@@ -14,15 +14,15 @@ struct Typesyms {
 };
 
 struct TypeIntern {
-    struct serene_Trea alloc;
+    struct serene_Trea* alloc;
     struct Typereg tree;
     struct Typesyms tsyms;
     struct Symbols syms;
     int var_counter;
 };
-void TypeIntern_print(struct TypeIntern *);
-struct TypeIntern TypeIntern_init(struct serene_Trea, struct Symbols);
-const struct Type *TypeIntern_intern(struct TypeIntern *, struct Type *);
+void TypeIntern_print(struct TypeIntern*);
+struct TypeIntern TypeIntern_init(struct serene_Trea*, struct Symbols);
+const struct Type* TypeIntern_intern(struct TypeIntern*, struct Type*);
 
 const struct Type* Type_recall(struct TypeIntern *, struct String name);
 const struct Type* Type_func(struct TypeIntern *, const struct Type *args, const struct Type *ret);
@@ -156,19 +156,11 @@ struct Function {
     struct Expr body;
 };
 
-struct Import {
-    struct String path;
-};
-
 struct Ast {
     struct FunctionsLL {
         struct FunctionsLL *next;
         struct Function current;
     }* funcs;
-    struct ImportsLL {
-        struct ImportsLL* next;
-        struct Import current;
-    }* imports;
 };
 
 void Ast_print(struct Ast *);

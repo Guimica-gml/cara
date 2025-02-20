@@ -23,7 +23,7 @@ const struct Type *Binding_to_type(struct TypeIntern *intern, struct Binding thi
 
 void TypeIntern_print(struct TypeIntern *this) { Typereg_print(&this->tree); }
 
-struct TypeIntern TypeIntern_init(struct serene_Trea alloc, struct Symbols syms) {
+struct TypeIntern TypeIntern_init(struct serene_Trea* alloc, struct Symbols syms) {
     struct Type t_unit = {.tag = TT_Tuple, .tuple = NULL};
     struct Type t_bool = {.tag = TT_Recall, .recall = syms.s_bool};
     struct Type t_int = {.tag = TT_Recall, .recall = syms.s_int};
@@ -52,10 +52,10 @@ const struct Type *TypeIntern_intern(struct TypeIntern *this, struct Type *t) {
     }
     printf("found nothing!\ninserting!\n");
 
-    struct Type *new = serene_trealloc(&this->alloc, struct Type);
+    struct Type *new = serene_trealloc(this->alloc, struct Type);
     assert(new && "OOM");
     *new = *t;
-    assert(Typereg_insert(&this->tree, serene_Trea_dyn(&this->alloc), new));
+    assert(Typereg_insert(&this->tree, serene_Trea_dyn(this->alloc), new));
     printf("inserted (%p)\n\n", new);
     return new;
 }
@@ -77,8 +77,8 @@ const struct Type* Type_tuple(
     const struct Type* lhs,
     const struct Type* rhs
 ) {
-    struct TypeTuple* node_lhs = serene_trealloc(&intern->alloc, struct TypeTuple);
-    struct TypeTuple* node_rhs = serene_trealloc(&intern->alloc, struct TypeTuple);
+    struct TypeTuple* node_lhs = serene_trealloc(intern->alloc, struct TypeTuple);
+    struct TypeTuple* node_rhs = serene_trealloc(intern->alloc, struct TypeTuple);
     assert(node_lhs && node_rhs && "OOM");
     *node_lhs = (struct TypeTuple){0};
     *node_rhs = (struct TypeTuple){0};
@@ -95,7 +95,7 @@ const struct Type* Type_tuple_extend(
 ) {
     if (tail->tag == TT_Tuple) {
         const struct TypeTuple* bare_tail = tail->tuple;
-        struct TypeTuple* new = serene_trealloc(&intern->alloc, struct TypeTuple);
+        struct TypeTuple* new = serene_trealloc(intern->alloc, struct TypeTuple);
         assert(new && "OOM");
         *new = (struct TypeTuple){0};
         new->current = head;
@@ -274,15 +274,7 @@ static void Function_print(struct Function *func, int level) {
     Expr_print(&func->body, level);
 }
 
-static void Import_print(struct Import* imp) {
-    printf("import %.*s;", (int)imp->path.len, imp->path.str);
-}
-
 void Ast_print(struct Ast* ast) {
-    for (ll_iter(i, ast->imports)) {
-        Import_print(&i->current);
-        printf("\n");
-    }
     for (ll_iter(f, ast->funcs)) {
         Function_print(&f->current, 0);
         printf("\n");

@@ -3,8 +3,8 @@ func fib(n: int): int {
     fib(n - 1) + fib(n - 2)
 }
 
-import ops/ops;
-import ops/impls;
+import ops/ops/...;
+import ops/impls/...;
 
 func main(): int = fib(6);
 

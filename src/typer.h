@@ -4,8 +4,9 @@
 #include "./ast.h"
 #include "./symbols.h"
 #include "./tst.h"
+#include "mtree.h"
 #include "serene.h"
 
-void typecheck(struct TypeIntern *, struct Ast *);
+void typecheck(struct MTree*);
 
 #endif
