@@ -16,12 +16,14 @@ static bool lexer_number(struct Lexer*, struct String);
 static bool lexer_name(struct Lexer*, struct String);
 
 struct Token Lexer_next(struct Lexer* lexer) {
-    if (lexer->rest.len == 0) return (struct Token) {0};
+    if (lexer->rest.len == 0) return (struct Token){0};
     lexer->rest = lexer_strip_whitespace(lexer->rest);
-    size_t start = lexer->rest.len;
-    if (lexer_immediates(lexer, lexer->rest) || lexer_comment(lexer, lexer->rest) ||
-        lexer_keywords(lexer, lexer->rest) || lexer_bools(lexer, lexer->rest) ||
-        lexer_string(lexer, lexer->rest) || lexer_number(lexer, lexer->rest) ||
+    if (lexer_comment(lexer, lexer->rest) ||
+        lexer_immediates(lexer, lexer->rest) ||
+        lexer_keywords(lexer, lexer->rest) ||
+        lexer_bools(lexer, lexer->rest) ||
+        lexer_string(lexer, lexer->rest) ||
+        lexer_number(lexer, lexer->rest) ||
         lexer_name(lexer, lexer->rest)) {
         return lexer->token;
     }
@@ -34,7 +36,7 @@ struct SpellingEntry {
 };
 
 const struct SpellingEntry immediates[] = {
-#define mkString(s) {.str = s, .len = sizeof(s)-1}
+#define mkString(s) {.str = s, .len = sizeof(s) - 1}
     {.str = mkString("("), .kind = TK_OpenParen},
     {.str = mkString(")"), .kind = TK_CloseParen},
     {.str = mkString("{"), .kind = TK_OpenBrace},
@@ -44,6 +46,8 @@ const struct SpellingEntry immediates[] = {
     {.str = mkString(","), .kind = TK_Comma},
     {.str = mkString(";"), .kind = TK_Semicolon},
     {.str = mkString(":"), .kind = TK_Colon},
+    {.str = mkString("/"), .kind = TK_Slash},
+    {.str = mkString("..."), .kind = TK_Ellipsis},
 #undef mkString
 };
 
@@ -68,7 +72,7 @@ static bool lexer_starts_word_break(struct String input) {
 
 static bool lexer_keywords(struct Lexer* lexer, struct String input) {
     const struct SpellingEntry table[] = {
-#define mkString(s) {.str = s, .len = sizeof(s)-1}
+#define mkString(s) {.str = s, .len = sizeof(s) - 1}
         {.str = mkString("func"), .kind = TK_Func},
         {.str = mkString("return"), .kind = TK_Return},
         {.str = mkString("loop"), .kind = TK_Loop},
@@ -81,6 +85,7 @@ static bool lexer_keywords(struct Lexer* lexer, struct String input) {
         {.str = mkString("as"), .kind = TK_As},
         {.str = mkString("operator"), .kind = TK_Operator},
         {.str = mkString("="), .kind = TK_Equals},
+        {.str = mkString("import"), .kind = TK_Import},
 #undef mkString
     };
 
@@ -187,7 +192,6 @@ static struct String lexer_strip_whitespace(struct String in) {
 static bool lexer_comment(struct Lexer *lexer, struct String in) {
     size_t len = 0;
     if (!strings_prefix_of(in, (struct String){"//", 2})) return false;
-    if (!lexer_starts_word_break(strings_drop(in, 2))) return false;
     while (len < in.len && in.str[len] != '\n')
         len++;
     lexer->token.kind = TK_Comment;

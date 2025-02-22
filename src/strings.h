@@ -18,6 +18,7 @@ size_t cstrings_strlen(const char *);
 bool strings_prefix_of(struct String, struct String prefix);
 bool strings_equal(struct String, struct String);
 struct String strings_drop(struct String, unsigned int num);
+struct String strings_split_first(struct String*, char);
 
 struct Intern {
     struct Btrings tree;

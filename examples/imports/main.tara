@@ -1,0 +1,14 @@
+func fib(n: int): int {
+    if n > 2 { return n; };
+    fib(n - 1) + fib(n - 2)
+}
+
+import ops/ops/...;
+import ops/impls/...;
+
+func main(): int = fib(6);
+
+func _start() {
+    let code = main();
+    __builtin_syscall(60, code, 0, 0, 0, 0, 0);
+}

@@ -1,0 +1,4 @@
+
+operator(4, >, 4)
+operator(7, +, 8)
+operator(7, -, 8)

@@ -2,15 +2,15 @@
 
 BUILD=./build
 SRC=./src
-OPTS="-O2"
+OPTS="$SANITIZER -Werror=return-type -Wall -Wextra -g -O0"
 LLVM_LIBS="core analysis target"
 LLVM_CFLAGS=$(llvm-config --cflags)
 LLVM_CXXFLAGS=$(llvm-config --cxxflags --ldflags --libs $LLVM_LIBS)
 # SANITIZER="-fsanitize=address -fno-sanitize-recover"
 SANITIZER=""
 
-if [ "$1" = "debug" ]; then
-    OPTS="$SANITIZER -Wall -Wextra -g -O0"
+if [ "$1" = "release" ]; then
+    OPTS="-O2"
 fi
 
 SERENE=0
@@ -37,17 +37,6 @@ BTRINGS=0
 btrings() {
     if [ "$BTRINGS" -eq "0" ]; then
         ordstrings
-        # echo generating btrings
-        # $SRC/btree/stencil.sh  \
-        #     $SRC               \
-        #     $BUILD             \
-        #     ordstrings.h       \
-        #     "struct Ordstring" \
-        #     32                 \
-        #     Ordstring_cmp      \
-        #     Ordstring_print    \
-        #     Btrings            \
-        #     btrings
         echo compiling btrings
         $CC $OPTS -o $BUILD/btrings.o -c $SRC/btrings.c
         BTRINGS=1
@@ -81,14 +70,6 @@ TOKENVEC=0
 tokenvec() {
     if [ "$TOKENVEC" -eq "0" ]; then
         tokens
-        # echo generating tokenvec
-        # $SRC/vec/stencil.sh \
-        #     $SRC            \
-        #     $BUILD          \
-        #     tokens.h        \
-        #     "struct Token"  \
-        #     Tokenvec        \
-        #     tokenvec
         echo compiling tokenvec
         $CC $OPTS -o $BUILD/tokenvec.o -c $SRC/tokenvec.c
         TOKENVEC=1
@@ -99,14 +80,6 @@ tokenvec() {
 OPDECLVEC=0
 opdeclvec() {
     if [ "$OPDECLVEC" -eq "0" ]; then
-        # echo generating opdeclvec
-        # $SRC/vec/stencil.sh \
-        #     $SRC            \
-        #     $BUILD          \
-        #     opdecl.h        \
-        #     "struct Opdecl" \
-        #     Opdecls         \
-        #     opdeclvec
         echo compiling opdeclvec
         $CC $OPTS -o $BUILD/opdeclvec.o -c $SRC/opdeclvec.c
         OPDECLVEC=1
@@ -128,17 +101,6 @@ TYPEREG=0
 typereg() {
     if [ "$TYPEREG" -eq "0" ]; then
         types
-        # echo generating typereg
-        # $SRC/btree/stencil.sh \
-        #     $SRC              \
-        #     $BUILD            \
-        #     types.h           \
-        #     "struct Type *"   \
-        #     32                \
-        #     Type_cmp          \
-        #     Type_print        \
-        #     Typereg           \
-        #     typereg
         echo compiling typereg
         $CC $OPTS -o $BUILD/typereg.o -c $SRC/typereg.c
         TYPEREG=1
@@ -248,6 +210,28 @@ codegen() {
     fi
 }
 
+MTREE=0
+mtree() {
+    if [ "$MTREE" -eq "0" ]; then
+        serene
+        echo compiling mtree
+        $CC $OPTS -o $BUILD/mtree.o -c $SRC/mtree.c
+        MTREE=1
+    fi
+}
+
+PREIMPORT=0
+preimport() {
+    if [ "$PREIMPORT" -eq "0" ]; then
+        opscan
+        mtree
+        strings
+        echo compiling preimport
+        $CC $OPTS -o $BUILD/preimport.o -c $SRC/preimport.c
+        PREIMPORT=1
+    fi
+}
+
 main() {
     echo creating build directory
     mkdir $BUILD
@@ -256,9 +240,11 @@ main() {
     instances
     strings
     symbols
+    mtree
     tokens
     lexer
     opscan
+    preimport
     ast
     parser
     typer

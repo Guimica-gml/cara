@@ -1,0 +1,4 @@
+
+func >(a: int, b: int): bool = __builtin_cmp_lt(a, b);
+func +(a: int, b: int): int = __builtin_add(a, b);
+func -(a: int, b: int): int = __builtin_sub(a, b);

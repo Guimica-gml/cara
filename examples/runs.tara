@@ -1,4 +1,0 @@
-func main(): *(string, bool) {
-    let str = ("Hello World!", true);
-    str
-}

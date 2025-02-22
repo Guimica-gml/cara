@@ -1,9 +1,0 @@
-
-func _start() {
-    // comments are like keywords
-    // in that the `//` require to be presented on their own
-    let this//is//a//name = 5;
-    let this// = "does not a comment make";
-    let //neither = this//;
-    __builtin_syscall(60, this//is//a//name, 0, 0, 0, 0, 0);
-}

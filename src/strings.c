@@ -41,6 +41,18 @@ struct String strings_drop(struct String this, unsigned int num) {
     };
 }
 
+struct String strings_split_first(struct String* this, char del) {
+    for (size_t idx = 0; idx < this->len; idx++) {
+        if (this->str[idx] == del) {
+            struct String out = *this;
+            out.len = idx;
+            *this = strings_drop(*this, idx + 1);
+            return out;
+        }
+    }
+    return (struct String) {0};
+}
+
 struct Intern Intern_init(struct serene_Trea alloc) {
     return (struct Intern) {
         .alloc = alloc,
