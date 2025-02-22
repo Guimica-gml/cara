@@ -6,7 +6,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-// Types are always interned
 typedef const struct Type *Type;
 
 struct DSet {
@@ -67,13 +66,16 @@ static Type destructure_binding(struct Context *, struct Binding *, bool);
 static void typecheck_top(struct TypeIntern*, struct Ast*, struct PPImports*);
 
 static void* typecheck_ptr(void* _ctx, void* _data) {
+    (void)_ctx;
     struct PTData* data = _data;
     if (!data) return data;
     typecheck_top(&data->types, &data->ast, data->imports);
     return data;
 }
 
-static void cleanup(void* _data) {}
+static void cleanup(void* _data) {
+    (void)_data;
+}
 
 void typecheck(struct MTree* mods) {
     MTree_map(mods, cleanup, typecheck_ptr, NULL);

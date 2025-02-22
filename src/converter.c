@@ -1,5 +1,6 @@
 #include "converter.h"
 #include "common_ll.h"
+#include "commons.h"
 #include <assert.h>
 
 struct Context {
@@ -17,26 +18,35 @@ static struct tst_Type convert_type(
 );
 
 struct Tst convert_ast(
-    struct serene_Trea* alloc, struct TypeIntern *intern, struct Ast ast
+    struct serene_Trea* alloc, struct PTData* mod
 ) {
     struct Context ctx = {
         .alloc = alloc,
-        .intern = intern,
+        .intern = &mod->types,
     };
     struct Tst out = {0};
     struct tst_FunctionsLL *funcs_last = NULL;
 
-    for (ll_iter(head, ast.funcs)) {
-        struct tst_FunctionsLL* tmp = serene_trealloc(alloc, struct tst_FunctionsLL);
-        assert(tmp && "OOM");
-        *tmp = (struct tst_FunctionsLL){0};
-        if (!funcs_last)
-            out.funcs = tmp;
-        else
-            funcs_last->next = tmp;
-        funcs_last = tmp;
+    for (ll_iter(i, mod->imports)) {
+        struct PTData* data = i->current.mod->data;
+        struct Tst import = convert_ast(alloc, data);
+        for (ll_iter(f, import.funcs)) {
+            struct tst_FunctionsLL* tmp = serene_trealloc(alloc, struct tst_FunctionsLL);
+            assert(tmp && "OOM"), ZERO(*tmp);
+            if (!funcs_last) out.funcs = tmp;
+            else funcs_last->next = tmp;
+            funcs_last = tmp;
+            tmp->current = f->current;
+        }
+    }
 
-        funcs_last->current = convert_func(&ctx, head->current);
+    for (ll_iter(head, mod->ast.funcs)) {
+        struct tst_FunctionsLL* tmp = serene_trealloc(alloc, struct tst_FunctionsLL);
+        assert(tmp && "OOM"), ZERO(*tmp);
+        if (!funcs_last) out.funcs = tmp;
+        else funcs_last->next = tmp;
+        funcs_last = tmp;
+        tmp->current = convert_func(&ctx, head->current);
     }
 
     return out;

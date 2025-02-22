@@ -32,16 +32,17 @@ int main(int argc, char** argv) {
     struct serene_Trea
         alloc = serene_Trea_init(serene_Libc_dyn()),
         module_alloc = serene_Trea_sub(&alloc),
-        strings_alloc = serene_Trea_sub(&alloc),
-        type_alloc = serene_Trea_sub(&strings_alloc),
-        ast_alloc = serene_Trea_sub(&type_alloc);
+        tst_alloc = serene_Trea_sub(&alloc),
+        strings_alloc = serene_Trea_sub(&alloc);
+        // type_alloc = serene_Trea_sub(&strings_alloc);
+        // ast_alloc = serene_Trea_sub(&type_alloc);
 
     if (argc != 2) {
         printf("Please provide a single filename!\n");
         return 1;
     }
 
-    struct String main_file;
+    struct String main_mod;
     {
         int len = strlen(argv[1]);
         if (len < 5 || strcmp(&argv[1][len - 5], ".tara") != 0) {
@@ -51,8 +52,8 @@ int main(int argc, char** argv) {
         char* str = serene_trenalloc(&alloc, len - 4, char);
         assert(str && "OOM");
         snprintf(str, len - 4, "%s", argv[1]);
-        main_file.str = basename(str);
-        main_file.len = strlen(main_file.str);
+        main_mod.str = basename(str);
+        main_mod.len = strlen(main_mod.str);
     }
     char* dir_path = dirname(argv[1]);
     int dir_len = strlen(dir_path);
@@ -78,58 +79,52 @@ int main(int argc, char** argv) {
     printf("\n--- typecheck time: ---\n");
     MTree_print(mtree, PTData_print);
 
-    /* struct PITree* entry = PItree_get(&modules, main_file); */
-    /* assert(entry != NULL); */
-
-    /* typecheck(&types, &ast); */
-    /* Ast_print(&ast); */
+    struct Tst tst = convert_ast(&tst_alloc, MTree_index(mtree, main_mod)->data);
 
     /* struct serene_Trea tst_alloc = serene_Trea_sub(&alloc); */
     /* struct Tst tst = convert_ast(&tst_alloc, &types, ast); */
-    /* LLVMModuleRef mod = lower(&tst, serene_Trea_sub(&tst_alloc)); */
+    LLVMModuleRef mod = lower(&tst, serene_Trea_sub(&tst_alloc));
     /* serene_Trea_deinit(tst_alloc); */
 
-    /* printf("----module start----\n"); */
-    /* LLVMDumpModule(mod); */
-    /* printf("----module end----\n"); */
+    printf("\n--- lolvm time: ---\n");
+    LLVMDumpModule(mod);
 
-    /* LLVMInitializeNativeTarget(); */
-    /* LLVMInitializeNativeAsmPrinter(); */
-    /* LLVMInitializeNativeAsmParser(); */
-    /* char *emitfile = "out.o"; */
-    /* const char *triple = LLVMGetDefaultTargetTriple(); */
-    /* const char *cpu = LLVMGetHostCPUName(); */
-    /* const char *features = LLVMGetHostCPUFeatures(); */
+    LLVMInitializeNativeTarget();
+    LLVMInitializeNativeAsmPrinter();
+    LLVMInitializeNativeAsmParser();
+    char *emitfile = "out.o";
+    const char *triple = LLVMGetDefaultTargetTriple();
+    const char *cpu = LLVMGetHostCPUName();
+    const char *features = LLVMGetHostCPUFeatures();
 
-    /* char *error = NULL; */
-    /* LLVMTargetRef target; */
-    /* if (LLVMGetTargetFromTriple(triple, &target, &error)) { */
-    /*     printf("error occured!\n%s\n", error); */
-    /*     assert(false); */
-    /* } */
-    /* LLVMDisposeMessage(error); */
+    char *error = NULL;
+    LLVMTargetRef target;
+    if (LLVMGetTargetFromTriple(triple, &target, &error)) {
+        printf("error occured!\n%s\n", error);
+        assert(false);
+    }
+    LLVMDisposeMessage(error);
     
-    /* LLVMTargetMachineRef machine = LLVMCreateTargetMachine( */
-    /*     target, triple, cpu, features, LLVMCodeGenLevelNone, */
-    /*     LLVMRelocDefault, LLVMCodeModelDefault */
-    /* ); */
+    LLVMTargetMachineRef machine = LLVMCreateTargetMachine(
+        target, triple, cpu, features, LLVMCodeGenLevelNone,
+        LLVMRelocDefault, LLVMCodeModelDefault
+    );
 
-    /* error = NULL; */
-    /* if (LLVMTargetMachineEmitToFile( */
-    /*     machine, mod, emitfile, LLVMObjectFile, &error */
-    /* )) { */
-    /*     printf("error occured!\n%s\n", error); */
-    /*     assert(false); */
-    /* } */
-    /* LLVMDisposeMessage(error); */
-    /* LLVMDisposeTargetMachine(machine); */
-    /* LLVMDisposeModule(mod); */
+    error = NULL;
+    if (LLVMTargetMachineEmitToFile(
+        machine, mod, emitfile, LLVMObjectFile, &error
+    )) {
+        printf("error occured!\n%s\n", error);
+        assert(false);
+    }
+    LLVMDisposeMessage(error);
+    LLVMDisposeTargetMachine(machine);
+    LLVMDisposeModule(mod);
 
-    /* system("ld.lld -o out out.o"); */
+    system("ld -o out out.o");
 
-    /* ModuleNode_unmap(modules); */
-    /* serene_Trea_deinit(alloc); */
-    /* printf("\n"); */
+    serene_Trea_deinit(alloc);
+    printf("\n");
     return 0;
 }
 

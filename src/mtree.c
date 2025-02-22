@@ -18,7 +18,7 @@ static void print_leveled(struct MTree* this, void (*p)(void*), int level) {
     printf("%.*s data: (%p) ", (int)this->name.len, this->name.str, this->data);
     if (this->data) p(this->data);
     printf("\n");
-    for (int i = 0; i < this->subs_count; i++)
+    for (size_t i = 0; i < this->subs_count; i++)
         print_leveled(&this->subs[i], p, level+1);
 }
 
@@ -108,7 +108,7 @@ static struct Row {
         }
         if (!is_dir) { len -= 5; }
         struct String search = {entry->d_name, len};
-        for (int j = 0; j < subs_count; j++) {
+        for (size_t j = 0; j < subs_count; j++) {
             if (!strings_equal(subs[j].name, search)) continue;
             slot = &subs[j];
             subs_count--;

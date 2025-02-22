@@ -165,7 +165,7 @@ static void* scan_mod_ptr(void* _ctx, void* data) {
 static void cleanup(void* _data) {
     if (!_data) return;
     struct String* data = _data;
-    // yeah we know, the const discard is needed
+    // yes gcc we know data->str is const
     munmap((char*)data->str, data->len);
 }
 

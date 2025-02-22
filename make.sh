@@ -275,7 +275,7 @@ main() {
     ast
     parser
     typer
-    # converter
+    converter
     codegen
     echo compiling main
     $CC $LLVM_CFLAGS $OPTS -o $BUILD/main.o -c $SRC/main.c
