@@ -70,14 +70,6 @@ TOKENVEC=0
 tokenvec() {
     if [ "$TOKENVEC" -eq "0" ]; then
         tokens
-        # echo generating tokenvec
-        # $SRC/vec/stencil.sh \
-        #     $SRC            \
-        #     $BUILD          \
-        #     tokens.h        \
-        #     "struct Token"  \
-        #     Tokenvec        \
-        #     tokenvec
         echo compiling tokenvec
         $CC $OPTS -o $BUILD/tokenvec.o -c $SRC/tokenvec.c
         TOKENVEC=1
@@ -88,14 +80,6 @@ tokenvec() {
 OPDECLVEC=0
 opdeclvec() {
     if [ "$OPDECLVEC" -eq "0" ]; then
-        # echo generating opdeclvec
-        # $SRC/vec/stencil.sh \
-        #     $SRC            \
-        #     $BUILD          \
-        #     opdecl.h        \
-        #     "struct Opdecl" \
-        #     Opdecls         \
-        #     opdeclvec
         echo compiling opdeclvec
         $CC $OPTS -o $BUILD/opdeclvec.o -c $SRC/opdeclvec.c
         OPDECLVEC=1
@@ -117,17 +101,6 @@ TYPEREG=0
 typereg() {
     if [ "$TYPEREG" -eq "0" ]; then
         types
-        # echo generating typereg
-        # $SRC/btree/stencil.sh \
-        #     $SRC              \
-        #     $BUILD            \
-        #     types.h           \
-        #     "struct Type *"   \
-        #     32                \
-        #     Type_cmp          \
-        #     Type_print        \
-        #     Typereg           \
-        #     typereg
         echo compiling typereg
         $CC $OPTS -o $BUILD/typereg.o -c $SRC/typereg.c
         TYPEREG=1
