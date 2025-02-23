@@ -13,6 +13,10 @@ struct Tst;
 enum tst_TypeTag {
     TTT_Unit,
     TTT_Int,
+    TTT_Int8,
+    TTT_Int16,
+    TTT_Int32,
+    TTT_Int64,
     TTT_Bool,
     TTT_String,
     TTT_Star,

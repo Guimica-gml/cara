@@ -7,7 +7,16 @@ populate_interner(struct Intern *intern) {
 
     out.s_main = ins("main");
     out.s_unit = ins("()");
-    out.s_int = ins("int");
+    out.s_int   = ins("int");
+    out.s_int8  = ins("int8");
+    out.s_int16 = ins("int16");
+    out.s_int32 = ins("int32");
+    out.s_int64 = ins("int64");
+    out.s_uint   = ins("uint");
+    out.s_uint8  = ins("uint8");
+    out.s_uint16 = ins("uint16");
+    out.s_uint32 = ins("uint32");
+    out.s_uint64 = ins("uint64");
     out.s_bool = ins("bool");
     out.s_true = ins("true");
     out.s_false = ins("false");

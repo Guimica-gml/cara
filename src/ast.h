@@ -9,6 +9,15 @@ struct Typesyms {
     const struct Type *t_unit;
     const struct Type *t_bool;
     const struct Type *t_int;
+    const struct Type *t_int8;
+    const struct Type *t_int16;
+    const struct Type *t_int32;
+    const struct Type *t_int64;
+    const struct Type *t_uint;
+    const struct Type *t_uint8;
+    const struct Type *t_uint16;
+    const struct Type *t_uint32;
+    const struct Type *t_uint64;
     const struct Type *t_string;
     const struct Type *t_star;
 };
@@ -29,6 +38,7 @@ const struct Type* Type_func(struct TypeIntern *, const struct Type *args, const
 const struct Type* Type_tuple(struct TypeIntern*, const struct Type* lhs, const struct Type* rhs);
 const struct Type* Type_tuple_extend(struct TypeIntern*, const struct Type* tail, const struct Type* head);
 const struct Type* Type_call(struct TypeIntern*, const struct Type* name, const struct Type* args);
+const struct Type* Type_forall(struct TypeIntern*, struct String binding, const struct Type* body);
 const struct Type* Type_new_typevar(struct TypeIntern*);
 
 struct Binding;

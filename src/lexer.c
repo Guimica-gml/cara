@@ -172,7 +172,7 @@ static bool lexer_number(struct Lexer* lexer, struct String in) {
 
 static bool lexer_name(struct Lexer* lexer, struct String in) {
     size_t len = 0;
-    while (len < in.len && !lexer_is_word_break(in.str[len])) len++;
+    while (len < in.len && (!lexer_is_word_break(in.str[len]) || strings_ascii_digit(in.str[len]))) len++;
     if (len == 0) return false;
     lexer->token.spelling = in;
     lexer->token.spelling.len = len;

@@ -66,6 +66,10 @@ static LLVMTypeRef lower_type(struct Ctx* ctx, struct tst_Type* type) {
     switch (type->tag) {
         case TTT_Unit: return ctx->t_unit;
         case TTT_Int: return LLVMInt64Type();
+        case TTT_Int8: return LLVMInt8Type();
+        case TTT_Int16: return LLVMInt16Type();
+        case TTT_Int32: return LLVMInt32Type();
+        case TTT_Int64: return LLVMInt64Type();
         case TTT_Bool: return LLVMInt1Type();
         case TTT_String: return LLVMPointerType(LLVMInt8Type(), 0);
         case TTT_Star: return lower_TTT_Star(ctx, type->star);

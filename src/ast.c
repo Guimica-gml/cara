@@ -26,7 +26,16 @@ void TypeIntern_print(struct TypeIntern *this) { Typereg_print(&this->tree); }
 struct TypeIntern TypeIntern_init(struct serene_Trea* alloc, struct Symbols syms) {
     struct Type t_unit = {.tag = TT_Tuple, .tuple = NULL};
     struct Type t_bool = {.tag = TT_Recall, .recall = syms.s_bool};
-    struct Type t_int = {.tag = TT_Recall, .recall = syms.s_int};
+    struct Type t_int   = {.tag = TT_Recall, .recall = syms.s_int};
+    struct Type t_int8  = {.tag = TT_Recall, .recall = syms.s_int8};
+    struct Type t_int16 = {.tag = TT_Recall, .recall = syms.s_int16};
+    struct Type t_int32 = {.tag = TT_Recall, .recall = syms.s_int32};
+    struct Type t_int64 = {.tag = TT_Recall, .recall = syms.s_int64};
+    struct Type t_uint   = {.tag = TT_Recall, .recall = syms.s_uint};
+    struct Type t_uint8  = {.tag = TT_Recall, .recall = syms.s_uint8};
+    struct Type t_uint16 = {.tag = TT_Recall, .recall = syms.s_uint16};
+    struct Type t_uint32 = {.tag = TT_Recall, .recall = syms.s_uint32};
+    struct Type t_uint64 = {.tag = TT_Recall, .recall = syms.s_uint64};
     struct Type t_string = {.tag = TT_Recall, .recall = syms.s_string};
     struct Type t_star = {.tag = TT_Recall, .recall = syms.s_star};
 
@@ -35,7 +44,20 @@ struct TypeIntern TypeIntern_init(struct serene_Trea* alloc, struct Symbols syms
     out.syms = syms;
     out.tsyms = (struct Typesyms){
 #define ins(t) .t = TypeIntern_intern(&out, &t)
-        ins(t_unit), ins(t_bool), ins(t_int), ins(t_string), ins(t_star),
+        ins(t_unit),
+        ins(t_bool),
+        ins(t_int),
+        ins(t_int8),
+        ins(t_int16),
+        ins(t_int32),
+        ins(t_int64),
+        ins(t_uint),
+        ins(t_uint8),
+        ins(t_uint16),
+        ins(t_uint32),
+        ins(t_uint64),
+        ins(t_string),
+        ins(t_star),
 #undef ins
     };
     return out;
@@ -63,6 +85,15 @@ const struct Type *TypeIntern_intern(struct TypeIntern *this, struct Type *t) {
 const struct Type *Type_recall(struct TypeIntern *intern, struct String name) {
     struct Type recall = {.tag = TT_Recall, .recall = name};
     return TypeIntern_intern(intern, &recall);
+}
+
+const struct Type* Type_forall(
+    struct TypeIntern* intern,
+    struct String binding,
+    const struct Type* body
+) {
+    struct Type forall = {.tag = TT_Forall, .forall.binding = binding, .forall.in = body};
+    return TypeIntern_intern(intern, &forall);
 }
 
 const struct Type *Type_func(

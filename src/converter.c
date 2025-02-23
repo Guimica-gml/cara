@@ -335,6 +335,7 @@ static struct tst_Type convert_type(
     struct Context *ctx, const struct Type *type, const struct Type *params
 ) {
     switch (type->tag) {
+    case TT_Forall: assert(false && "TODO: Monomorphization");
     case TT_Var: assert(false && "should've been eliminated in fill_type");
     case TT_Recall: return convert_TT_Recall(ctx, type->recall, params);
     case TT_Func: return convert_TT_Func(ctx, &type->func);
@@ -358,6 +359,24 @@ static struct tst_Type convert_TT_Recall(struct Context* ctx, struct String lit,
         assert(false && "this should not be possible anymore");
     } else if (ctx->intern->syms.s_int.str == lit.str) {
         tag = TTT_Int;
+    } else if (ctx->intern->syms.s_int8.str == lit.str) {
+        tag = TTT_Int8;
+    } else if (ctx->intern->syms.s_int16.str == lit.str) {
+        tag = TTT_Int16;
+    } else if (ctx->intern->syms.s_int32.str == lit.str) {
+        tag = TTT_Int32;
+    } else if (ctx->intern->syms.s_int64.str == lit.str) {
+        tag = TTT_Int64;
+    } else if (ctx->intern->syms.s_uint.str == lit.str) {
+        tag = TTT_Int;
+    } else if (ctx->intern->syms.s_uint8.str == lit.str) {
+        tag = TTT_Int8;
+    } else if (ctx->intern->syms.s_uint16.str == lit.str) {
+        tag = TTT_Int16;
+    } else if (ctx->intern->syms.s_uint32.str == lit.str) {
+        tag = TTT_Int32;
+    } else if (ctx->intern->syms.s_uint64.str == lit.str) {
+        tag = TTT_Int64;
     } else if (ctx->intern->syms.s_bool.str == lit.str) {
         tag = TTT_Bool;
     } else if (ctx->intern->syms.s_string.str == lit.str) {

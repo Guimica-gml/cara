@@ -7,6 +7,15 @@
 struct Symbols {
     struct String s_unit;
     struct String s_int;
+    struct String s_int8;
+    struct String s_int16;
+    struct String s_int32;
+    struct String s_int64;
+    struct String s_uint;
+    struct String s_uint8;
+    struct String s_uint16;
+    struct String s_uint32;
+    struct String s_uint64;
     struct String s_bool;
     struct String s_false;
     struct String s_true;

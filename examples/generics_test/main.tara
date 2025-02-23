@@ -1,0 +1,9 @@
+
+func _start() {
+    mut a = 35;
+    a = __builtin_add(a, 35);
+    a = __builtin_sub(a, 1);
+    mut b = true;
+    b = __builtin_add(b, false);
+    __builtin_syscall(60, a, 0, 0, 0, 0, 0);
+}

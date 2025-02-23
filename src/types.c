@@ -7,6 +7,12 @@ int Type_cmp(const struct Type *a, const struct Type *b) {
     if (diff) return diff;
 
     switch (a->tag) {
+    case TT_Forall:
+        diff = a->forall.binding.len - b->forall.binding.len;
+        if (diff) return diff;
+        diff = a->forall.binding.str - b->forall.binding.str;
+        if (diff) return diff;
+        return Type_cmp(a->forall.in, b->forall.in);
     case TT_Func:
         diff = Type_cmp(a->func.args, b->func.args);
         if (diff) return diff;
@@ -39,6 +45,11 @@ int Type_cmp(const struct Type *a, const struct Type *b) {
 
 void Type_print(const struct Type *this) {
     switch (this->tag) {
+    case TT_Forall:
+        printf("let %.*s in { ", (int)this->forall.binding.len, this->forall.binding.str);
+        Type_print(this->forall.in);
+        printf(" }");
+        return;
     case TT_Func:
         printf("func(");
         Type_print(this->func.args);

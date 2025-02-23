@@ -1,0 +1,14 @@
+
+func mmap(size: int): *() {
+    __builtin_syscall(9, 0, size, prot, 0, 0, flags)
+}
+
+func main(): int = {
+    let s: ^uint8 = "Hello World!";
+    ^s
+};
+
+func _start() {
+    let code = main();
+    __builtin_syscall(60, code, 0, 0, 0, 0, 0);
+}

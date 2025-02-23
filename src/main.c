@@ -9,13 +9,10 @@
 #include <llvm-c/TargetMachine.h>
 
 #include "mtree.h"
-#include "./ast.h"
 #include "./converter.h"
-#include "./lexer.h"
 #include "./parser.h"
 #include "./strings.h"
 #include "./symbols.h"
-#include "./tokens.h"
 #include "./tst.h"
 #include "./codegen.h"
 #include "./typer.h"
@@ -34,8 +31,6 @@ int main(int argc, char** argv) {
         module_alloc = serene_Trea_sub(&alloc),
         tst_alloc = serene_Trea_sub(&alloc),
         strings_alloc = serene_Trea_sub(&alloc);
-        // type_alloc = serene_Trea_sub(&strings_alloc);
-        // ast_alloc = serene_Trea_sub(&type_alloc);
 
     if (argc != 2) {
         printf("Please provide a single filename!\n");
@@ -81,10 +76,7 @@ int main(int argc, char** argv) {
 
     struct Tst tst = convert_ast(&tst_alloc, MTree_index(mtree, main_mod)->data);
 
-    /* struct serene_Trea tst_alloc = serene_Trea_sub(&alloc); */
-    /* struct Tst tst = convert_ast(&tst_alloc, &types, ast); */
     LLVMModuleRef mod = lower(&tst, serene_Trea_sub(&tst_alloc));
-    /* serene_Trea_deinit(tst_alloc); */
 
     printf("\n--- lolvm time: ---\n");
     LLVMDumpModule(mod);
@@ -121,7 +113,9 @@ int main(int argc, char** argv) {
     LLVMDisposeTargetMachine(machine);
     LLVMDisposeModule(mod);
 
-    system("ld -o out out.o");
+    if (system("ld -o out out.o")) {
+        // unused
+    }
 
     serene_Trea_deinit(alloc);
     printf("\n");
